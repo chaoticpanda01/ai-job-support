@@ -20,14 +20,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "profiles",
-        sa.Column(
-            "consent_given_at",
-            sa.DateTime(timezone=True),
-            nullable=True,
-        ),
-    )
+    op.execute("""
+        DO $$ BEGIN
+            ALTER TABLE profiles ADD COLUMN consent_given_at TIMESTAMP WITH TIME ZONE;
+        EXCEPTION
+            WHEN duplicate_column THEN NULL;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
