@@ -79,7 +79,17 @@ _table = sa.table(
 
 
 def upgrade() -> None:
-    op.bulk_insert(_table, _ROWS)
+    op.execute("""
+        INSERT INTO subscription_limits (
+            tier, monthly_resume_uploads, monthly_analyses, monthly_rirekisho,
+            monthly_shokumu, monthly_job_translate, monthly_interviews,
+            monthly_token_budget, pdf_export_enabled, full_culture_access
+        ) VALUES
+            ('free',  2,   5,   1,  1,   5,   3,   50000,   false, false),
+            ('basic', 10,  30,  5,  5,   30,  20,  300000,  true,  false),
+            ('pro',   50,  200, 30, 30,  200, 100, 2000000, true,  true)
+        ON CONFLICT (tier) DO NOTHING;
+    """)
 
 
 def downgrade() -> None:
