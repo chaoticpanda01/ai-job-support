@@ -22,15 +22,13 @@ def upgrade() -> None:
             WHEN duplicate_object THEN NULL;
         END $$;
     """)
-    op.add_column(
-        "users",
-        sa.Column(
-            "role",
-            sa.Enum("user", "admin", name="user_role", create_type=False),
-            nullable=False,
-            server_default="user",
-        ),
-    )
+    op.execute("""
+        DO $$ BEGIN
+            ALTER TABLE users ADD COLUMN role user_role NOT NULL DEFAULT 'user';
+        EXCEPTION
+            WHEN duplicate_column THEN NULL;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
