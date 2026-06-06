@@ -15,7 +15,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE user_role AS ENUM ('user', 'admin')")
+    op.execute("CREATE TYPE IF NOT EXISTS user_role AS ENUM ('user', 'admin')")
     op.add_column(
         "users",
         sa.Column(
