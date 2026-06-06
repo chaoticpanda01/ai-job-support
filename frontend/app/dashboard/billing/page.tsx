@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useSubscription, useBillingEvents, useCreateCheckout, useCustomerPortal } from "@/hooks/useBilling";
 import type { BillingEvent, Subscription, SubscriptionTier } from "@/types/api";
 
@@ -55,6 +56,14 @@ const PLANS: {
 ];
 
 export default function BillingPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading...</div>}>
+      <BillingPageInner />
+    </Suspense>
+  );
+}
+
+function BillingPageInner() {
   const searchParams = useSearchParams();
   const sessionResult = searchParams.get("session"); // "success" | "cancel" from Stripe redirect
 
