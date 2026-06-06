@@ -1,0 +1,61 @@
+# =============================================================================
+# Root .gitignore
+# =============================================================================
+
+# --- Secrets (never commit) ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =============================================================================
+# Frontend
+# =============================================================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/.vercel/
+frontend/dist/
+
+# =============================================================================
+# Backend
+# =============================================================================
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/.venv/
+backend/venv/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/htmlcov/
+backend/.coverage
+backend/dist/
+backend/build/
+backend/*.egg-info/
+
+# --- Alembic generated (keep versions, ignore state) ---
+backend/migrations/versions/__pycache__/
+
+# --- Generated files ---
+backend/generated_pdfs/
+backend/temp_uploads/
+
+# =============================================================================
+# Docker
+# =============================================================================
+# Keep docker-compose.yml; ignore overrides with secrets
+docker-compose.override.yml

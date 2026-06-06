@@ -1,0 +1,96 @@
+services:
+  - type: web
+    name: ai-job-support-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SYNC_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_WEBHOOK_SECRET
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: S3_BUCKET_NAME
+        value: ai-job-support
+      - key: CLOUDFLARE_R2_ENDPOINT_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+  - type: worker
+    name: ai-job-support-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery_app worker --loglevel=info --queues=documents,analysis --concurrency=1
+    envVars:
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: DATABASE_URL
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: REDIS_URL
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: CELERY_BROKER_URL
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: CELERY_RESULT_BACKEND
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: GEMINI_API_KEY
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: AWS_ACCESS_KEY_ID
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: AWS_SECRET_ACCESS_KEY
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: CLOUDFLARE_R2_ENDPOINT_URL
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: S3_BUCKET_NAME
+      - fromService:
+          name: ai-job-support-api
+          type: web
+          envVarKey: AWS_REGION
+      - key: APP_ENV
+        value: production

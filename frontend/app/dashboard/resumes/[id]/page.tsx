@@ -1,0 +1,202 @@
+"use client";
+
+import { use } from "react";
+import Link from "next/link";
+import { useResume, useResumeAnalysis, useAnalyzeResume } from "@/hooks/useResumes";
+import type { ResumeAnalysis } from "@/types/api";
+
+interface Props {
+  params: Promise<{ id: string }>;
+}
+
+export default function ResumeDetailPage({ params }: Props) {
+  const { id } = use(params);
+  const { data: resume, isLoading, error } = useResume(id);
+  const { data: analysis, isLoading: analysisLoading } = useResumeAnalysis(id);
+  const analyzeMutation = useAnalyzeResume();
+
+  if (isLoading) return <PageSkeleton />;
+  if (error || !resume) {
+    return (
+      <div className="space-y-4">
+        <BackLink />
+        <p className="text-sm text-destructive">Resume not found.</p>
+      </div>
+    );
+  }
+
+  const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
+  const uploadedAt = new Date(resume.created_at).toLocaleDateString();
+
+  return (
+    <div className="space-y-8">
+      <BackLink />
+
+      {/* Resume meta */}
+      <div className="rounded-lg border bg-card p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">{resume.file_name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {fileSizeKB} KB · Uploaded {uploadedAt}
+              {resume.is_primary && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Primary
+                </span>
+              )}
+            </p>
+          </div>
+          {resume.download_url && (
+            <a
+              href={resume.download_url}
+              download
+              className="shrink-0 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+            >
+              Download
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Analysis */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-medium">AI Analysis</h2>
+          {!analysis && !analysisLoading && (
+            <button
+              onClick={() => analyzeMutation.mutate({ resumeId: id })}
+              disabled={analyzeMutation.isPending}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {analyzeMutation.isPending ? "Queuing…" : "Analyse resume"}
+            </button>
+          )}
+        </div>
+
+        {analysisLoading && (
+          <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Analysing your resume… this may take up to 30 seconds.
+          </div>
+        )}
+
+        {analysis && <AnalysisCard analysis={analysis} />}
+
+        {!analysis && !analysisLoading && analyzeMutation.isSuccess && (
+          <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Analysis queued — results will appear here shortly.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
+  const r = analysis.result;
+  const score = r.japan_market_score;
+  const scoreColor =
+    score >= 81 ? "text-green-600" : score >= 61 ? "text-yellow-600" : "text-red-600";
+
+  return (
+    <div className="space-y-6 rounded-lg border bg-card p-6 animate-fade-in">
+      {/* Score */}
+      <div className="flex items-center gap-4">
+        <div className={`text-5xl font-bold tabular-nums ${scoreColor}`}>{score}</div>
+        <div>
+          <p className="text-sm font-medium">Japan Market Score</p>
+          <p className="text-xs text-muted-foreground">{r.summary}</p>
+        </div>
+      </div>
+
+      <hr />
+
+      {/* Strengths */}
+      {r.strengths.length > 0 && (
+        <AnalysisSection title="Strengths" items={r.strengths} variant="positive" />
+      )}
+
+      {/* Gaps */}
+      {r.gaps.length > 0 && (
+        <AnalysisSection title="Gaps" items={r.gaps} variant="negative" />
+      )}
+
+      {/* Recommendations */}
+      {r.recommendations.length > 0 && (
+        <AnalysisSection title="Recommendations" items={r.recommendations} variant="neutral" />
+      )}
+
+      {/* Language */}
+      <div>
+        <p className="text-sm font-medium">Language Assessment</p>
+        <p className="mt-1 text-sm text-muted-foreground">{r.language_assessment}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Estimated Japanese required:{" "}
+          <span className="font-medium text-foreground">
+            {r.estimated_japanese_level_required === "none"
+              ? "Not required"
+              : r.estimated_japanese_level_required}
+          </span>
+        </p>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Analysed {new Date(analysis.created_at).toLocaleString()} · {analysis.ai_model} ·{" "}
+        {analysis.input_tokens + analysis.output_tokens} tokens
+      </p>
+    </div>
+  );
+}
+
+function AnalysisSection({
+  title,
+  items,
+  variant,
+}: {
+  title: string;
+  items: string[];
+  variant: "positive" | "negative" | "neutral";
+}) {
+  const dot =
+    variant === "positive"
+      ? "bg-green-500"
+      : variant === "negative"
+        ? "bg-red-500"
+        : "bg-blue-500";
+
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium">{title}</p>
+      <ul className="space-y-1.5">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link
+      href="/dashboard/resumes"
+      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      ← Back to resumes
+    </Link>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+      <div className="h-24 animate-pulse rounded-lg bg-muted" />
+      <div className="h-64 animate-pulse rounded-lg bg-muted" />
+    </div>
+  );
+}
