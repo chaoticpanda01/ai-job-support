@@ -1,0 +1,159 @@
+version: "3.9"
+
+# =============================================================================
+# Local development stack
+# Services: postgres, redis, backend API, celery-worker, frontend
+#
+# Usage:
+#   docker compose up              — start all services
+#   docker compose up backend      — start backend only (+ its dependencies)
+#   docker compose logs -f backend — tail backend logs
+#   docker compose exec backend bash
+# =============================================================================
+
+x-backend-env: &backend-env
+  APP_ENV: development
+  DEBUG: "true"
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/ai_job_support
+  DATABASE_SYNC_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/ai_job_support
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+  ALLOWED_ORIGINS: http://localhost:3000
+  PDF_FONT_PATH: /usr/share/fonts/noto
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_job_support
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_job_support"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend:/app                        # Hot-reload in development
+    command: >
+      uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload
+        --reload-dir /app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Celery worker (documents + analysis queues)
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: celery
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery Flower — task monitoring UI (dev only)
+  # Access: http://localhost:5555
+  # ---------------------------------------------------------------------------
+  flower:
+    image: mher/flower:2.0
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      FLOWER_PORT: 5555
+    depends_on:
+      - redis
+    profiles:
+      - monitoring                            # Only starts with: docker compose --profile monitoring up
+
+  # ---------------------------------------------------------------------------
+  # Next.js frontend
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    profiles:
+      - full                                  # Only starts with: docker compose --profile full up
+      # In development, run frontend with `npm run dev` directly for fast HMR
+
+volumes:
+  postgres_data:
+  redis_data:

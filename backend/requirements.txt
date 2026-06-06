@@ -1,0 +1,59 @@
+# =============================================================================
+# Backend — Production Dependencies
+# Python 3.12+
+# Pin minor versions; allow patch updates.
+# =============================================================================
+
+# --- Web Framework ---
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+python-multipart==0.0.*          # multipart/form-data (file uploads)
+httpx==0.28.*                    # async HTTP client (internal calls, URL fetch)
+
+# --- Database ---
+sqlalchemy[asyncio]==2.0.*
+asyncpg==0.30.*                  # async PostgreSQL driver
+alembic==1.14.*
+
+# --- Cache / Queue ---
+redis[hiredis]==5.2.*
+celery[redis]==5.4.*
+kombu==5.4.*                     # Celery transport; pinned for compatibility
+
+# --- Authentication ---
+python-jose[cryptography]==3.3.* # JWT validation (Clerk JWKS)
+svix==1.95.*                     # Clerk webhook signature verification
+
+# --- AI ---
+google-genai>=1.0               # Gemini API SDK (new package)
+anthropic==0.50.*                # Claude API SDK (kept for optional fallback)
+openai==1.65.*                   # OpenAI fallback provider
+
+# --- File Processing ---
+pypdf2==3.0.*                    # PDF text extraction
+python-docx==1.1.*               # DOCX text extraction
+python-magic==0.4.*              # MIME type detection from file bytes
+pillow==11.1.*                   # Image handling (resume photo placeholder)
+
+# --- PDF Generation ---
+weasyprint==63.*                 # HTML/CSS → PDF with Japanese font support
+
+# --- Payments ---
+stripe==11.5.*
+
+# --- Email ---
+resend==2.7.*
+
+# --- Validation & Settings ---
+pydantic==2.10.*
+pydantic-settings==2.7.*
+email-validator==2.2.*
+
+# --- Observability ---
+sentry-sdk[fastapi,celery]==2.20.*
+
+# --- Utilities ---
+python-dateutil==2.9.*
+pytz==2025.1
+orjson==3.10.*                   # Fast JSON serialization for FastAPI responses
+boto3==1.37.*                    # AWS S3 client

@@ -1,0 +1,28 @@
+# =============================================================================
+# Backend — Development & Testing Dependencies
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+# =============================================================================
+
+-r requirements.txt
+
+# --- Testing ---
+pytest==8.3.*
+pytest-asyncio==0.25.*
+pytest-cov==6.0.*
+httpx==0.28.*                    # ASGI test client for FastAPI
+faker==33.*                      # Test data generation
+factory-boy==3.3.*               # Model factories
+
+# --- Type Checking ---
+mypy==1.14.*
+types-python-dateutil==2.9.*
+types-pytz==2025.1.*
+boto3-stubs[s3]==1.37.*
+
+# --- Code Quality ---
+ruff==0.9.*                      # Linter + formatter (replaces flake8, isort, black)
+
+# --- Local Dev Utilities ---
+watchfiles==1.0.*                # Used by uvicorn --reload
+ipython==8.31.*
+rich==13.9.*                     # Pretty terminal output

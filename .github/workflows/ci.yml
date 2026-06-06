@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Frontend: type-check + lint + build
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+
+  # ---------------------------------------------------------------------------
+  # Backend: lint + type-check + tests
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_job_support_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagic1 fonts-noto-cjk \
+            libpango-1.0-0 libpangocairo-1.0-0 libcairo2
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy type check
+        run: mypy app/
+
+      - name: Alembic migration check
+        run: alembic check
+        env:
+          DATABASE_SYNC_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/ai_job_support_test
+
+      - name: Run tests
+        run: pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_job_support_test
+          DATABASE_SYNC_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/ai_job_support_test
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+          APP_ENV: test
+          CLERK_SECRET_KEY: sk_test_placeholder
+          CLERK_WEBHOOK_SECRET: whsec_placeholder
+          ANTHROPIC_API_KEY: sk-ant-placeholder
+          AWS_ACCESS_KEY_ID: placeholder
+          AWS_SECRET_ACCESS_KEY: placeholder
+          S3_BUCKET_NAME: test-bucket
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          directory: backend/htmlcov
+          fail_ci_if_error: false
+
+  # ---------------------------------------------------------------------------
+  # Docker build smoke test
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: |
+          docker build \
+            --target runtime \
+            --tag ai-job-support-backend:ci \
+            ./backend
+
+      - name: Verify Japanese fonts in backend image
+        run: |
+          docker run --rm ai-job-support-backend:ci \
+            fc-list :lang=ja | grep -q "Noto"
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --target runner \
+            --build-arg NEXT_PUBLIC_API_URL=http://placeholder \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_placeholder \
+            --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder \
+            --tag ai-job-support-frontend:ci \
+            ./frontend
