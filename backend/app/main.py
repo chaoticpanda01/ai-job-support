@@ -13,7 +13,6 @@ from typing import AsyncGenerator
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
@@ -74,10 +73,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.allowed_hosts_list,
 )
 
 
