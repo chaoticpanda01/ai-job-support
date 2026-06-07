@@ -5,6 +5,8 @@ Bridges language, cultural, and bureaucratic gaps through AI-generated documents
 
 **Fully free — no paywalls, no subscription tiers.**
 
+**Live:** https://ai-job-support.vercel.app
+
 ---
 
 ## Tech Stack
@@ -13,13 +15,13 @@ Bridges language, cultural, and bureaucratic gaps through AI-generated documents
 |-------|-----------|
 | Frontend | Next.js 15, TypeScript (strict), Tailwind CSS |
 | Backend | FastAPI, Python 3.12 |
-| AI Engine | Google Gemini API (gemini-2.0-flash-lite) |
-| Database | PostgreSQL 16 |
-| Cache / Queue | Redis 7 + Celery |
+| AI Engine | Google Gemini API (gemini-2.5-flash) |
+| Database | PostgreSQL 16 (Neon) |
+| Cache | Redis 7 (Upstash) — rate limiting only |
+| Background tasks | FastAPI BackgroundTasks |
 | Auth | Clerk |
-| File Storage | AWS S3 / Cloudflare R2 |
+| File Storage | Backblaze B2 (S3-compatible API) |
 | Email | Resend |
-| Observability | Sentry |
 
 ---
 
@@ -28,7 +30,7 @@ Bridges language, cultural, and bureaucratic gaps through AI-generated documents
 ```
 ai-job-support/
 ├── frontend/          # Next.js 15 application
-├── backend/           # FastAPI application + Celery workers
+├── backend/           # FastAPI application
 ├── database/          # schema.sql — single source of truth for DB schema
 ├── docs/              # Technical specification
 └── .github/workflows/ # CI pipeline
@@ -41,7 +43,7 @@ ai-job-support/
 - Node.js >= 20
 - Python >= 3.12
 - PostgreSQL 16 (local install or Docker)
-- Redis 7 (required for Celery workers; core pages work without it)
+- Redis 7 (optional — used for rate limiting only; all features work without it)
 
 ---
 
@@ -59,11 +61,8 @@ Create `backend/.env`:
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ai_job_support
 DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/ai_job_support
 REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/1
-CELERY_RESULT_BACKEND=redis://localhost:6379/2
 
 # Clerk — get from clerk.com dashboard
-CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 CLERK_WEBHOOK_SECRET=whsec_...
 # Derive from your publishable key: https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json
@@ -71,22 +70,26 @@ CLERK_JWKS_URL=https://<your-clerk-instance>.clerk.accounts.dev/.well-known/jwks
 
 # Google Gemini — get free key from aistudio.google.com
 GEMINI_API_KEY=AIza...
-GEMINI_DEFAULT_MODEL=gemini-2.0-flash-lite
+GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 
-# AWS S3 / Cloudflare R2
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=ap-northeast-1
-S3_BUCKET_NAME=
+# Backblaze B2 (S3-compatible) — create bucket at backblaze.com
+AWS_ACCESS_KEY_ID=<b2-key-id>
+AWS_SECRET_ACCESS_KEY=<b2-app-key>
+AWS_REGION=<b2-region>           # e.g. ca-east-006
+S3_BUCKET_NAME=<bucket-name>
+CLOUDFLARE_R2_ENDPOINT_URL=https://s3.<region>.backblazeb2.com   # REQUIRED — points boto3 to B2
 
 # Optional — leave empty for local dev
 RESEND_API_KEY=
-SENTRY_DSN=
 SECRET_KEY=local-dev-secret
 APP_ENV=development
 DEBUG=true
 ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+> **IMPORTANT:** Every `boto3.client("s3", ...)` call in the backend uses `CLOUDFLARE_R2_ENDPOINT_URL` to point to Backblaze B2. Without it, boto3 connects to AWS S3 (wrong endpoint) and all file operations fail.
+
+> **Clerk session token:** In Clerk Dashboard → Configure → Sessions → Customize session token, add `{"email": "{{user.primary_email_address}}"}`. This is required because the database has an email format constraint on the users table.
 
 Create `frontend/.env.local`:
 ```env
@@ -98,8 +101,6 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard/resumes
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
 ```
-
-> **Finding your CLERK_JWKS_URL:** In your Clerk dashboard, go to API Keys. Your JWKS URL is `https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json`. The instance name is visible in your publishable key after `pk_test_`.
 
 ### 2. Set up PostgreSQL
 
@@ -142,14 +143,7 @@ Frontend: **http://localhost:3000**
 Backend API: **http://localhost:8000**  
 Swagger docs: **http://localhost:8000/docs**
 
-### 6. Start Celery workers (required for document generation)
-
-```bash
-# From /backend with venv active
-celery -A app.workers.celery_app worker --loglevel=info --queues=documents,analysis --concurrency=2
-```
-
-> The app works without Celery for all features except async document generation (履歴書 / 職務経歴書). Resume analysis and all other features work without workers.
+> **No Celery workers needed.** Resume analysis and document generation run as FastAPI BackgroundTasks — no separate worker process required.
 
 ---
 
@@ -185,9 +179,6 @@ docker compose up postgres redis -d
 
 # Full stack
 docker compose up
-
-# Include Flower task monitoring (http://localhost:5555)
-docker compose --profile monitoring up
 ```
 
 ---
@@ -239,7 +230,7 @@ npm run format
 
 | Feature | Description |
 |---------|-------------|
-| Landing Page | Marketing page at `/` with i18n (EN / ID / JP) |
+| Landing Page | Marketing page at `/` with language switcher (EN / ID / JP) |
 | Resume Analysis | AI-powered gap analysis for the Japanese market |
 | 履歴書 Generation | JIS-standard Japanese resume (async, downloadable PDF) |
 | 職務経歴書 Generation | Achievement-oriented career narrative document (async PDF) |
@@ -249,7 +240,7 @@ npm run format
 | Visa Guidance | Personalised visa checklist and roadmap |
 | Culture Content | Browseable articles and glossary for Indonesian professionals |
 | AI Chatbot | Floating widget (no login required) — Japan career Q&A in EN/ID/JP |
-| Language Switcher | EN / ID / JP toggle on every page |
+| Language Switcher | EN / ID / JP — wired across all pages including onboarding and dashboard |
 | Admin Panel | `/admin` — manage users, culture topics, glossary (role=admin required) |
 | Account Deletion | Full GDPR/PDPA-compliant account deletion from Settings |
 
@@ -262,10 +253,12 @@ Full documentation: [`docs/japan-job-platform-techspec.md`](docs/japan-job-platf
 Key decisions:
 - **Next.js proxy** — all `/api/*` requests go through `app/api/[...path]/route.ts`, which injects the Clerk JWT; browsers never call FastAPI directly
 - **JIT user creation** — if the Clerk webhook hasn't fired (local dev), the middleware creates the user row on first valid JWT
-- **SSE** for interview streaming — plain HTTP, works on Vercel + Railway without WebSocket support
+- **SSE** for interview streaming — plain HTTP, works on Vercel without WebSocket support
+- **FastAPI BackgroundTasks** — resume analysis and document generation run in-process; no Celery or external queue needed
 - **Soft-delete** on `job_postings` via `deleted_at`
 - **Ownership in query** — `WHERE user_id = current_user.id` inside every DB query, never checked after fetch
 - **Billing deferred** — payment code exists in `backend/app/api/v1/billing.py` and `frontend/app/dashboard/billing/` but is intentionally disabled; all features are free
+- **i18n** — `useLang()` hook + `t(section, key, lang)` wired to every page; translations live in `frontend/lib/i18n.ts`
 
 ---
 
@@ -276,16 +269,16 @@ Key decisions:
 | `DATABASE_URL` | backend | Yes | PostgreSQL async URL (`postgresql+asyncpg://...`) |
 | `DATABASE_SYNC_URL` | backend | Yes | PostgreSQL sync URL for Alembic (`postgresql+psycopg2://...`) |
 | `GEMINI_API_KEY` | backend | Yes | Google Gemini API key |
+| `GEMINI_DEFAULT_MODEL` | backend | Yes | Model name, e.g. `gemini-2.5-flash` |
 | `CLERK_SECRET_KEY` | both | Yes | Clerk secret key |
-| `CLERK_PUBLISHABLE_KEY` | backend | Yes | Clerk publishable key |
 | `CLERK_JWKS_URL` | backend | Yes | Instance-specific JWKS URL for JWT validation |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | frontend | Yes | Clerk publishable key |
 | `NEXT_PUBLIC_API_URL` | frontend | Yes | Backend URL (`http://localhost:8000` locally) |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | backend | Yes* | S3 file storage (*required for resume upload/download) |
-| `S3_BUCKET_NAME` | backend | Yes* | S3 bucket for resumes and generated PDFs |
-| `REDIS_URL` | backend | No | Required only for Celery workers |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | backend | Yes | Backblaze B2 credentials (S3-compatible) |
+| `S3_BUCKET_NAME` | backend | Yes | B2 bucket for resumes and generated PDFs |
+| `CLOUDFLARE_R2_ENDPOINT_URL` | backend | Yes | B2 S3-compatible endpoint, e.g. `https://s3.ca-east-006.backblazeb2.com` |
+| `REDIS_URL` | backend | No | Used for rate limiting; app works without it |
 | `RESEND_API_KEY` | backend | No | Transactional emails |
-| `SENTRY_DSN` | backend | No | Error monitoring |
 | `STRIPE_SECRET_KEY` | backend | No | Billing (disabled — backup only) |
 
 Never commit `.env` or `.env.local` files.
@@ -294,25 +287,23 @@ Never commit `.env` or `.env.local` files.
 
 ## CI/CD
 
-GitHub Actions runs on every push to `main` and `develop`:
-
 | Job | Checks |
 |-----|--------|
 | Frontend CI | Type check, lint, format, build |
 | Backend CI | Ruff lint + format, mypy, alembic check, pytest |
-| Docker Build | Build both images; verify Japanese fonts in backend image |
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+**Deployment:**
+- Backend → Render (auto-deploys on `git push main`)
+- Frontend → Vercel (manual: `cd frontend && vercel --prod`)
+
 ---
 
-## Known Issues / Pre-production Checklist
+## Known Issues
 
-- [ ] Re-enable Clerk auth middleware in `frontend/middleware.ts` (currently disabled for local dev)
-- [ ] `alembic.ini` has a hardcoded local DB URL — restore `%(DATABASE_SYNC_URL)s` before production
-- [ ] WeasyPrint + Noto CJK fonts must be installed for PDF generation
-- [ ] No culture/glossary seed data — add via admin panel after first run
-- [ ] No integration tests — only unit tests exist
-- [ ] Rate limiter is wired but Redis must be reachable
+- Render free tier spins down after 15 min idle → ~50s cold start on first request. Mitigate with a cron ping to `/health` every 10 min.
+- GitHub Actions CI is currently failing (missing env secrets in CI config) — non-blocking, Render deploys from git push regardless.
+- Vercel is not connected to GitHub auto-deploy — requires manual `vercel --prod` for frontend changes.
 
-Current status: **All features implemented and working locally.**
+Current status: **Fully deployed and live. All AI features confirmed working.**
