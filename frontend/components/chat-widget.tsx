@@ -37,7 +37,7 @@ export function ChatWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/chat/message", {
+      const res = await fetch("/api/v1/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history: messages.slice(-10) }),
