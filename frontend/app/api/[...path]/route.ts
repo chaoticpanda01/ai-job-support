@@ -55,12 +55,25 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     duplex: "half",
   });
 
-  // Stream the response back to the browser
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("transfer-encoding"); // avoid chunked encoding issues
   responseHeaders.delete("content-encoding");  // body already decoded by Node fetch; don't re-decode
 
-  return new NextResponse(upstream.body, {
+  // SSE endpoints must stream; everything else should be buffered to avoid
+  // issues with gzip-decoded streams being re-encoded or truncated.
+  const isSSE = upstream.headers.get("content-type")?.includes("text/event-stream");
+
+  if (isSSE) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: responseHeaders,
+    });
+  }
+
+  // Buffer non-streaming responses so the body is fully read before sending.
+  const body = await upstream.text();
+  return new NextResponse(body, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
