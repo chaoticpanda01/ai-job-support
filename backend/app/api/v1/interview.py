@@ -345,7 +345,7 @@ async def _stream_question(
         await usage_tracker.record(
             user_id=user_id,
             feature="interview_message",
-            model=settings.anthropic_default_model,
+            model=settings.gemini_default_model,
             input_tokens=input_tokens,
             output_tokens=len(full_text.split()),  # approximate — stream doesn't return counts
             latency_ms=latency_ms,
@@ -445,7 +445,7 @@ async def _stream_eval_and_question(
         await usage_tracker.record(
             user_id=user_id,
             feature="interview_message",
-            model=settings.anthropic_default_model,
+            model=settings.gemini_default_model,
             input_tokens=eval_in,
             output_tokens=eval_out + len(full_question.split()),
             latency_ms=latency_ms,
@@ -513,7 +513,7 @@ async def _stream_summary(
         await usage_tracker.record(
             user_id=user_id,
             feature="interview_message",
-            model=settings.anthropic_default_model,
+            model=settings.gemini_default_model,
             input_tokens=in_tok,
             output_tokens=out_tok,
             latency_ms=latency_ms,

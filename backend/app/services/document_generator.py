@@ -161,7 +161,7 @@ class DocumentGenerator:
         await usage_tracker.record(
             user_id=user_id,
             feature=feature,
-            model=settings.anthropic_default_model,
+            model=settings.gemini_default_model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             latency_ms=latency_ms,
@@ -171,7 +171,7 @@ class DocumentGenerator:
         return GeneratedDocumentOutput(
             content=content,
             file_url=s3_key,
-            ai_model=settings.anthropic_default_model,
+            ai_model=settings.gemini_default_model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
@@ -183,12 +183,14 @@ class DocumentGenerator:
     async def _fetch_and_extract(self, s3_key: str, mime_type: str) -> str:
         """Fetch resume bytes from S3 and extract plain text."""
         try:
-            s3 = boto3.client(
-                "s3",
+            s3_kwargs: dict = dict(
                 region_name=settings.aws_region,
                 aws_access_key_id=settings.aws_access_key_id,
                 aws_secret_access_key=settings.aws_secret_access_key,
             )
+            if settings.cloudflare_r2_endpoint_url:
+                s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
+            s3 = boto3.client("s3", **s3_kwargs)
             obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=s3_key)
             file_bytes: bytes = obj["Body"].read()
         except Exception as exc:
