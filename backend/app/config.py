@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # --- Gemini (primary AI provider) ---
     gemini_api_key: str
-    gemini_default_model: str = "gemini-1.5-flash"
+    gemini_default_model: str = "gemini-2.5-flash"
 
     # --- Anthropic (optional fallback) ---
     anthropic_api_key: str = ""
