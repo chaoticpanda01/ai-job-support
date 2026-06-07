@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 _TRANSLATION_MAX_TOKENS = 2000
-_MATCH_MAX_TOKENS = 800
+_MATCH_MAX_TOKENS = 2048
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ async def translate_job(
     await usage_tracker.record(
         user_id=current_user.user_id,
         feature="job_translation",
-        model=settings.anthropic_default_model,
+        model=settings.gemini_default_model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         latency_ms=latency_ms,
@@ -310,14 +310,16 @@ async def match_job(
             detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
         ) from exc
 
-    # -- Extract resume text from S3
+    # -- Extract resume text from S3 / Backblaze B2
     try:
-        s3 = boto3.client(
-            "s3",
+        s3_kwargs: dict = dict(
             region_name=settings.aws_region,
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
         )
+        if settings.cloudflare_r2_endpoint_url:
+            s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
+        s3 = boto3.client("s3", **s3_kwargs)
         obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=resume.file_url)
         file_bytes: bytes = obj["Body"].read()
     except Exception as exc:
@@ -385,7 +387,7 @@ async def match_job(
     await usage_tracker.record(
         user_id=current_user.user_id,
         feature="job_match",
-        model=settings.anthropic_default_model,
+        model=settings.gemini_default_model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         latency_ms=latency_ms,
