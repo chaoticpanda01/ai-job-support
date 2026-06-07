@@ -58,6 +58,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
   // Stream the response back to the browser
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("transfer-encoding"); // avoid chunked encoding issues
+  responseHeaders.delete("content-encoding");  // body already decoded by Node fetch; don't re-decode
 
   return new NextResponse(upstream.body, {
     status: upstream.status,
