@@ -4,7 +4,7 @@
 **Last Updated:** June 7, 2026  
 **Repo Root:** `/Users/rivky/Projects/ai-job-support/`  
 **GitHub:** `https://github.com/chaoticpanda01/ai-job-support` (private)  
-**Status:** Fully deployed and live. All AI features confirmed working.
+**Status:** Fully deployed and live. All AI features working. Full i18n implemented.
 
 ---
 
@@ -49,21 +49,21 @@ An AI-powered career enablement platform for **Indonesian professionals seeking 
 
 | Feature | Status |
 |---------|--------|
-| User auth + onboarding (4-step, consent-first) | Done |
-| Resume upload (PDF/DOCX) + AI parsing | Done |
-| Resume analysis (gaps, Japan market score) | Done ✅ confirmed working |
-| Rirekisho generation (async, downloadable PDF) | Done |
-| Shokumukeirekisho generation (async, downloadable PDF) | Done |
-| Job translation (URL paste + raw text) | Done |
-| Job-resume match scoring | Done |
-| Application status tracking (Kanban) | Done |
-| Interview practice (SSE streaming) | Done ✅ real async streaming |
-| Visa guidance checklist | Done ✅ confirmed working |
-| Culture topics + glossary | Done |
-| AI chatbot (no auth) | Done |
-| Language switcher (EN/ID/JP) | Done (landing page only — dashboard pages still hardcoded EN) |
-| Admin panel (users, culture CMS) | Done |
-| Account deletion (GDPR/PDPA) | Done |
+| User auth + onboarding (4-step, consent-first) | ✅ Done + translated |
+| Resume upload (PDF/DOCX) + AI parsing | ✅ Done |
+| Resume analysis (gaps, Japan market score) | ✅ Done + confirmed working |
+| Rirekisho generation (async, downloadable PDF) | ✅ Done |
+| Shokumukeirekisho generation (async, downloadable PDF) | ✅ Done |
+| Job translation (URL paste + raw text) | ✅ Done |
+| Job-resume match scoring | ✅ Done |
+| Application status tracking (Kanban) | ✅ Done |
+| Interview practice (SSE streaming) | ✅ Done + real async streaming |
+| Visa guidance checklist | ✅ Done + confirmed working |
+| Culture topics + glossary | ✅ Done |
+| AI chatbot (no auth) | ✅ Done |
+| Language switcher (EN/ID/JP) | ✅ Done — works across ALL pages now |
+| Admin panel (users, culture CMS) | ✅ Done |
+| Account deletion (GDPR/PDPA) | ✅ Done |
 | Stripe billing + usage enforcement | Built, disabled |
 
 ### Non-Functional Requirements
@@ -121,8 +121,9 @@ PostgreSQL 16 (Neon)      Redis 7 (Upstash) -- rate limiting only
 8. **Next.js proxy is the sole API gateway** — proxy strips content-encoding, content-length, transfer-encoding headers. All non-SSE responses are buffered via `upstream.text()`.
 9. **No TrustedHostMiddleware** — removed because it blocked Vercel→Render proxy requests. CORS handles security.
 10. **Billing disabled** — check_budget() is a no-op; billing router excluded from router.py.
-11. **ALL boto3 clients MUST use endpoint_url** — every boto3.client("s3", ...) call MUST include `endpoint_url=settings.cloudflare_r2_endpoint_url`. Without it, boto3 resolves to AWS S3 (wrong endpoint) and fails with NameResolutionError.
-12. **Gemini JSON mode** — all AI calls that return JSON MUST pass `json_mode=True` to `ai_client.generate()`. This sets `response_mime_type="application/json"` and prevents Gemini from generating malformed JSON (unescaped characters, missing commas, truncated fences).
+11. **ALL boto3 clients MUST use endpoint_url** — every `boto3.client("s3", ...)` call MUST include `endpoint_url=settings.cloudflare_r2_endpoint_url`. Without it, boto3 resolves to AWS S3 (wrong endpoint) and fails.
+12. **Gemini JSON mode** — all AI calls returning structured JSON MUST pass `json_mode=True` to `ai_client.generate()`. This sets `response_mime_type="application/json"` and prevents malformed JSON.
+13. **i18n via useLang() + t()** — all user-visible strings MUST use `t("section", "key", lang)`. Never hardcode English in UI components. See Section 9 for the i18n pattern.
 
 ---
 
@@ -162,7 +163,7 @@ Migrations: All 4 applied
 CONSTRAINT users_email_fmt CHECK (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$')
 ```
 
-This CHECK constraint means JIT user creation requires the email claim in the Clerk JWT. This was fixed by customising the Clerk session token (Configure → Sessions → Customize session token → `{"email": "{{user.primary_email_address}}"}`).
+Requires email claim in Clerk JWT. Fixed via: Clerk Dashboard → Configure → Sessions → Customize session token → `{"email": "{{user.primary_email_address}}"}`.
 
 ### Migrations Status
 
@@ -181,70 +182,71 @@ This CHECK constraint means JIT user creation requires the email claim in the Cl
 ai-job-support/
 ├── HANDOFF.md
 ├── README.md
-├── docker-compose.yml
-├── .github/workflows/ci.yml          <- CI fails are non-blocking (Render deploys from git push)
 ├── database/schema.sql               <- SOURCE OF TRUTH for all DDL
-├── docs/japan-job-platform-techspec.md
+├── .github/workflows/ci.yml          <- CI fails non-blocking (Render deploys from git push)
 │
 ├── frontend/                         # Next.js 15
 │   ├── middleware.ts                 Clerk auth — protects /dashboard/*, /onboarding
 │   ├── next.config.ts                ignoreDuringBuilds: true (ESLint + TypeScript)
-│   ├── .env.local                    local env (never commit)
+│   │
 │   ├── lib/
-│   │   ├── i18n.ts                   translations: nav, landing, features, dashboard (partial)
-│   │   ├── language-context.tsx      useLang() hook — currently only used in 3 files
-│   │   └── api-client.ts
+│   │   ├── i18n.ts                   *** ALL TRANSLATIONS LIVE HERE ***
+│   │   │                             Sections: nav, landing, features, common, onboarding,
+│   │   │                             resumes, jobs, interview, visa, documents, settings, dashboard
+│   │   ├── language-context.tsx      LanguageProvider + useLang() hook
+│   │   └── providers.tsx             Wraps app with QueryClientProvider + LanguageProvider
 │   │
 │   ├── app/
-│   │   ├── layout.tsx                ClerkProvider + QueryProvider + ChatWidget
-│   │   ├── page.tsx                  Landing page (uses useLang() ✅)
-│   │   ├── api/[...path]/route.ts    Proxy — injects Clerk JWT, buffers body, strips encoding headers
-│   │   ├── onboarding/page.tsx       4-step wizard (hardcoded EN ⚠️)
-│   │   ├── admin/page.tsx            Admin panel (hardcoded EN)
+│   │   ├── layout.tsx                ClerkProvider + Providers (includes LanguageProvider)
+│   │   ├── page.tsx                  Landing page — uses useLang() ✅
+│   │   ├── api/[...path]/route.ts    Proxy — injects Clerk JWT, buffers body, strips headers
+│   │   ├── onboarding/page.tsx       4-step wizard — uses useLang() ✅
 │   │   └── dashboard/
-│   │       ├── layout.tsx            Nav sidebar (uses useLang() ✅)
-│   │       ├── resumes/page.tsx      (hardcoded EN ⚠️)
-│   │       ├── resumes/[id]/page.tsx (hardcoded EN ⚠️)
-│   │       ├── documents/page.tsx    (hardcoded EN ⚠️)
-│   │       ├── documents/[id]/page.tsx (hardcoded EN ⚠️)
-│   │       ├── jobs/page.tsx         (hardcoded EN ⚠️)
-│   │       ├── jobs/[id]/page.tsx    (hardcoded EN ⚠️)
-│   │       ├── interview/page.tsx    (hardcoded EN ⚠️)
-│   │       ├── interview/new/page.tsx (hardcoded EN ⚠️)
-│   │       ├── interview/[id]/page.tsx (hardcoded EN ⚠️)
-│   │       ├── visa/page.tsx         (hardcoded EN ⚠️)
-│   │       ├── visa/[id]/page.tsx    (hardcoded EN ⚠️)
-│   │       ├── culture/page.tsx      (hardcoded EN ⚠️)
-│   │       ├── settings/page.tsx     (hardcoded EN ⚠️)
+│   │       ├── layout.tsx            Nav sidebar + language switcher — uses useLang() ✅
+│   │       ├── resumes/page.tsx      uses useLang() ✅
+│   │       ├── resumes/[id]/page.tsx uses useLang() ✅
+│   │       ├── documents/page.tsx    uses useLang() ✅
+│   │       ├── documents/[id]/page.tsx
+│   │       ├── documents/rirekisho/new/page.tsx
+│   │       ├── documents/shokumu/new/page.tsx
+│   │       ├── jobs/page.tsx         uses useLang() ✅
+│   │       ├── jobs/[id]/page.tsx    uses useLang() ✅
+│   │       ├── jobs/translate/page.tsx uses useLang() ✅
+│   │       ├── jobs/applications/page.tsx uses useLang() ✅
+│   │       ├── interview/page.tsx    uses useLang() ✅
+│   │       ├── interview/new/page.tsx uses useLang() ✅
+│   │       ├── interview/[id]/page.tsx uses useLang() ✅
+│   │       ├── visa/page.tsx         uses useLang() ✅
+│   │       ├── visa/[id]/page.tsx    uses useLang() ✅
+│   │       ├── culture/page.tsx      (not yet translated)
+│   │       ├── settings/page.tsx     uses useLang() ✅
 │   │       └── billing/page.tsx      Built, not linked in nav
 │   │
 │   └── components/
 │       ├── chat-widget.tsx           Uses /api/v1/chat/message (via proxy, NOT localhost)
-│       └── language-switcher.tsx     (uses useLang() ✅)
+│       └── language-switcher.tsx     uses useLang() ✅
 │
 └── backend/                          # FastAPI
-    ├── .python-version               3.12.0 (pins Python on Render)
+    ├── .python-version               3.12.0
     ├── alembic.ini                   Uses %(DATABASE_SYNC_URL)s
     │
     └── app/
-        ├── main.py                   NO TrustedHostMiddleware (removed — broke Vercel→Render)
-        ├── config.py                 gemini_default_model = "gemini-2.5-flash"; cloudflare_r2_endpoint_url field present
+        ├── main.py                   NO TrustedHostMiddleware
+        ├── config.py                 gemini_default_model, cloudflare_r2_endpoint_url declared
         ├── database.py               Async engine
         ├── dependencies.py           DbSession, AuthUser, AdminUser
         │
         ├── middleware/
-        │   ├── clerk_auth.py         JWKS validation + JIT user creation; skips JIT if email missing
+        │   ├── clerk_auth.py         JWKS validation + JIT user creation
         │   └── rate_limiter.py       Redis-backed; degrades gracefully if Redis down
         │
         ├── api/v1/
         │   ├── router.py             billing excluded
-        │   ├── auth.py               /me, /consent, /webhook
-        │   ├── resumes.py            Uses BackgroundTasks for analysis (not Celery)
-        │   ├── documents.py          Uses BackgroundTasks for generation (not Celery)
-        │   ├── jobs.py               boto3 uses endpoint_url ✅; json_mode=True ✅; gemini_default_model ✅
-        │   ├── interview.py          real async streaming ✅; json_mode=True ✅; gemini_default_model ✅
+        │   ├── resumes.py            BackgroundTasks for analysis
+        │   ├── documents.py          BackgroundTasks for generation
+        │   ├── jobs.py               boto3 endpoint_url ✅; json_mode=True ✅; gemini_default_model ✅
+        │   ├── interview.py          real async streaming ✅; json_mode=True ✅
         │   ├── visa.py               ai_client.generate() ✅; json_mode=True ✅
-        │   ├── culture.py, chat.py, account.py, admin.py
         │   └── billing.py            NOT in router
         │
         ├── services/ai/
@@ -253,12 +255,12 @@ ai-job-support/
         │   └── prompts/              7 prompt modules
         │
         ├── services/
-        │   └── document_generator.py boto3 uses endpoint_url ✅; gemini_default_model ✅
+        │   └── document_generator.py boto3 endpoint_url ✅; gemini_default_model ✅
         │
         └── workers/
-            ├── celery_app.py         Still exists but NOT used (BackgroundTasks replaced it)
-            ├── analysis_tasks.py     _run_analysis: boto3 endpoint_url ✅; max_tokens=8192; json_mode=True ✅
-            └── document_tasks.py     _run_generation called directly via BackgroundTasks
+            ├── celery_app.py         Exists but NOT used
+            ├── analysis_tasks.py     boto3 endpoint_url ✅; max_tokens=8192; json_mode=True ✅
+            └── document_tasks.py     Called directly via BackgroundTasks
 ```
 
 ---
@@ -266,49 +268,62 @@ ai-job-support/
 ## 6. Completed Features
 
 ### Deployment
-- Backend: https://ai-job-support-api.onrender.com
-- Frontend: https://ai-job-support.vercel.app
+- Backend: https://ai-job-support-api.onrender.com (Render free tier)
+- Frontend: https://ai-job-support.vercel.app (Vercel)
 - Neon DB: all 4 migrations applied, culture content seeded (12 topics, 35 glossary entries)
 - Admin: rivky.rachmadi@gmail.com promoted to admin
 
-### AI Features Status (ALL confirmed working as of June 7, 2026)
+### AI Features (ALL confirmed working)
 
 | Feature | Endpoint | Status |
 |---------|----------|--------|
-| Resume analysis | POST /resumes/{id}/analyse | ✅ Working — score 35 confirmed |
-| Visa guidance | POST /visa/consultations | ✅ Working — 高度専門職 roadmap confirmed |
+| Resume analysis | POST /resumes/{id}/analyse | ✅ Working — score confirmed |
+| Visa guidance | POST /visa/consultations | ✅ Working — roadmap confirmed |
 | Job translation | POST /jobs/translate | ✅ Fixed |
 | Job match scoring | POST /jobs/{id}/match | ✅ Fixed |
-| Document generation | POST /documents/generate | ✅ Fixed (boto3) — not smoke-tested yet |
-| Interview streaming | GET /interview/sessions/{id}/stream | ✅ Fixed (real async) — not smoke-tested yet |
+| Document generation | POST /documents/generate | ✅ Fixed (boto3) — not smoke-tested |
+| Interview streaming | GET /interview/sessions/{id}/stream | ✅ Fixed (real async) — not smoke-tested |
 | Interview eval | POST /interview/sessions/{id}/messages | ✅ Fixed |
 | AI chatbot | POST /chat/message | ✅ Working |
 
-### Bugs Fixed in Most Recent Session (Session 2)
+### i18n — Full Implementation (Session 3)
+
+All user-visible strings now respond to the language switcher (EN / ID / JP):
+
+| File | Translated |
+|------|-----------|
+| `frontend/lib/i18n.ts` | 9 new sections added: common, onboarding, resumes, jobs, interview, visa, documents, settings |
+| `app/onboarding/page.tsx` | ✅ All 4 steps translated |
+| `dashboard/resumes/page.tsx` | ✅ |
+| `dashboard/resumes/[id]/page.tsx` | ✅ Including AI analysis card |
+| `dashboard/jobs/page.tsx` | ✅ |
+| `dashboard/jobs/[id]/page.tsx` | ✅ Including match score panel |
+| `dashboard/jobs/translate/page.tsx` | ✅ |
+| `dashboard/jobs/applications/page.tsx` | ✅ Kanban columns + cards |
+| `dashboard/interview/page.tsx` | ✅ |
+| `dashboard/interview/new/page.tsx` | ✅ |
+| `dashboard/interview/[id]/page.tsx` | ✅ Chat UI, eval cards, summary |
+| `dashboard/visa/page.tsx` | ✅ Including checklist accordion |
+| `dashboard/visa/[id]/page.tsx` | ✅ |
+| `dashboard/documents/page.tsx` | ✅ Including status badges |
+| `dashboard/settings/page.tsx` | ✅ Including translated delete-confirm phrase |
+
+### Backend Bugs Fixed (Sessions 1 & 2) — DO NOT Reintroduce
 
 | Bug | Root Cause | Fix |
 |-----|-----------|-----|
-| Resume analysis failing with `AttributeError: 'Settings' object has no attribute 'cloudflare_r2_endpoint_url'` | Field missing from Pydantic Settings model | Added `cloudflare_r2_endpoint_url: str = ""` to `config.py` |
-| Resume analysis JSON truncation (`Expecting value: line 1 column 1`) | Gemini truncating at 1500 tokens; parser couldn't handle unclosed fence | Raised `max_tokens` 1500→8192 in `analysis_tasks.py`; improved `response_parser.py` to strip unclosed fences |
-| Visa guidance `AttributeError` (`ai_client.complete()` doesn't exist) | `visa.py` called non-existent method; also tried to unpack tuple incorrectly | Rewrote entire AI call block in `visa.py` using `ai_client.generate()` + `parse_response()` |
-| Visa malformed JSON (`Expecting ',' delimiter: line 48 column 8`) | Gemini in plain text mode generating JSON with unescaped Indonesian characters | Added `json_mode=True` parameter (sets `response_mime_type="application/json"`) across all JSON-returning AI calls |
-| Interview fake streaming (full response yielded at once) | `stream()` called blocking `generate_content()` instead of streaming API | Replaced with `_client.aio.models.generate_content_stream()` for true token-by-token async streaming |
-| boto3 pointing to AWS S3 instead of Backblaze B2 in `jobs.py` | Missing `endpoint_url` | Added `s3_kwargs` pattern with conditional `endpoint_url` |
-| boto3 pointing to AWS S3 instead of Backblaze B2 in `document_generator.py` | Missing `endpoint_url` | Added `s3_kwargs` pattern with conditional `endpoint_url` |
-| Wrong model name in usage logs in `jobs.py`, `interview.py`, `document_generator.py` | `anthropic_default_model` (doesn't exist) used in `usage_tracker.record()` | Changed all to `gemini_default_model` |
-| `_MATCH_MAX_TOKENS` too low (800) causing truncation | Token limit too low for job match JSON response | Raised 800→2048 in `jobs.py` |
-| `_EVAL_MAX_TOKENS` too low (800) causing truncation | Token limit too low for interview eval JSON response | Raised 800→2048 in `interview.py` |
-
-### Bugs Fixed in Session 1
-
-| Bug | Root Cause | Fix |
-|-----|-----------|-----|
-| Onboarding stuck on "Saving..." | TrustedHostMiddleware returning 400 for all Vercel→Render requests | Removed TrustedHostMiddleware from main.py |
-| Onboarding 400 on /auth/me | Clerk JWT had no email claim → users.email CHECK constraint violated | Added `{"email": "{{user.primary_email_address}}"}` to Clerk session token |
-| ERR_CONTENT_DECODING_FAILED + truncated JSON | Proxy forwarded content-encoding: gzip but body was already decoded | Proxy deletes content-encoding, content-length, transfer-encoding; buffers all non-SSE via `upstream.text()` |
-| Chat widget CORS error | chat-widget.tsx hardcoded `http://localhost:8000` | Changed to `/api/v1/chat/message` |
-| Resume analysis stuck on "Analysis queued" | boto3 missing endpoint_url in analysis_tasks.py | Added endpoint_url to boto3 client |
-| Gemini API returning quota errors | gemini-2.0-flash-lite had 0/0 quota | Changed to `gemini-2.5-flash` |
+| Resume analysis `AttributeError` on cloudflare_r2_endpoint_url | Field missing from Pydantic Settings | Added `cloudflare_r2_endpoint_url: str = ""` to `config.py` |
+| Resume analysis JSON truncation | max_tokens=1500 too low; unclosed fence parser failure | Raised to 8192; improved response_parser.py |
+| Visa guidance crash (`ai_client.complete()`) | Non-existent method called | Rewrote visa.py to use `ai_client.generate()` |
+| Visa malformed JSON | Gemini plain text mode with unescaped Indonesian chars | Added `json_mode=True` (response_mime_type="application/json") |
+| Interview fake streaming | Blocking `generate_content()` called instead of streaming | Replaced with `_client.aio.models.generate_content_stream()` |
+| boto3 hitting AWS S3 instead of Backblaze B2 | Missing `endpoint_url` in jobs.py, document_generator.py | Added conditional `s3_kwargs["endpoint_url"]` everywhere |
+| Wrong model name in usage logs | `anthropic_default_model` (doesn't exist) in record() calls | Changed all to `gemini_default_model` |
+| `_MATCH_MAX_TOKENS` / `_EVAL_MAX_TOKENS` too low (800) | JSON response truncated | Raised to 2048 |
+| TrustedHostMiddleware blocking all Vercel→Render requests | Host header mismatch | Removed entirely from main.py |
+| Clerk JWT missing email claim | DB CHECK constraint on users.email failed | Added `{"email": "{{user.primary_email_address}}"}` to Clerk session token |
+| Chat widget CORS error | Hardcoded localhost:8000 in chat-widget.tsx | Changed to /api/v1/chat/message |
+| ERR_CONTENT_DECODING_FAILED | Proxy re-forwarding gzip headers after body decoded | Proxy now strips content-encoding, content-length, transfer-encoding |
 
 ---
 
@@ -316,12 +331,14 @@ ai-job-support/
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| **i18n: dashboard pages translation** | High | All dashboard pages are hardcoded English. Only `app/page.tsx`, `dashboard/layout.tsx`, and `language-switcher.tsx` use `useLang()`. See Section 12 for full list of pages needing translation. |
-| **Smoke test: document generation** | Medium | boto3 fix deployed but PDF generation not verified end-to-end. WeasyPrint + Noto CJK fonts may need Render build script. |
-| **Smoke test: interview streaming** | Medium | Async streaming fix deployed but not tested in browser. |
-| **Render cold start prevention** | Medium | Free tier spins down after 15min. Set up cron-job.org ping every 10min. |
-| **GitHub CI** | Low | Failing — non-blocking for Render deployment |
-| **Connect Vercel to GitHub** | Low | Currently requires manual `vercel --prod` |
+| Smoke test document generation | High | boto3 fix deployed but PDF not verified end-to-end. If stuck on "processing", WeasyPrint Noto CJK fonts likely missing on Render — see Section 12. |
+| Smoke test interview streaming | High | Async streaming fix deployed but not tested in browser. Should see typewriter effect. |
+| Render cold start prevention | Medium | Free tier spins down after 15min. Set up cron-job.org ping every 10min to /health. |
+| culture page translation | Low | `dashboard/culture/page.tsx` and `culture/[slug]/page.tsx` not yet translated. Follow i18n pattern. |
+| documents/[id] page translation | Low | `dashboard/documents/[id]/page.tsx` not yet translated. |
+| documents/rirekisho/new + shokumu/new translation | Low | Two wizard pages not yet translated. |
+| GitHub CI | Low | Failing — non-blocking for Render deployment |
+| Connect Vercel to GitHub | Low | Currently requires manual `vercel --prod` |
 
 ---
 
@@ -331,47 +348,76 @@ ai-job-support/
 
 | Issue | Severity | Notes |
 |-------|----------|-------|
-| Render cold start | Medium | Free tier spins down after 15min idle. First request takes ~50s. Fix: upgrade to Render Starter ($7/mo) or use cron-job.org to ping /health every 10min. |
-| PDF generation not verified | Medium | WeasyPrint requires Noto CJK fonts. May need `apt-get install fonts-noto-cjk` in Render build script. If document stays on "processing", this is the likely cause. |
-| GitHub CI failing | Low | Non-blocking for deployment. Likely missing env vars in CI config. |
-| BackgroundTask lost on cold start | Low | If Render sleeps mid-analysis/generation, task dies silently. Document stays "pending" forever. User must retry. |
-| Gemini 5 RPM limit | Low | Free tier gemini-2.5-flash has only 5 RPM. Multiple simultaneous AI requests will rate-limit. |
-| Dashboard pages hardcoded English | Low | Language switcher works on landing page only. All dashboard pages ignore user's language preference. |
+| Render cold start | Medium | Free tier sleeps after 15min idle. ~50s first request. Fix: cron-job.org ping /health every 10min. |
+| PDF generation not smoke-tested | Medium | WeasyPrint may need Noto CJK fonts on Render. See Section 12. |
+| GitHub CI failing | Low | Non-blocking. Likely missing env vars in CI config. |
+| BackgroundTask lost on cold start | Low | If Render sleeps mid-analysis/generation, task is killed. Document stays "pending" forever. User must retry. |
+| Gemini 5 RPM limit | Low | Free tier has only 5 RPM. Concurrent AI requests will rate-limit. |
+| 3 remaining untranslated pages | Low | culture/page.tsx, culture/[slug]/page.tsx, documents/[id]/page.tsx, documents/rirekisho/new, documents/shokumu/new |
 
 ### Fixed — DO NOT Reintroduce
 
-| Bug | What breaks if reintroduced |
-|-----|---------------------------|
-| TrustedHostMiddleware in main.py | All Vercel→Render proxy requests return 400 "Invalid host header" |
-| Clerk session token without email claim | JIT user creation fails: `users_email_fmt` CHECK constraint rejected |
-| boto3 without `endpoint_url` | Resolves to AWS S3 (wrong), fails with NameResolutionError |
-| `ai_client.complete()` in visa.py | AttributeError crash on every visa consultation request |
-| Gemini plain text mode for JSON calls | Malformed JSON with unescaped characters; parse errors |
-| `max_tokens=1500` for resume analysis | Response truncated; JSON parse fails with empty candidate |
-| `anthropic_default_model` in usage_tracker calls | AttributeError crash on every usage log write |
+See Section 6 table above. Key ones to never undo:
+- TrustedHostMiddleware removal from main.py
+- `{"email": "{{user.primary_email_address}}"}` in Clerk session token
+- `endpoint_url` in every boto3.client() call
+- `json_mode=True` on all JSON-returning AI calls
+- `gemini_default_model` (not `anthropic_default_model`) in all usage_tracker.record() calls
 
 ---
 
 ## 9. Important Design Decisions
 
-Locked — do not change without updating techspec.
-
 | Decision | Rule |
 |----------|------|
-| Auth | Clerk JWTs only. Backend validates via JWKS. No passwords, no custom JWT. |
-| Email in JWT | Clerk session token MUST include `{"email": "{{user.primary_email_address}}"}` — required for JIT user creation. |
-| User creation | JIT in middleware if webhook hasn't fired. upsert_from_clerk on every JWT. Returns None (→ 401) if email missing. |
-| API proxy | All requests go through `app/api/[...path]/route.ts`. No rewrites in next.config.ts. Proxy buffers all non-SSE responses. |
-| No TrustedHostMiddleware | Removed — it blocked Vercel proxy requests. CORS handles security. |
-| Ownership | Every user-owned query includes `WHERE user_id = $1`. Returns None → 404. Never 403. |
-| Streaming | SSE (FastAPI StreamingResponse) not WebSocket. Proxy does NOT buffer SSE responses (streams them). |
-| Background tasks | FastAPI BackgroundTasks instead of Celery. `_run_analysis` and `_run_generation` called directly (no queue). |
+| Auth | Clerk JWTs only. Backend validates via JWKS. No passwords. |
+| Email in JWT | Clerk session token MUST include `{"email": "{{user.primary_email_address}}"}` |
+| User creation | JIT in middleware. Returns None → 401 if email missing. |
+| API proxy | All requests via `app/api/[...path]/route.ts`. Proxy buffers all non-SSE responses. |
+| No TrustedHostMiddleware | Removed — blocked Vercel proxy. CORS handles security. |
+| Ownership | Every query: `WHERE user_id = $1`. Returns None → 404. Never 403. |
+| Streaming | SSE (FastAPI StreamingResponse). Proxy does NOT buffer SSE. |
+| Background tasks | FastAPI BackgroundTasks (not Celery). Direct function calls. |
 | Job input | No scraper. URL paste + raw text only. |
 | Session lifecycle | `get_db()` owns commit/rollback. Repositories call `flush()` only. |
-| Billing | `check_budget()` is a no-op. Billing router excluded from router.py. All free. |
-| Storage | Backblaze B2 via S3-compatible API. Env var `CLOUDFLARE_R2_ENDPOINT_URL` holds the B2 endpoint. ALL boto3 clients MUST include `endpoint_url=settings.cloudflare_r2_endpoint_url`. |
-| Gemini JSON mode | All AI calls returning structured JSON MUST pass `json_mode=True` to `ai_client.generate()`. This prevents malformed JSON and unescaped character errors from Gemini. |
-| AI max_tokens | Resume analysis: 8192. Visa guidance: 4096. Job match/interview eval: 2048. Never below 2048 for JSON-returning calls. |
+| Billing | `check_budget()` is a no-op. Billing router excluded. All free. |
+| Storage | Backblaze B2 via S3-compatible API. `CLOUDFLARE_R2_ENDPOINT_URL` env var holds B2 endpoint. ALL boto3 clients MUST include `endpoint_url`. |
+| Gemini JSON mode | All structured JSON calls MUST use `json_mode=True`. |
+| AI max_tokens | Resume analysis: 8192. Visa: 4096. Match/eval: 2048. Never below 2048 for JSON. |
+| i18n pattern | `useLang()` hook from `lib/language-context.tsx`. `t("section", "key", lang)` from `lib/i18n.ts`. `LanguageProvider` wraps the entire app in `lib/providers.tsx` — so `useLang()` works everywhere including onboarding. |
+
+### i18n Pattern for New Pages
+
+```tsx
+// 1. Import at top of file
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
+
+// 2. In component
+const { lang } = useLang();
+
+// 3. Use translations
+<h1>{t("section", "key", lang)}</h1>
+
+// 4. Add keys to frontend/lib/i18n.ts under the appropriate section
+```
+
+### i18n Translation Sections in i18n.ts
+
+| Section | Used for |
+|---------|---------|
+| `nav` | Sidebar nav labels |
+| `landing` | Landing page |
+| `features` | Feature descriptions on landing |
+| `common` | Shared: Back, Save, Cancel, Delete, View, etc. |
+| `onboarding` | 4-step wizard |
+| `resumes` | Resumes list + detail + analysis |
+| `jobs` | Jobs list, detail, translate, applications |
+| `interview` | Sessions list, new session, live chat |
+| `visa` | Visa roadmap + detail |
+| `documents` | Documents list |
+| `settings` | Profile form + danger zone |
+| `dashboard` | Legacy (kept for backward compat) |
 
 ---
 
@@ -391,17 +437,13 @@ Locked — do not change without updating techspec.
 
 ### Clerk Configuration (critical)
 
-Session token customization: Clerk Dashboard → Configure → Sessions → Customize session token:
+Session token: Clerk Dashboard → Configure → Sessions → Customize session token:
 ```json
-{
-  "email": "{{user.primary_email_address}}"
-}
+{ "email": "{{user.primary_email_address}}" }
 ```
-Without this, JIT user creation fails (users.email CHECK constraint rejects empty strings).
 
-Webhook: Webhooks → Endpoint:
-- URL: `https://ai-job-support-api.onrender.com/api/v1/auth/webhook`
-- Events: user.created, user.updated, user.deleted
+Webhook endpoint: `https://ai-job-support-api.onrender.com/api/v1/auth/webhook`  
+Events: user.created, user.updated, user.deleted
 
 ### Backend Render Environment Variables
 
@@ -428,8 +470,8 @@ ALLOWED_HOSTS=*
 ```
 
 **Notes:**
-- `CLOUDFLARE_R2_ENDPOINT_URL` is actually Backblaze B2 (not Cloudflare). The env var name is reused for compatibility.
-- `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` are no longer needed — BackgroundTasks replaced Celery.
+- `CLOUDFLARE_R2_ENDPOINT_URL` = Backblaze B2 endpoint (var name reused for compat)
+- `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` no longer needed
 
 ### Frontend Vercel Environment Variables
 
@@ -469,7 +511,7 @@ conn.close()
 git add . && git commit -m "your message" && git push
 
 # Frontend — MUST deploy manually via Vercel CLI
-# (project is connected via CLI, NOT GitHub integration — git push does NOT trigger Vercel)
+# (NOT connected to GitHub — git push does NOT trigger Vercel)
 cd /Users/rivky/Projects/ai-job-support/frontend && vercel --prod
 ```
 
@@ -504,39 +546,11 @@ cd frontend && npm run dev
 
 ## 12. Next Recommended Steps
 
-### 1. i18n — Translate dashboard pages (highest priority)
+### 1. Smoke test document generation (high priority)
 
-The language switcher exists and works on the landing page, but all dashboard pages are hardcoded English. Users who select Indonesian or Japanese see no change after login.
+Go to https://ai-job-support.vercel.app/dashboard/documents, click "+ 履歴書", complete the wizard, and wait. Status should go: pending → processing → completed. PDF should download.
 
-**Current state of i18n:**
-- `frontend/lib/i18n.ts` — has translations for `nav`, `landing`, `features`, `dashboard` (partial — only `resumesTitle`, `resumesSub`, `uploadBtn`, `noResumes`)
-- `frontend/lib/language-context.tsx` — `useLang()` hook, only used in 3 files currently
-- Pattern: `const { lang } = useLang(); const label = t("section", "key", lang);`
-
-**Pages needing translation (in priority order):**
-
-| Page | File | Priority |
-|------|------|----------|
-| Onboarding wizard | `app/onboarding/page.tsx` | Highest — first user experience |
-| Jobs list + detail | `dashboard/jobs/page.tsx`, `jobs/[id]/page.tsx` | High — most-used feature |
-| Interview | `dashboard/interview/page.tsx`, `interview/new/page.tsx`, `interview/[id]/page.tsx` | High |
-| Visa | `dashboard/visa/page.tsx`, `visa/[id]/page.tsx` | High |
-| Settings | `dashboard/settings/page.tsx` | Medium |
-| Documents | `dashboard/documents/page.tsx`, `documents/[id]/page.tsx` | Medium |
-| Resumes | `dashboard/resumes/page.tsx`, `resumes/[id]/page.tsx` | Medium (partial already in i18n.ts) |
-
-**How to add translations:**
-1. Add keys to the relevant section in `frontend/lib/i18n.ts`
-2. Import `useLang` in the page: `import { useLang } from "@/lib/language-context";`
-3. Add `const { lang } = useLang();` in the component
-4. Replace hardcoded strings with `t("section", "key", lang)`
-
-### 2. Smoke test document generation (medium priority)
-
-Generate a rirekisho at https://ai-job-support.vercel.app/dashboard/documents.  
-Status should go: pending → processing → completed. PDF should download.
-
-If it stays on "processing", WeasyPrint CJK fonts are missing on Render. Fix:
+**If it stays on "processing"**, WeasyPrint CJK fonts are missing on Render. Fix:
 
 Create `backend/build.sh`:
 ```bash
@@ -545,35 +559,48 @@ set -e
 pip install -r requirements.txt
 apt-get install -y fonts-noto-cjk 2>/dev/null || true
 ```
-Then in Render → Service Settings → Build Command: `bash build.sh`
+In Render → Service Settings → Build Command: `bash build.sh`
 
-### 3. Smoke test interview streaming (medium priority)
+### 2. Smoke test interview streaming (high priority)
 
-Start a new interview session at https://ai-job-support.vercel.app/dashboard/interview/new  
-The AI's response should stream token-by-token (typewriter effect). If it appears all at once, SSE buffering is occurring somewhere in the proxy or browser.
+Start a new interview at https://ai-job-support.vercel.app/dashboard/interview/new  
+The AI's response should stream token-by-token (typewriter effect).  
+If it appears all at once, SSE buffering is happening somewhere — check the Next.js proxy.
+
+### 3. Translate remaining pages (medium priority)
+
+5 pages still hardcoded English. Follow the i18n pattern in Section 9:
+
+| Page | File |
+|------|------|
+| Culture list | `dashboard/culture/page.tsx` |
+| Culture article | `dashboard/culture/[slug]/page.tsx` |
+| Document detail | `dashboard/documents/[id]/page.tsx` |
+| Rirekisho wizard | `dashboard/documents/rirekisho/new/page.tsx` |
+| Shokumu wizard | `dashboard/documents/shokumu/new/page.tsx` |
+
+Add translation keys to `frontend/lib/i18n.ts` under `documents` or a new `culture` section, then wire `useLang()` and `t()` in each file.
 
 ### 4. Prevent Render cold starts (medium priority)
 
-Sign up at cron-job.org (free). Create a cron job:
+Sign up at cron-job.org (free):
 - URL: `https://ai-job-support-api.onrender.com/health`
 - Schedule: every 10 minutes
 
-This prevents the ~50s cold start delay for users.
-
 ### 5. Connect Vercel to GitHub (optional)
 
-Currently `vercel --prod` must be run manually. To enable auto-deploy on git push:  
-Vercel Dashboard → ai-job-support project → Settings → Git → Connect GitHub repo
+Vercel Dashboard → ai-job-support → Settings → Git → Connect GitHub repo  
+Then `git push` will auto-deploy frontend (no more manual `vercel --prod`).
 
 ### 6. Fix GitHub CI (low priority, non-blocking)
 
-CI failures do not affect Render deployment. To fix: check `.github/workflows/ci.yml` for missing secrets/env vars, then add them in GitHub → Settings → Secrets and variables → Actions.
+Check `.github/workflows/ci.yml` for missing secrets. Add them in GitHub → Settings → Secrets → Actions.
 
 ### 7. Minor fixes (lowest priority)
 
-- **Deprecated Clerk prop:** Replace `afterSignInUrl` with `fallbackRedirectUrl` in ClerkProvider
-- **favicon 404:** Add `public/favicon.ico` to frontend
-- **Add Vercel domain to Clerk:** Clerk Dashboard → Domains → add `ai-job-support.vercel.app`
+- Replace deprecated `afterSignInUrl` with `fallbackRedirectUrl` in ClerkProvider
+- Add `public/favicon.ico` (currently 404)
+- Add `ai-job-support.vercel.app` to Clerk → Domains
 
 ---
 
@@ -593,7 +620,7 @@ All billing code is implemented but intentionally disabled. Platform is currentl
 
 ### To re-enable billing
 
-1. `backend/app/api/v1/router.py` — uncomment the billing import and `router.include_router(billing.router)`
+1. `backend/app/api/v1/router.py` — uncomment billing import and `router.include_router(billing.router)`
 2. `backend/app/services/ai/usage_tracker.py` — restore tier check in `check_budget()`
 3. `frontend/app/dashboard/layout.tsx` — add Billing to NAV_ITEMS
 4. Set env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PRO` on Render and Vercel

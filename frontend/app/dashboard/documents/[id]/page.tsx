@@ -3,6 +3,8 @@
 import { use, useEffect } from "react";
 import Link from "next/link";
 import { useDocumentStatus, useDocumentDetail } from "@/hooks/useDocuments";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { DocumentStatus } from "@/types/api";
 
 interface Props {
@@ -12,8 +14,10 @@ interface Props {
 export default function DocumentDetailPage({ params }: Props) {
   const { id } = use(params);
   const { data: statusData, isLoading } = useDocumentStatus(id);
+  const { lang } = useLang();
 
   const isDone = statusData?.status === "completed" || statusData?.status === "failed";
+  void isDone;
 
   // Fetch detail (with presigned URL) only once the document is completed
   const { data: detail, refetch: refetchDetail } = useDocumentDetail(id, false);
@@ -30,7 +34,7 @@ export default function DocumentDetailPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-destructive">Document not found.</p>
+        <p className="text-sm text-destructive">{t("documents", "notFound", lang)}</p>
       </div>
     );
   }
@@ -41,7 +45,7 @@ export default function DocumentDetailPage({ params }: Props) {
 
       <div className="rounded-lg border bg-card p-6 space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold">Document Status</h1>
+          <h1 className="text-xl font-semibold">{t("documents", "statusHeading", lang)}</h1>
           <StatusBadge status={statusData.status} />
         </div>
 
@@ -66,7 +70,6 @@ function StatusBody({
   errorMessage,
   completedAt,
   downloadUrl,
-  documentId,
 }: {
   status: DocumentStatus;
   errorMessage: string | null;
@@ -74,16 +77,20 @@ function StatusBody({
   downloadUrl: string | null;
   documentId: string;
 }) {
+  const { lang } = useLang();
+
   if (status === "pending" || status === "processing") {
     return (
       <div className="flex flex-col items-center gap-4 py-6 text-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <div>
           <p className="text-sm font-medium">
-            {status === "pending" ? "Queued for generation" : "Generating your document…"}
+            {status === "pending"
+              ? t("documents", "queued", lang)
+              : t("documents", "generating", lang)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            This usually takes 20–60 seconds. The page updates automatically.
+            {t("documents", "genWait", lang)}
           </p>
         </div>
       </div>
@@ -94,19 +101,21 @@ function StatusBody({
     return (
       <div className="space-y-4">
         <div className="rounded-md bg-destructive/10 px-4 py-3">
-          <p className="text-sm font-medium text-destructive">Generation failed</p>
+          <p className="text-sm font-medium text-destructive">
+            {t("documents", "genFailed", lang)}
+          </p>
           {errorMessage && (
             <p className="mt-1 text-xs text-destructive/80">{errorMessage}</p>
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          You can try again by creating a new document.
+          {t("documents", "genFailHint", lang)}
         </p>
         <Link
           href="/dashboard/documents"
           className="inline-flex items-center rounded-md border px-3 py-2 text-sm hover:bg-accent"
         >
-          ← Back to documents
+          {t("documents", "backToDocuments", lang)}
         </Link>
       </div>
     );
@@ -116,10 +125,11 @@ function StatusBody({
   return (
     <div className="space-y-4">
       <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
-        Document generated successfully
+        {t("documents", "genSuccess", lang)}
         {completedAt && (
           <span className="ml-1 text-green-700">
-            on {new Date(completedAt).toLocaleString()}
+            {t("documents", "on", lang)}{" "}
+            {new Date(completedAt).toLocaleString()}
           </span>
         )}
       </div>
@@ -130,17 +140,17 @@ function StatusBody({
           download
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
-          Download PDF
+          {t("documents", "downloadPdf", lang)}
         </a>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          Preparing download link…
+          {t("documents", "preparingLink", lang)}
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Download links expire after 15 minutes. Refresh this page to get a new link.
+        {t("documents", "linkExpiry", lang)}
       </p>
     </div>
   );
@@ -151,11 +161,18 @@ function StatusBody({
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
+  const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
-    pending: "bg-yellow-100 text-yellow-800",
+    pending:    "bg-yellow-100 text-yellow-800",
     processing: "bg-blue-100 text-blue-800",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
+    completed:  "bg-green-100 text-green-800",
+    failed:     "bg-red-100 text-red-800",
+  };
+  const labels: Record<DocumentStatus, string> = {
+    pending:    t("documents", "statusPending", lang),
+    processing: t("documents", "statusProcessing", lang),
+    completed:  t("documents", "statusCompleted", lang),
+    failed:     t("documents", "statusFailed", lang),
   };
   return (
     <span
@@ -164,18 +181,19 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
       {status === "processing" && (
         <span className="h-2 w-2 animate-spin rounded-full border border-blue-800 border-t-transparent" />
       )}
-      {status}
+      {labels[status]}
     </span>
   );
 }
 
 function BackLink() {
+  const { lang } = useLang();
   return (
     <Link
       href="/dashboard/documents"
       className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
     >
-      ← Back to documents
+      {t("documents", "backToDocuments", lang)}
     </Link>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { ResumeList } from "@/types/api";
 
 type Step = "resume" | "job" | "confirm";
@@ -25,6 +27,7 @@ export function DocumentWizard({
   const [step, setStep] = useState<Step>("resume");
   const [resumeId, setResumeId] = useState<string>("");
   const [jobPostingId, setJobPostingId] = useState<string>("");
+  const { lang } = useLang();
 
   const resumes = resumeList?.items ?? [];
   const selectedResume = resumes.find((r) => r.id === resumeId);
@@ -35,15 +38,15 @@ export function DocumentWizard({
   if (step === "resume") {
     return (
       <div className="space-y-4">
-        <StepHeader current={1} total={3} title="Select a resume" />
+        <StepHeader current={1} total={3} title={t("documents", "wizStep1Title", lang)} />
 
         {resumesLoading && <ResumesSkeleton />}
 
         {!resumesLoading && resumes.length === 0 && (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No resumes found.{" "}
+            {t("documents", "wizNoResumes", lang)}{" "}
             <a href="/dashboard/resumes" className="underline hover:text-foreground">
-              Upload one first.
+              {t("documents", "wizUploadFirst", lang)}
             </a>
           </p>
         )}
@@ -64,11 +67,11 @@ export function DocumentWizard({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{r.file_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round(r.file_size_bytes / 1024)} KB · Uploaded{" "}
+                      {Math.round(r.file_size_bytes / 1024)} KB · {t("documents", "wizUploaded", lang)}{" "}
                       {new Date(r.created_at).toLocaleDateString()}
                       {r.is_primary && (
                         <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                          Primary
+                          {t("documents", "wizPrimary", lang)}
                         </span>
                       )}
                     </p>
@@ -85,7 +88,7 @@ export function DocumentWizard({
             disabled={!resumeId}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
           >
-            Next →
+            {t("documents", "wizNext", lang)}
           </button>
         </div>
       </div>
@@ -98,18 +101,17 @@ export function DocumentWizard({
   if (step === "job") {
     return (
       <div className="space-y-4">
-        <StepHeader current={2} total={3} title="Job context (optional)" />
+        <StepHeader current={2} total={3} title={t("documents", "wizStep2Title", lang)} />
 
         <p className="text-sm text-muted-foreground">
-          Paste a job posting ID to tailor the document to a specific role. You can skip this and
-          generate a general-purpose document.
+          {t("documents", "wizStep2Sub", lang)}
         </p>
 
         <input
           type="text"
           value={jobPostingId}
           onChange={(e) => setJobPostingId(e.target.value)}
-          placeholder="Job posting ID (optional)"
+          placeholder={t("documents", "wizJobIdPlaceholder", lang)}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
 
@@ -118,13 +120,13 @@ export function DocumentWizard({
             onClick={() => setStep("resume")}
             className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
           >
-            ← Back
+            {t("common", "back", lang)}
           </button>
           <button
             onClick={() => setStep("confirm")}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
-            Next →
+            {t("documents", "wizNext", lang)}
           </button>
         </div>
       </div>
@@ -136,16 +138,21 @@ export function DocumentWizard({
   // -----------------------------------------------------------------------
   return (
     <div className="space-y-4">
-      <StepHeader current={3} total={3} title="Confirm and generate" />
+      <StepHeader current={3} total={3} title={t("documents", "wizStep3Title", lang)} />
 
       <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
-        <Row label="Resume" value={selectedResume?.file_name ?? resumeId} />
-        <Row label="Job context" value={jobPostingId || "None (general-purpose)"} />
+        <Row
+          label={t("documents", "wizResumeLabel", lang)}
+          value={selectedResume?.file_name ?? resumeId}
+        />
+        <Row
+          label={t("documents", "wizJobLabel", lang)}
+          value={jobPostingId || t("documents", "wizNoJobContext", lang)}
+        />
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Generation takes 20–60 seconds. You'll be taken to the status page where you can track
-        progress and download the PDF when ready.
+        {t("documents", "wizGenWait", lang)}
       </p>
 
       {error && (
@@ -158,7 +165,7 @@ export function DocumentWizard({
           disabled={isPending}
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40"
         >
-          ← Back
+          {t("common", "back", lang)}
         </button>
         <button
           onClick={() => onSubmit(resumeId, jobPostingId || undefined)}
@@ -168,7 +175,7 @@ export function DocumentWizard({
           {isPending ? (
             <span className="flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              Queuing…
+              {t("documents", "wizQueuing", lang)}
             </span>
           ) : (
             submitLabel
@@ -179,7 +186,20 @@ export function DocumentWizard({
   );
 }
 
-function StepHeader({ current, total, title }: { current: number; total: number; title: string }) {
+function StepHeader({
+  current,
+  total,
+  title,
+}: {
+  current: number;
+  total: number;
+  title: string;
+}) {
+  const { lang } = useLang();
+  const stepLabel = t("documents", "wizStepOf", lang)
+    .replace("{n}", String(current))
+    .replace("{t}", String(total));
+
   return (
     <div className="flex items-center gap-3">
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
@@ -187,9 +207,7 @@ function StepHeader({ current, total, title }: { current: number; total: number;
       </span>
       <div className="flex-1">
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">
-          Step {current} of {total}
-        </p>
+        <p className="text-xs text-muted-foreground">{stepLabel}</p>
       </div>
       <div className="flex gap-1">
         {Array.from({ length: total }).map((_, i) => (
