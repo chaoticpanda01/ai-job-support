@@ -55,12 +55,13 @@ class Settings(BaseSettings):
     openai_fallback_model: str = "gpt-4o-mini"
     ai_fallback_enabled: bool = False
 
-    # --- AWS S3 ---
+    # --- AWS S3 / Backblaze B2 ---
     aws_access_key_id: str
     aws_secret_access_key: str
     aws_region: str = "ap-northeast-1"
     s3_bucket_name: str
     s3_presigned_url_expiry_seconds: int = 900
+    cloudflare_r2_endpoint_url: str = ""  # Backblaze B2 endpoint (reuses this env var name)
 
     # --- Stripe (optional — billing is disabled) ---
     stripe_secret_key: str = ""
