@@ -3,6 +3,10 @@
 日本での就職を目指すインドネシア人プロフェッショナル向けの、AIを活用したキャリア支援プラットフォームです。  
 AI生成ドキュメント・リアルタイム翻訳・面接シミュレーション・ビザ案内を通じて、言語・文化・手続きの壁を取り除きます。
 
+**完全無料 — 課金なし、サブスクリプション制限なし。**
+
+**本番環境:** https://ai-job-support.vercel.app
+
 ---
 
 ## 技術スタック
@@ -11,14 +15,13 @@ AI生成ドキュメント・リアルタイム翻訳・面接シミュレーシ
 |--------|------|
 | フロントエンド | Next.js 15, TypeScript (strict), Tailwind CSS |
 | バックエンド | FastAPI, Python 3.12 |
-| AI エンジン | Google Gemini API (gemini-2.0-flash-lite) |
-| データベース | PostgreSQL 16 |
-| キャッシュ / キュー | Redis 7 + Celery |
+| AI エンジン | Google Gemini API (gemini-2.5-flash) |
+| データベース | PostgreSQL 16 (Neon) |
+| キャッシュ | Redis 7 (Upstash) — レート制限のみ |
+| バックグラウンドタスク | FastAPI BackgroundTasks |
 | 認証 | Clerk |
-| ファイルストレージ | AWS S3 / Cloudflare R2 |
-| 決済 | Stripe |
+| ファイルストレージ | Backblaze B2 (S3互換API) |
 | メール | Resend |
-| 可観測性 | Sentry |
 
 ---
 
@@ -27,7 +30,7 @@ AI生成ドキュメント・リアルタイム翻訳・面接シミュレーシ
 ```
 ai-job-support/
 ├── frontend/          # Next.js 15 アプリケーション
-├── backend/           # FastAPI アプリケーション + Celery ワーカー
+├── backend/           # FastAPI アプリケーション
 ├── database/          # schema.sql — DBスキーマの唯一の情報源
 ├── docs/              # 技術仕様書
 └── .github/workflows/ # CI パイプライン
@@ -39,13 +42,12 @@ ai-job-support/
 
 - Node.js >= 20
 - Python >= 3.12
-- PostgreSQL 14+（ローカルインストールまたは Docker）
-- Redis 7（ローカルインストールまたは Docker — 開発時は任意、Celery ワーカーには必須）
-- Docker + Docker Compose（任意 — フルスタックモード用）
+- PostgreSQL 16（ローカルインストールまたは Docker）
+- Redis 7（任意 — レート制限のみ。なくてもすべての機能が動作します）
 
 ---
 
-## ローカル開発セットアップ（Docker なし）
+## ローカル開発セットアップ
 
 ### 1. クローンと環境変数の設定
 
@@ -57,32 +59,46 @@ cd ai-job-support
 `backend/.env` を作成:
 ```env
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ai_job_support
+DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/ai_job_support
 REDIS_URL=redis://localhost:6379/0
 
 # Clerk — clerk.com ダッシュボードから取得
-CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 CLERK_WEBHOOK_SECRET=whsec_...
-CLERK_JWKS_URL=https://<your-clerk-domain>/.well-known/jwks.json
+CLERK_JWKS_URL=https://<your-clerk-instance>.clerk.accounts.dev/.well-known/jwks.json
 
 # Google Gemini — aistudio.google.com で無料キーを取得
 GEMINI_API_KEY=AIza...
-GEMINI_DEFAULT_MODEL=gemini-2.0-flash-lite
+GEMINI_DEFAULT_MODEL=gemini-2.5-flash
+
+# Backblaze B2 (S3互換) — backblaze.com でバケットを作成
+AWS_ACCESS_KEY_ID=<b2-key-id>
+AWS_SECRET_ACCESS_KEY=<b2-app-key>
+AWS_REGION=<b2-region>           # 例: ca-east-006
+S3_BUCKET_NAME=<bucket-name>
+CLOUDFLARE_R2_ENDPOINT_URL=https://s3.<region>.backblazeb2.com   # 必須
 
 # 任意 — ローカル開発では空白のままでOK
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
 RESEND_API_KEY=
-SENTRY_DSN=
+SECRET_KEY=local-dev-secret
+APP_ENV=development
+DEBUG=true
+ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+> **重要:** `CLOUDFLARE_R2_ENDPOINT_URL` はすべての `boto3.client("s3", ...)` 呼び出しで使用され、Backblaze B2 エンドポイントを指定します。設定しないと、boto3 が AWS S3（誤ったエンドポイント）に接続し、すべてのファイル操作が失敗します。
+
+> **Clerk セッショントークン設定:** Clerk ダッシュボード → Configure → Sessions → Customize session token で `{"email": "{{user.primary_email_address}}"}` を追加してください。users テーブルのメールアドレス形式制約のために必要です。
 
 `frontend/.env.local` を作成:
 ```env
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard/resumes
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
 ```
 
 ### 2. PostgreSQL のセットアップ
@@ -101,7 +117,9 @@ psql -c "CREATE DATABASE ai_job_support OWNER postgres;"
 
 ```bash
 cd backend
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
 
 alembic upgrade head
 
@@ -112,7 +130,7 @@ python -m scripts.seed_culture
 ### 4. バックエンド API の起動
 
 ```bash
-# /backend ディレクトリから
+# /backend ディレクトリから（venv 有効化済み）
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -128,29 +146,47 @@ npm run dev
 バックエンド API: **http://localhost:8000**  
 API ドキュメント (Swagger): **http://localhost:8000/docs**
 
-> **注意:** Celery ワーカー（非同期ドキュメント生成用）は Redis が必要です。Redis なしでローカルテストを行う場合、API 経由でトリガーされた AI 機能はワーカーが起動するまでジョブがキューに溜まります。メインページとチャットボットは Celery なしでも動作します。
+> **Celery ワーカーは不要です。** 履歴書分析・書類生成は FastAPI BackgroundTasks として実行されます。別ワーカープロセスは必要ありません。
 
 ---
 
-## Docker Compose での起動（フルスタック）
+## Docker Compose での起動
 
 ```bash
-# コアサービスのみ起動 (postgres + redis + backend + celery)
+# コアサービスのみ起動 (postgres + redis)
+docker compose up postgres redis -d
+
+# フルスタック
 docker compose up
-
-# フロントエンドを含めてすべて起動
-docker compose --profile full up
-
-# Flower タスク監視 UI を含める (http://localhost:5555)
-docker compose --profile monitoring up
 ```
+
+---
+
+## 初回管理者設定
+
+サインアップ後、データベースを直接更新してアカウントを管理者に昇格させます:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -c "
+import psycopg2
+conn = psycopg2.connect('postgresql://postgres:postgres@localhost:5432/ai_job_support')
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute(\"UPDATE users SET role = 'admin' WHERE email = 'your@email.com'\")
+print('Rows updated:', cur.rowcount)
+conn.close()
+"
+```
+
+その後、管理パネルには **http://localhost:3000/admin** からアクセスできます。
 
 ---
 
 ## データベース
 
-スキーマは [`database/schema.sql`](database/schema.sql) で定義されています — これが **唯一の情報源** です。  
-DDL はここ以外に記述しないでください。
+スキーマは [`database/schema.sql`](database/schema.sql) で定義されています — これが **唯一の情報源** です。
 
 ```bash
 # マイグレーションの適用
@@ -173,66 +209,28 @@ alembic downgrade -1
 ```bash
 cd backend
 
-# カバレッジ付きで全テスト実行
-pytest
-
-# ユニットテストのみ
-pytest tests/unit/
-
-# インテグレーションテストのみ
-pytest tests/integration/
-
-# 単一ファイル
-pytest tests/unit/test_ai_client.py -v
+pytest                        # カバレッジ付きで全テスト実行
+pytest tests/unit/ -v         # ユニットテストのみ
+pytest -k "test_resume" -v    # 名前でフィルタ
 ```
 
 ---
 
 ## コード品質
 
-### バックエンド
-
 ```bash
+# バックエンド
 cd backend
-
-# リント
 ruff check .
-
-# フォーマット
 ruff format .
-
-# 型チェック
 mypy app/
-```
 
-### フロントエンド
-
-```bash
+# フロントエンド
 cd frontend
-
-# 型チェック
 npm run type-check
-
-# リント
 npm run lint
-
-# フォーマット
 npm run format
 ```
-
----
-
-## CI/CD
-
-GitHub Actions が `main` および `develop` への全プッシュ・プルリクエスト時に実行されます:
-
-| ジョブ | チェック内容 |
-|--------|------------|
-| フロントエンド CI | 型チェック、リント、フォーマット、ビルド |
-| バックエンド CI | Ruff リント + フォーマット、mypy、alembic check、pytest（実 DB 使用） |
-| Docker ビルド | 両イメージのビルド、バックエンドイメージの日本語フォント確認 |
-
-詳細: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
 ---
 
@@ -240,33 +238,19 @@ GitHub Actions が `main` および `develop` への全プッシュ・プルリ�
 
 | 機能 | 説明 |
 |------|------|
-| ランディングページ | `/` — 機能紹介とCTAを掲載したマーケティングページ |
+| ランディングページ | `/` — 言語切り替え付きマーケティングページ (EN / ID / JP) |
 | 職務経歴分析 | 日本市場向けAIギャップ分析 |
-| 履歴書生成 | アップロードした職歴書からJIS規格の日本語履歴書を生成 |
-| 職務経歴書生成 | 実績重視のキャリア記述書を生成 |
+| 履歴書生成 | アップロードした職歴書からJIS規格の日本語履歴書を生成（PDF） |
+| 職務経歴書生成 | 実績重視のキャリア記述書を生成（PDF） |
 | 求人票翻訳 | 日本語求人票をインドネシア語に翻訳 + マッチスコア |
 | 応募管理トラッカー | カンバン形式のパイプライン（検討中 → 応募済 → 面接中 → 内定） |
 | 面接練習 | SSEストリーミングによるリアルタイム模擬面接 + 回答評価 |
 | ビザ案内 | 個人に合わせたビザチェックリストとロードマップ |
 | カルチャーコンテンツ | インドネシア人向け職場文化トピックと用語集 |
-| AI チャットボット | フローティングチャットウィジェット（ログイン不要） — 日本就職に関する質問に回答 |
+| AI チャットボット | フローティングチャットウィジェット（ログイン不要） |
 | 言語切り替え | 全ページで EN / ID / JP の切り替えが可能 |
 | 管理パネル | `/admin` — ユーザー・カルチャートピック・用語集の管理（role=admin 必須） |
-
----
-
-## サブスクリプションプラン
-
-| 機能 | 無料 | ベーシック (¥1,980/月) | プロ (¥4,980/月) |
-|------|------|----------------------|-----------------|
-| 職歴書アップロード/月 | 1 | 5 | 無制限 |
-| 職歴書分析/月 | 1 | 10 | 無制限 |
-| 履歴書生成/月 | 1 | 5 | 無制限 |
-| 職務経歴書生成/月 | 0 | 3 | 無制限 |
-| 求人票翻訳/月 | 3 | 30 | 無制限 |
-| 面接セッション/月 | 1 | 5 | 無制限 |
-| PDF出力 | ✗ | ✓ | ✓ |
-| カルチャーコンテンツ | 一部 | フル | フル |
+| アカウント削除 | GDPR/PDPA準拠の完全なアカウント削除（設定画面から） |
 
 ---
 
@@ -275,11 +259,14 @@ GitHub Actions が `main` および `develop` への全プッシュ・プルリ�
 詳細なアーキテクチャドキュメント: [`docs/japan-job-platform-techspec.md`](docs/japan-job-platform-techspec.md)
 
 主要な設計判断:
-- **SSE** を面接ストリーミングに使用（WebSocket 不使用）— 通常の HTTP で動作し、Vercel + Railway に対応
-- **Stripe webhook のみ** が `subscriptions` テーブルに書き込む — サブスクライブエンドポイントからの直接書き込みなし
-- `job_postings` の **ソフトデリート** (`deleted_at` 使用) — `resume_analyses` の外部キー参照を保持
-- **XML デリミタ** で AI プロンプト内のユーザーコンテンツをラップ — プロンプトインジェクション対策
-- **クエリ内での所有者確認** — `WHERE user_id = current_user.id` を全 DB クエリ内に記述（取得後のチェックなし）
+- **Next.js プロキシ** — すべての `/api/*` リクエストは `app/api/[...path]/route.ts` を経由。Clerk JWT を注入し、ブラウザが FastAPI を直接呼び出すことはない
+- **JIT ユーザー作成** — Clerk webhook が未発火の場合（ローカル開発時）、初回の有効な JWT で middleware がユーザー行を作成
+- **SSE** による面接ストリーミング — 通常の HTTP で動作。Vercel で WebSocket サポートなしに使用可能
+- **FastAPI BackgroundTasks** — 履歴書分析・書類生成はプロセス内で実行。Celery や外部キューは不要
+- `job_postings` の **ソフトデリート** (`deleted_at` 使用)
+- **クエリ内での所有者確認** — `WHERE user_id = current_user.id` を全 DB クエリ内に記述
+- **課金は無効化** — `backend/app/api/v1/billing.py` と `frontend/app/dashboard/billing/` に実装済みだが意図的に無効化。全機能が無料
+- **i18n** — `useLang()` フック + `t(section, key, lang)` を全ページに適用。翻訳は `frontend/lib/i18n.ts` に集約
 
 ---
 
@@ -288,24 +275,41 @@ GitHub Actions が `main` および `develop` への全プッシュ・プルリ�
 | 変数名 | 設定場所 | 必須 | 説明 |
 |--------|---------|------|------|
 | `DATABASE_URL` | バックエンド | 必須 | PostgreSQL 非同期 URL (`postgresql+asyncpg://...`) |
-| `GEMINI_API_KEY` | バックエンド | 必須 | Google Gemini API キー（aistudio.google.com で無料取得可） |
-| `GEMINI_DEFAULT_MODEL` | バックエンド | 任意 | デフォルト: `gemini-2.0-flash-lite` |
-| `CLERK_PUBLISHABLE_KEY` | 両方 | 必須 | Clerk 公開鍵 |
+| `DATABASE_SYNC_URL` | バックエンド | 必須 | Alembic 用 PostgreSQL 同期 URL |
+| `GEMINI_API_KEY` | バックエンド | 必須 | Google Gemini API キー |
+| `GEMINI_DEFAULT_MODEL` | バックエンド | 必須 | モデル名 (例: `gemini-2.5-flash`) |
 | `CLERK_SECRET_KEY` | 両方 | 必須 | Clerk シークレットキー |
-| `CLERK_WEBHOOK_SECRET` | バックエンド | 必須 | Svix Webhook 署名シークレット |
 | `CLERK_JWKS_URL` | バックエンド | 必須 | JWT 検証用 Clerk JWKS エンドポイント |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | フロントエンド | 必須 | Clerk 公開鍵 |
 | `NEXT_PUBLIC_API_URL` | フロントエンド | 必須 | バックエンド URL（ローカルでは `http://localhost:8000`） |
-| `STRIPE_SECRET_KEY` | バックエンド | 任意 | Stripe シークレット（決済機能） |
-| `RESEND_API_KEY` | バックエンド | 任意 | Resend キー（トランザクションメール） |
-| `AWS_ACCESS_KEY_ID` | バックエンド | 任意 | S3 ファイルストレージ |
-| `SENTRY_DSN` | バックエンド | 任意 | エラー監視 |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | バックエンド | 必須 | Backblaze B2 認証情報 (S3互換) |
+| `S3_BUCKET_NAME` | バックエンド | 必須 | 履歴書・生成PDFを格納するB2バケット |
+| `CLOUDFLARE_R2_ENDPOINT_URL` | バックエンド | 必須 | B2のS3互換エンドポイント (例: `https://s3.ca-east-006.backblazeb2.com`) |
+| `REDIS_URL` | バックエンド | 任意 | レート制限に使用。なくてもアプリは動作する |
+| `RESEND_API_KEY` | バックエンド | 任意 | トランザクションメール |
+| `STRIPE_SECRET_KEY` | バックエンド | 任意 | 課金（無効化済み — バックアップ用） |
 
 `.env` および `.env.local` ファイルは絶対にコミットしないでください。
 
 ---
 
-## ロードマップ
+## CI/CD
 
-詳細: [開発ロードマップ](docs/japan-job-platform-techspec.md#7-mvp-roadmap)（技術仕様書内）
+| ジョブ | チェック内容 |
+|--------|------------|
+| フロントエンド CI | 型チェック、リント、フォーマット、ビルド |
+| バックエンド CI | Ruff リント + フォーマット、mypy、alembic check、pytest |
 
-現在のステータス: **フェーズ 1〜7 完了** — ランディングページ・ダッシュボード・AIチャットボット・管理パネル・言語切り替えを含む全コア機能を実装済み。
+**デプロイ:**
+- バックエンド → Render（`git push main` で自動デプロイ）
+- フロントエンド → Vercel（手動: `cd frontend && vercel --prod`）
+
+---
+
+## 既知の問題
+
+- Render 無料プランは15分アイドル後にスリープ → 初回リクエストに約50秒かかる。`/health` への定期ping（10分毎）で軽減可能。
+- GitHub Actions CI は現在失敗中（CI設定の環境変数不足）— 非ブロッキング、git push でのRenderデプロイは正常動作。
+- Vercel は GitHub 自動デプロイ未設定 — フロントエンド変更には手動 `vercel --prod` が必要。
+
+現在のステータス: **本番環境にデプロイ済み。全AI機能の動作確認済み。**

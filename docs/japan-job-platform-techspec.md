@@ -48,7 +48,7 @@ This platform serves as an end-to-end career enablement tool for Indonesian job-
                          │ HTTPS / REST
 ┌────────────────────────▼─────────────────────────────────┐
 │                    API GATEWAY LAYER                      │
-│              FastAPI (Railway/AWS EC2)                    │
+│              FastAPI (Render)                    │
 │         [Auth Middleware] [Rate Limiter] [CORS]           │
 └──────┬──────────────────┬──────────────────┬─────────────┘
        │                  │                  │
@@ -69,21 +69,21 @@ This platform serves as an end-to-end career enablement tool for Indonesian job-
 |-----------|-----------|---------------|
 | Frontend | Next.js 15, TypeScript, Tailwind | UI, SSR, routing |
 | API Server | FastAPI, Python 3.12 | Business logic, orchestration |
-| AI Engine | Google Gemini API (gemini-2.0-flash-lite) | All AI features |
-| Database | PostgreSQL 16 | Persistent storage |
-| Cache | Redis 7 | Sessions, rate limiting, job cache |
-| File Storage | AWS S3 or Cloudflare R2 | Resume uploads, generated PDFs |
-| Auth | Clerk (recommended) or JWT | Authentication, session management |
-| Queue | Celery + Redis | Async document generation jobs |
-| Email | Resend or SendGrid | Transactional emails |
+| AI Engine | Google Gemini API (gemini-2.5-flash) | All AI features |
+| Database | PostgreSQL 16 (Neon) | Persistent storage |
+| Cache | Redis 7 (Upstash) | Rate limiting |
+| File Storage | Backblaze B2 (S3-compatible API) | Resume uploads, generated PDFs |
+| Auth | Clerk | Authentication, session management |
+| Background Tasks | FastAPI BackgroundTasks | Async resume analysis + document generation |
+| Email | Resend | Transactional emails |
 
 ### 2.3 Architecture Decisions & Rationale
 
 **Why Clerk over custom JWT?**  
 Clerk handles MFA, social login, session management, and user metadata out-of-the-box. For an MVP targeting a non-English-speaking audience, reducing auth bugs is critical. Clerk's webhook system also simplifies user lifecycle events (onboarding emails, profile completion reminders).
 
-**Why Celery for document generation?**  
-Generating a full 職務経歴書 via Gemini can take 10–25 seconds. Blocking HTTP requests for this duration creates poor UX and risks timeouts. Celery workers process these asynchronously; the client polls for completion or receives a WebSocket notification.
+**Why FastAPI BackgroundTasks for document generation?**  
+Generating a full 職務経歴書 via Gemini can take 10–25 seconds. Blocking HTTP requests for this duration creates poor UX and risks timeouts. FastAPI BackgroundTasks handle these asynchronously in-process — no separate Celery worker or Redis broker needed. The client polls a status endpoint for completion and then downloads the PDF via a presigned URL.
 
 **Why PostgreSQL over NoSQL?**  
 Resume data, job matches, and user profiles have relational dependencies. PostgreSQL's JSONB columns give flexibility for unstructured AI outputs while maintaining relational integrity for core entities.
@@ -137,7 +137,7 @@ ai_usage_logs           (partitioned by month)
 
 **Interview practice uses SSE (Server-Sent Events).**
 
-Rationale: SSE runs over plain HTTP/1.1, works on Vercel and Railway without sticky session configuration, and Gemini's API maps naturally to a unidirectional server→client stream. The user sends one message via `POST /interviews/sessions/{id}/message`; the response streams via SSE.
+Rationale: SSE runs over plain HTTP/1.1, works on Vercel and Render without WebSocket configuration, and Gemini's API maps naturally to a unidirectional server→client stream. The user sends one message via `POST /interviews/sessions/{id}/message`; the response streams via SSE.
 
 - **Backend:** FastAPI `StreamingResponse` with `media_type='text/event-stream'`
 - **Frontend:** `@microsoft/fetch-event-source` library (supports POST requests and `Authorization` headers, unlike the native `EventSource` API)
@@ -146,7 +146,7 @@ Rationale: SSE runs over plain HTTP/1.1, works on Vercel and Railway without sti
 
 ## 4. REST API Endpoints
 
-**Base URL:** `https://api.japanjob.io/v1`  
+**Base URL:** `https://ai-job-support-api.onrender.com/api/v1`  
 **Auth:** Bearer token (Clerk JWT) in `Authorization` header  
 **Content-Type:** `application/json` (except file uploads: `multipart/form-data`)
 
@@ -782,7 +782,7 @@ frontend/
 │   ├── i18n.ts                        # EN/ID/JP strings
 │   └── language-context.tsx
 ├── types/api.ts
-└── middleware.ts                      # Clerk auth (body currently empty — re-enable before production)
+└── middleware.ts                      # Clerk auth — protects /dashboard/* and /onboarding
 ```
 
 ### 6.2 Backend (FastAPI)
@@ -837,7 +837,7 @@ backend/
 │   │   ├── file_storage.py            # S3/R2 operations
 │   │   └── usage_tracker.py           # Token counting, cost tracking
 │   │
-│   ├── workers/                       # Celery tasks
+│   ├── workers/                       # BackgroundTask functions (Celery code exists but is not used)
 │   │   ├── celery_app.py
 │   │   ├── document_tasks.py
 │   │   └── analysis_tasks.py
@@ -917,7 +917,7 @@ backend/
 | Task | Owner | Effort |
 |------|-------|--------|
 | Japanese font spike — Noto Sans JP in Docker + CI PDF assertion | Backend | 1d |
-| Celery worker setup | Backend | 1d |
+| BackgroundTasks wiring (no Celery needed) | Backend | 0.5d |
 | 履歴書 generation endpoint + prompt (max_tokens=2500) | Backend | 3d |
 | 職務経歴書 generation endpoint + prompt (max_tokens=3000) | Backend | 3d |
 | PDF generation (WeasyPrint + Noto Sans JP) | Backend | 2d |
@@ -995,8 +995,8 @@ backend/
 
 | Task | Owner | Effort | Status |
 |------|-------|--------|--------|
-| Re-enable Clerk auth middleware | Frontend | 0.5d | ⬜ |
-| Fix `alembic.ini` hardcoded DB URL | Backend | 0.5d | ⬜ |
+| Re-enable Clerk auth middleware | Frontend | 0.5d | ✅ Done |
+| Fix `alembic.ini` hardcoded DB URL | Backend | 0.5d | ✅ Done |
 | Verify WeasyPrint + Noto fonts on server | Backend | 0.5d | ⬜ |
 | Seed culture topics + glossary via admin panel | Both | 1d | ⬜ |
 | Integration tests (DB-touching paths) | Backend | 2d | ⬜ |
@@ -1005,7 +1005,7 @@ backend/
 | Sentry setup (frontend + backend) | Both | 1d | ⬜ |
 | pg_cron partition job manual trigger + verification | Backend | 0.5d | ⬜ |
 | End-to-end smoke test (all features) | Both | 1d | ⬜ |
-| Deploy to Vercel + Railway (production env vars, HSTS, CORS) | Both | 1d | ⬜ |
+| Deploy to Vercel + Render (production env vars, CORS) | Both | 1d | ✅ Done |
 
 **Exit criterion:** Zero critical Sentry errors during 30-minute smoke test. p95 < 3s for non-AI endpoints, p95 < 30s for document generation at 50 concurrent users.
 
@@ -1067,14 +1067,14 @@ backend/
 
 ### 8.6 Secrets Management
 
-- **Never commit secrets:** Use `.env` locally; Railway/AWS environment variables in production
-- **API key rotation:** Gemini API key rotated quarterly; use Railway's secret management
+- **Never commit secrets:** Use `.env` locally; Render/Vercel environment variables in production
+- **API key rotation:** Gemini API key rotated quarterly; use Render's environment variable management
 - **Database credentials:** Use IAM database authentication if on AWS RDS
 
 ### 8.7 Monitoring & Incident Response
 
 - **Error tracking:** Sentry for both frontend and backend
-- **API logging:** Structured logging (JSON) to CloudWatch/Railway logs — exclude PII fields
+- **API logging:** Structured logging (JSON) to Render logs — exclude PII fields
 - **Cost monitoring:** Set Gemini API spend alerts at $50, $100, $200 thresholds in Google Cloud Console
 - **Anomaly detection:** Alert on >10x normal AI usage per user (potential abuse)
 
@@ -1086,7 +1086,7 @@ backend/
 
 1. Create monorepo with two workspaces: `frontend/` and `backend/`
 2. Initialize Next.js 15: `npx create-next-app@latest frontend --typescript --tailwind --app`
-3. Initialize FastAPI: `pip install fastapi uvicorn sqlalchemy alembic google-genai psycopg2-binary celery redis python-multipart`
+3. Initialize FastAPI: `pip install fastapi uvicorn sqlalchemy alembic google-genai psycopg2-binary python-multipart`
 4. Set up PostgreSQL locally via Docker: `docker run -p 5432:5432 postgres:16`
 5. Set up Redis locally: `docker run -p 6379:6379 redis:7`
 6. Create Clerk application, configure JWT template
@@ -1112,8 +1112,7 @@ backend/
 
 ### Step 4: Document Generation (Days 9–14)
 
-1. Set up Celery with Redis broker
-2. Implement 履歴書 generation task (async)
+1. Wire 履歴書 generation as FastAPI BackgroundTask (no Celery needed)
 3. Implement 職務経歴書 generation task (async)
 4. Set up PDF generation with WeasyPrint (Japanese font support: Noto Sans JP)
 5. Implement polling endpoint for job status
@@ -1150,7 +1149,7 @@ backend/
 2. Security audit: OWASP Top 10 checklist
 3. Set up Sentry error tracking
 4. Configure production environment variables
-5. Deploy frontend to Vercel, backend to Railway
+5. Deploy frontend to Vercel, backend to Render
 6. Smoke test all 8 features end-to-end
 
 ---
