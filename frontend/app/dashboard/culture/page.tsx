@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCultureTopics, useGlossary } from "@/hooks/useCulture";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { CultureTopicSummary, GlossaryEntry } from "@/types/api";
 
 const COMMON_TAGS = ["keigo", "マナー", "報連相", "会議", "残業", "チームワーク"];
@@ -10,6 +12,7 @@ const COMMON_TAGS = ["keigo", "マナー", "報連相", "会議", "残業", "チ
 export default function CulturePage() {
   const [activeTab, setActiveTab] = useState<"topics" | "glossary">("topics");
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
+  const { lang } = useLang();
 
   const { data: topics, isLoading: topicsLoading } = useCultureTopics({ tag: selectedTag });
   const { data: glossary, isLoading: glossaryLoading } = useGlossary();
@@ -17,10 +20,8 @@ export default function CulturePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Japanese Workplace Culture</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Learn workplace norms, etiquette, and key Japanese terms to succeed in a Japanese company.
-        </p>
+        <h1 className="text-2xl font-semibold">{t("culture", "title", lang)}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("culture", "sub", lang)}</p>
       </div>
 
       {/* Tabs */}
@@ -29,13 +30,13 @@ export default function CulturePage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
               activeTab === tab
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab}
+            {tab === "topics" ? t("culture", "topicsTab", lang) : t("culture", "glossaryTab", lang)}
           </button>
         ))}
       </div>
@@ -52,7 +53,7 @@ export default function CulturePage() {
                   : "border-border bg-background text-muted-foreground hover:text-foreground"
               }`}
             >
-              All
+              {t("culture", "allTags", lang)}
             </button>
             {COMMON_TAGS.map((tag) => (
               <button
@@ -73,7 +74,7 @@ export default function CulturePage() {
 
           {topics && topics.length === 0 && !topicsLoading && (
             <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground">No articles yet. Check back soon.</p>
+              <p className="text-sm text-muted-foreground">{t("culture", "noTopics", lang)}</p>
             </div>
           )}
 
@@ -93,7 +94,7 @@ export default function CulturePage() {
 
           {glossary && glossary.length === 0 && !glossaryLoading && (
             <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground">No glossary entries yet.</p>
+              <p className="text-sm text-muted-foreground">{t("culture", "noGlossary", lang)}</p>
             </div>
           )}
 
@@ -110,8 +111,8 @@ export default function CulturePage() {
 // Topic card
 // ---------------------------------------------------------------------------
 
-function TopicCard({ topic: t }: { topic: CultureTopicSummary }) {
-  const date = new Date(t.published_at).toLocaleDateString(undefined, {
+function TopicCard({ topic: tp }: { topic: CultureTopicSummary }) {
+  const date = new Date(tp.published_at).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -120,12 +121,12 @@ function TopicCard({ topic: t }: { topic: CultureTopicSummary }) {
   return (
     <li>
       <Link
-        href={`/dashboard/culture/${t.slug}`}
+        href={`/dashboard/culture/${tp.slug}`}
         className="block rounded-lg border bg-card p-5 hover:bg-accent transition-colors h-full"
       >
-        <p className="font-medium leading-snug">{t.title}</p>
+        <p className="font-medium leading-snug">{tp.title}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {t.tags.map((tag) => (
+          {tp.tags.map((tag) => (
             <span
               key={tag}
               className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
@@ -146,6 +147,8 @@ function TopicCard({ topic: t }: { topic: CultureTopicSummary }) {
 
 function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
   const [search, setSearch] = useState("");
+  const { lang } = useLang();
+
   const filtered = search
     ? entries.filter(
         (e) =>
@@ -161,19 +164,21 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
         type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search terms…"
+        placeholder={t("culture", "searchPlaceholder", lang)}
         className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
       />
       <div className="rounded-lg border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50">
             <tr>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Term</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                {t("culture", "colTerm", lang)}
+              </th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">
-                Reading
+                {t("culture", "colReading", lang)}
               </th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                Definition (ID)
+                {t("culture", "colDefinition", lang)}
               </th>
             </tr>
           </thead>
@@ -190,7 +195,9 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No matching terms.</p>
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("culture", "noMatch", lang)}
+          </p>
         )}
       </div>
     </div>

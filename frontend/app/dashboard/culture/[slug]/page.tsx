@@ -4,6 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { useCultureTopic } from "@/hooks/useCulture";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -12,6 +14,7 @@ interface Props {
 export default function CultureTopicPage({ params }: Props) {
   const { slug } = use(params);
   const { data: topic, isLoading, error } = useCultureTopic(slug);
+  const { lang } = useLang();
 
   if (isLoading) return <ArticleSkeleton />;
 
@@ -19,7 +22,7 @@ export default function CultureTopicPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-destructive">Article not found.</p>
+        <p className="text-sm text-destructive">{t("culture", "notFound", lang)}</p>
       </div>
     );
   }
@@ -63,12 +66,13 @@ export default function CultureTopicPage({ params }: Props) {
 }
 
 function BackLink() {
+  const { lang } = useLang();
   return (
     <Link
       href="/dashboard/culture"
       className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
     >
-      ← Back to Culture
+      {t("culture", "backToCulture", lang)}
     </Link>
   );
 }

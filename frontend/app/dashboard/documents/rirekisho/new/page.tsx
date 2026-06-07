@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
 import { DocumentWizard } from "@/components/documents/DocumentWizard";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 
 export default function NewRirekishoPage() {
   const router = useRouter();
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
   const createMutation = useCreateDocument("rirekisho");
+  const { lang } = useLang();
 
   async function handleSubmit(resumeId: string, jobPostingId?: string) {
     const result = await createMutation.mutateAsync({
@@ -26,11 +29,11 @@ export default function NewRirekishoPage() {
           href="/dashboard/documents"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Back to documents
+          {t("documents", "backToDocuments", lang)}
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold">Generate 履歴書</h1>
+        <h1 className="mt-4 text-2xl font-semibold">{t("documents", "generateRirekisho", lang)}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          We'll convert your resume into a Japanese-format 履歴書 (rirekisho) PDF.
+          {t("documents", "rirekishoSub", lang)}
         </p>
       </div>
 
@@ -39,7 +42,7 @@ export default function NewRirekishoPage() {
         resumesLoading={resumesLoading}
         isPending={createMutation.isPending}
         error={createMutation.error instanceof Error ? createMutation.error.message : null}
-        submitLabel="Generate 履歴書"
+        submitLabel={t("documents", "generateRirekisho", lang)}
         onSubmit={handleSubmit}
       />
     </div>
