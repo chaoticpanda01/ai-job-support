@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import AuthUser, DbSession, PaginationDep
@@ -63,9 +63,10 @@ async def create_rirekisho(
     body: CreateRirekishoRequest,
     current_user: AuthUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ) -> DocumentStatusResponse:
     """Enqueue 履歴書 (rirekisho) generation. Poll GET /documents/{id} for status."""
-    from app.workers.document_tasks import generate_rirekisho_task
+    from app.workers.document_tasks import _run_generation
 
     job_context: dict | None = None
     if body.job_posting_id is not None:
@@ -83,7 +84,7 @@ async def create_rirekisho(
     await db.flush()
     await db.commit()
 
-    generate_rirekisho_task.delay(str(doc.id), str(current_user.user_id))
+    background_tasks.add_task(_run_generation, doc.id, current_user.user_id)
 
     logger.info("Enqueued rirekisho: document_id=%s user_id=%s", doc.id, current_user.user_id)
     return DocumentStatusResponse(
@@ -107,9 +108,10 @@ async def create_shokumu(
     body: CreateShokumuRequest,
     current_user: AuthUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ) -> DocumentStatusResponse:
     """Enqueue 職務経歴書 (shokumukeirekisho) generation. Poll GET /documents/{id} for status."""
-    from app.workers.document_tasks import generate_shokumu_task
+    from app.workers.document_tasks import _run_generation
 
     job_context: dict | None = None
     if body.job_posting_id is not None:
@@ -127,7 +129,7 @@ async def create_shokumu(
     await db.flush()
     await db.commit()
 
-    generate_shokumu_task.delay(str(doc.id), str(current_user.user_id))
+    background_tasks.add_task(_run_generation, doc.id, current_user.user_id)
 
     logger.info("Enqueued shokumu: document_id=%s user_id=%s", doc.id, current_user.user_id)
     return DocumentStatusResponse(
