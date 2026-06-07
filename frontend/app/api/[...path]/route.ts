@@ -72,8 +72,8 @@ async function handler(request: NextRequest): Promise<NextResponse> {
   }
 
   // Buffer non-streaming responses so the body is fully read before sending.
-  const body = await upstream.text();
-  return new NextResponse(body, {
+  const responseBody = await upstream.text();
+  return new NextResponse(responseBody, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
