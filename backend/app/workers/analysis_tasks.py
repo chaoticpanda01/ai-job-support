@@ -132,6 +132,7 @@ async def _run_analysis(
                 user_prompt,
                 max_tokens=8192,
                 feature="resume_analysis",
+                json_mode=True,
             )
         except AIError as exc:
             raise ValueError(f"AI call failed: {exc}") from exc

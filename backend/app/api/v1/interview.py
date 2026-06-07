@@ -394,7 +394,7 @@ async def _stream_eval_and_question(
     eval_result: dict | None = None
     try:
         eval_text, eval_in, eval_out = await ai_client.generate(
-            eval_system, eval_user, max_tokens=_EVAL_MAX_TOKENS, feature="interview_message"
+            eval_system, eval_user, max_tokens=_EVAL_MAX_TOKENS, feature="interview_message", json_mode=True
         )
         parsed_eval = parse_response(eval_text, InterviewEvalResult)
         eval_result = parsed_eval.model_dump()
@@ -490,7 +490,7 @@ async def _stream_summary(
 
     try:
         summary_text, in_tok, out_tok = await ai_client.generate(
-            system, user_prompt, max_tokens=_SUMMARY_MAX_TOKENS, feature="interview_message"
+            system, user_prompt, max_tokens=_SUMMARY_MAX_TOKENS, feature="interview_message", json_mode=True
         )
         parsed_summary = parse_response(summary_text, InterviewSummaryResult)
     except Exception as exc:

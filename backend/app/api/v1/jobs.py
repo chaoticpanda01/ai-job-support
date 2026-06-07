@@ -112,6 +112,7 @@ async def translate_job(
             user_prompt,
             max_tokens=_TRANSLATION_MAX_TOKENS,
             feature="job_translation",
+            json_mode=True,
         )
     except AIError as exc:
         logger.error("AI translation failed: %s", exc)
@@ -353,6 +354,7 @@ async def match_job(
             user_prompt,
             max_tokens=_MATCH_MAX_TOKENS,
             feature="job_match",
+            json_mode=True,
         )
     except AIError as exc:
         logger.error("AI match scoring failed: %s", exc)
