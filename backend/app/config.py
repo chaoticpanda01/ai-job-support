@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # --- Clerk Authentication ---
     clerk_secret_key: str
-    clerk_webhook_secret: str
+    clerk_webhook_secret: str = ""
     clerk_jwks_url: str
 
     # --- Gemini (primary AI provider) ---
@@ -62,9 +62,9 @@ class Settings(BaseSettings):
     s3_bucket_name: str
     s3_presigned_url_expiry_seconds: int = 900
 
-    # --- Stripe ---
-    stripe_secret_key: str
-    stripe_webhook_secret: str
+    # --- Stripe (optional — billing is disabled) ---
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
     stripe_price_id_basic: str = ""
     stripe_price_id_pro: str = ""
     stripe_success_url: str = "http://localhost:3000/billing?session=success"
