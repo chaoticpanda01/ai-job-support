@@ -2,43 +2,44 @@
 
 import Link from "next/link";
 import { useInterviewSessions } from "@/hooks/useInterview";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { InterviewSession } from "@/types/api";
 
 export default function InterviewPage() {
   const { data: sessions, isLoading, error } = useInterviewSessions();
+  const { lang } = useLang();
 
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Interview Practice</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Practise with an AI interviewer and get real-time per-answer feedback.
-          </p>
+          <h1 className="text-2xl font-semibold">{t("interview", "title", lang)}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("interview", "sub", lang)}</p>
         </div>
         <Link
           href="/dashboard/interview/new"
           className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
-          + New session
+          {t("interview", "newSession", lang)}
         </Link>
       </div>
 
       {isLoading && <SessionsSkeleton />}
 
       {error && (
-        <p className="text-sm text-destructive">Failed to load sessions. Please refresh.</p>
+        <p className="text-sm text-destructive">{t("interview", "loadError", lang)}</p>
       )}
 
       {sessions && sessions.length === 0 && !isLoading && (
         <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+          <p className="text-sm text-muted-foreground">{t("interview", "noSessions", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             <Link
               href="/dashboard/interview/new"
               className="underline hover:text-foreground"
             >
-              Start your first practice interview.
+              {t("interview", "startFirst", lang)}
             </Link>
           </p>
         </div>
@@ -56,6 +57,7 @@ export default function InterviewPage() {
 }
 
 function SessionCard({ session: s }: { session: InterviewSession }) {
+  const { lang } = useLang();
   const score = s.overall_score !== null ? Math.round(s.overall_score) : null;
   const scoreColor =
     score === null
@@ -74,6 +76,13 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
       })
     : null;
 
+  const langLabel =
+    s.language === "ja"
+      ? t("interview", "langJa", lang)
+      : s.language === "id"
+        ? t("interview", "langId", lang)
+        : t("interview", "langEn", lang);
+
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
       <div className="min-w-0 space-y-0.5">
@@ -84,7 +93,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          {langLabel(s.language)}
+          {langLabel}
           {completedAt && ` · ${completedAt}`}
         </p>
         {s.feedback_summary && (
@@ -96,14 +105,14 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
         {score !== null && (
           <div className="text-right">
             <p className={`text-2xl font-bold tabular-nums ${scoreColor}`}>{score}</p>
-            <p className="text-xs text-muted-foreground">score</p>
+            <p className="text-xs text-muted-foreground">{t("interview", "score", lang)}</p>
           </div>
         )}
         <Link
           href={`/dashboard/interview/${s.id}`}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Review →
+          {t("interview", "review", lang)}
         </Link>
       </div>
     </li>
@@ -112,10 +121,6 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
 
 function capitalise(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
-}
-
-function langLabel(lang: string) {
-  return lang === "ja" ? "Japanese" : lang === "id" ? "Indonesian" : "English";
 }
 
 function SessionsSkeleton() {

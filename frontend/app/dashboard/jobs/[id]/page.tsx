@@ -4,6 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
 
 interface Props {
@@ -13,13 +15,14 @@ interface Props {
 export default function JobDetailPage({ params }: Props) {
   const { id } = use(params);
   const { data: job, isLoading, error } = useJob(id);
+  const { lang } = useLang();
 
   if (isLoading) return <PageSkeleton />;
   if (error || !job) {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-destructive">Job posting not found.</p>
+        <p className="text-sm text-destructive">{t("jobs", "jobNotFound", lang)}</p>
       </div>
     );
   }
@@ -46,15 +49,12 @@ export default function JobDetailPage({ params }: Props) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Job header
-// ---------------------------------------------------------------------------
-
 function JobHeader({ job }: { job: JobPostingDetail }) {
+  const { lang } = useLang();
   return (
     <div className="space-y-1">
       <h1 className="text-2xl font-semibold">
-        {job.translated_title ?? job.original_title ?? "Untitled posting"}
+        {job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang)}
       </h1>
       {job.structured_data && (
         <p className="text-sm text-muted-foreground">
@@ -64,7 +64,7 @@ function JobHeader({ job }: { job: JobPostingDetail }) {
       )}
       {job.source_url && (
         <p className="text-xs text-muted-foreground">
-          Source:{" "}
+          {t("jobs", "source", lang)}{" "}
           <span className="font-mono">{job.source_url}</span>
         </p>
       )}
@@ -72,42 +72,43 @@ function JobHeader({ job }: { job: JobPostingDetail }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Structured info grid
-// ---------------------------------------------------------------------------
-
 function StructuredInfo({ job }: { job: JobPostingDetail }) {
+  const { lang } = useLang();
   const sd = job.structured_data;
   if (!sd) return null;
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <h2 className="mb-3 text-sm font-medium">Job Details</h2>
+      <h2 className="mb-3 text-sm font-medium">{t("jobs", "jobDetails", lang)}</h2>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <InfoRow label="Company" value={sd.company_name} />
-        <InfoRow label="Location" value={sd.location} />
-        <InfoRow label="Employment type" value={sd.employment_type} />
-        <InfoRow label="Salary" value={sd.salary_range} />
+        <InfoRow label={t("jobs", "company", lang)} value={sd.company_name} />
+        <InfoRow label={t("jobs", "location", lang)} value={sd.location} />
+        <InfoRow label={t("jobs", "employmentType", lang)} value={sd.employment_type} />
+        <InfoRow label={t("jobs", "salary", lang)} value={sd.salary_range} />
         <InfoRow
-          label="Japanese required"
-          value={sd.required_japanese === "none" ? "Not required" : sd.required_japanese}
-        />
-        <InfoRow
-          label="Experience"
+          label={t("jobs", "japaneseRequired", lang)}
           value={
-            sd.required_experience_years === 0
-              ? "Fresh graduates welcome"
-              : `${sd.required_experience_years}+ years`
+            sd.required_japanese === "none"
+              ? t("jobs", "notRequired", lang)
+              : sd.required_japanese
           }
         />
         <InfoRow
-          label="Visa sponsorship"
+          label={t("jobs", "experience", lang)}
+          value={
+            sd.required_experience_years === 0
+              ? t("jobs", "freshGrads", lang)
+              : `${sd.required_experience_years}${t("jobs", "yearsPlus", lang)}`
+          }
+        />
+        <InfoRow
+          label={t("jobs", "visaSponsorship", lang)}
           value={
             sd.visa_sponsorship === true
-              ? "Yes"
+              ? t("common", "yes", lang)
               : sd.visa_sponsorship === false
-                ? "No"
-                : "Not mentioned"
+                ? t("common", "no", lang)
+                : t("common", "notMentioned", lang)
           }
         />
       </dl>
@@ -115,7 +116,7 @@ function StructuredInfo({ job }: { job: JobPostingDetail }) {
       {sd.key_requirements.length > 0 && (
         <div className="mt-4">
           <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Key requirements
+            {t("jobs", "keyRequirements", lang)}
           </p>
           <ul className="space-y-1">
             {sd.key_requirements.map((req, i) => (
@@ -131,7 +132,7 @@ function StructuredInfo({ job }: { job: JobPostingDetail }) {
       {sd.benefits.length > 0 && (
         <div className="mt-4">
           <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Benefits
+            {t("jobs", "benefits", lang)}
           </p>
           <ul className="space-y-1">
             {sd.benefits.map((b, i) => (
@@ -157,22 +158,19 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Translated description
-// ---------------------------------------------------------------------------
-
 function TranslatedDescription({ job }: { job: JobPostingDetail }) {
+  const { lang } = useLang();
   const [expanded, setExpanded] = useState(false);
 
   if (!job.translated_description && !job.translation_summary) return null;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
-      <h2 className="text-sm font-medium">Translated Description</h2>
+      <h2 className="text-sm font-medium">{t("jobs", "translatedDesc", lang)}</h2>
 
       {job.translation_summary && (
         <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Summary: </span>
+          <span className="font-medium text-foreground">{t("jobs", "summaryLabel", lang)} </span>
           {job.translation_summary}
         </div>
       )}
@@ -190,7 +188,7 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
             onClick={() => setExpanded((v) => !v)}
             className="text-xs text-primary hover:underline"
           >
-            {expanded ? "Show less" : "Show full description"}
+            {expanded ? t("jobs", "showLess", lang) : t("jobs", "showFull", lang)}
           </button>
         </>
       )}
@@ -198,11 +196,8 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sidebar: foreigner-friendliness score
-// ---------------------------------------------------------------------------
-
 function ScoreCard({ score }: { score: number | null }) {
+  const { lang } = useLang();
   if (score === null) return null;
 
   const rounded = Math.round(score);
@@ -210,40 +205,37 @@ function ScoreCard({ score }: { score: number | null }) {
     rounded >= 70 ? "text-green-600" : rounded >= 50 ? "text-yellow-600" : "text-red-600";
   const label =
     rounded >= 80
-      ? "Very accessible"
+      ? t("jobs", "veryAccessible", lang)
       : rounded >= 60
-        ? "Accessible"
+        ? t("jobs", "accessible", lang)
         : rounded >= 40
-          ? "Challenging"
-          : "Very difficult";
+          ? t("jobs", "challenging", lang)
+          : t("jobs", "veryDifficult", lang);
 
   return (
     <div className="rounded-lg border bg-card p-4 text-center">
       <p className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        Foreigner Friendliness
+        {t("jobs", "foreignerFriendly", lang)}
       </p>
       <p className={`text-5xl font-bold tabular-nums ${color}`}>{rounded}</p>
       <p className={`mt-1 text-sm font-medium ${color}`}>{label}</p>
-      <p className="mt-2 text-xs text-muted-foreground">out of 100</p>
+      <p className="mt-2 text-xs text-muted-foreground">{t("jobs", "outOf100", lang)}</p>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Sidebar: match scoring panel
-// ---------------------------------------------------------------------------
 
 function MatchSection({ jobId }: { jobId: string }) {
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
   const [selectedResumeId, setSelectedResumeId] = useState<string>("");
   const matchMutation = useMatchJob(jobId);
   const cachedMatch = useCachedJobMatch(jobId, selectedResumeId);
+  const { lang } = useLang();
 
   const resumes = resumeList?.items ?? [];
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-4">
-      <h2 className="text-sm font-medium">Match Score</h2>
+      <h2 className="text-sm font-medium">{t("jobs", "matchScore", lang)}</h2>
 
       {resumesLoading && (
         <div className="h-8 animate-pulse rounded bg-muted" />
@@ -252,9 +244,9 @@ function MatchSection({ jobId }: { jobId: string }) {
       {!resumesLoading && resumes.length === 0 && (
         <p className="text-xs text-muted-foreground">
           <Link href="/dashboard/resumes" className="underline hover:text-foreground">
-            Upload a resume
+            {t("jobs", "uploadResumeTo", lang)}
           </Link>{" "}
-          to score this job.
+          {t("jobs", "toScoreJob", lang)}
         </p>
       )}
 
@@ -265,11 +257,11 @@ function MatchSection({ jobId }: { jobId: string }) {
             onChange={(e) => setSelectedResumeId(e.target.value)}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="">Select a resume…</option>
+            <option value="">{t("jobs", "selectResume", lang)}</option>
             {resumes.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.file_name}
-                {r.is_primary ? " (Primary)" : ""}
+                {r.is_primary ? ` (${t("common", "primary", lang)})` : ""}
               </option>
             ))}
           </select>
@@ -286,10 +278,10 @@ function MatchSection({ jobId }: { jobId: string }) {
             {matchMutation.isPending ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                Scoring…
+                {t("jobs", "scoring", lang)}
               </span>
             ) : (
-              "Score my resume"
+              t("jobs", "scoreBtn", lang)
             )}
           </button>
 
@@ -304,11 +296,8 @@ function MatchSection({ jobId }: { jobId: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Match result display
-// ---------------------------------------------------------------------------
-
 function MatchResult({ match }: { match: JobMatch }) {
+  const { lang } = useLang();
   const score = Math.round(match.match_score);
   const scoreColor =
     score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
@@ -320,14 +309,14 @@ function MatchResult({ match }: { match: JobMatch }) {
     <div className="space-y-4 border-t pt-4">
       <div className="text-center">
         <p className={`text-4xl font-bold tabular-nums ${scoreColor}`}>{score}</p>
-        <p className="text-xs text-muted-foreground">overall match</p>
+        <p className="text-xs text-muted-foreground">{t("jobs", "overallMatch", lang)}</p>
       </div>
 
       <div className="space-y-2">
-        <SubScore label="Skills" value={bd.skills_match} />
-        <SubScore label="Experience" value={bd.experience_match} />
-        <SubScore label="Japanese" value={bd.language_match} />
-        <SubScore label="Culture fit" value={bd.culture_fit} />
+        <SubScore label={t("jobs", "skills", lang)} value={bd.skills_match} />
+        <SubScore label={t("jobs", "expLabel", lang)} value={bd.experience_match} />
+        <SubScore label={t("jobs", "japanese", lang)} value={bd.language_match} />
+        <SubScore label={t("jobs", "cultureFit", lang)} value={bd.culture_fit} />
       </div>
 
       <p className="text-xs text-muted-foreground">{bd.summary}</p>
@@ -335,13 +324,13 @@ function MatchResult({ match }: { match: JobMatch }) {
       {rec && (
         <div className="space-y-3">
           {rec.strengths.length > 0 && (
-            <BulletList title="Strengths" items={rec.strengths} color="bg-green-500" />
+            <BulletList title={t("jobs", "strengths", lang)} items={rec.strengths} color="bg-green-500" />
           )}
           {rec.gaps.length > 0 && (
-            <BulletList title="Gaps" items={rec.gaps} color="bg-red-500" />
+            <BulletList title={t("jobs", "gaps", lang)} items={rec.gaps} color="bg-red-500" />
           )}
           {rec.actions.length > 0 && (
-            <BulletList title="Actions" items={rec.actions} color="bg-blue-500" />
+            <BulletList title={t("jobs", "actions", lang)} items={rec.actions} color="bg-blue-500" />
           )}
         </div>
       )}
@@ -394,17 +383,14 @@ function BulletList({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Shared
-// ---------------------------------------------------------------------------
-
 function BackLink() {
+  const { lang } = useLang();
   return (
     <Link
       href="/dashboard/jobs"
       className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
     >
-      ← Back to jobs
+      {t("jobs", "backToJobs", lang)}
     </Link>
   );
 }

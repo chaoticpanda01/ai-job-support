@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { useGenerateVisa, useLatestVisaConsultation, useVisaConsultations } from "@/hooks/useVisa";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { VisaChecklist, VisaChecklistStep, VisaConsultation } from "@/types/api";
 
 export default function VisaPage() {
   const { data: latest, isLoading, error } = useLatestVisaConsultation();
   const { data: list } = useVisaConsultations();
   const generate = useGenerateVisa();
+  const { lang } = useLang();
 
   const noConsultation = !isLoading && (error as { status?: number } | null)?.status === 404;
 
@@ -15,10 +18,8 @@ export default function VisaPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Visa Guidance</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Personalised Japanese work visa roadmap based on your profile.
-          </p>
+          <h1 className="text-2xl font-semibold">{t("visa", "title", lang)}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("visa", "sub", lang)}</p>
         </div>
         <button
           onClick={() => generate.mutate()}
@@ -28,17 +29,17 @@ export default function VisaPage() {
           {generate.isPending ? (
             <span className="flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              Generating…
+              {t("visa", "generating", lang)}
             </span>
           ) : (
-            "Generate new roadmap"
+            t("visa", "generateBtn", lang)
           )}
         </button>
       </div>
 
       {generate.error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(generate.error as { detail?: string }).detail ?? "Failed to generate roadmap. Please try again."}
+          {(generate.error as { detail?: string }).detail ?? t("visa", "generateFail", lang)}
         </p>
       )}
 
@@ -46,10 +47,8 @@ export default function VisaPage() {
 
       {noConsultation && !generate.isPending && (
         <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">No visa roadmap yet.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Click <span className="font-medium">Generate new roadmap</span> to get personalised guidance.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("visa", "noRoadmap", lang)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("visa", "noRoadmapSub", lang)}</p>
         </div>
       )}
 
@@ -67,31 +66,29 @@ export default function VisaPage() {
 // ---------------------------------------------------------------------------
 
 function RoadmapView({ consultation: c }: { consultation: VisaConsultation }) {
+  const { lang } = useLang();
   return (
     <div className="space-y-6">
-      {/* Visa type banner */}
       <div className="rounded-lg border bg-primary/5 px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Recommended visa category
+          {t("visa", "recommendedVisa", lang)}
         </p>
         <p className="mt-1 text-lg font-semibold">{c.visa_type ?? "—"}</p>
       </div>
 
-      {/* AI narrative */}
       {c.ai_guidance && (
         <div className="rounded-lg border bg-card p-5">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Guidance
+            {t("visa", "guidance", lang)}
           </p>
           <p className="text-sm leading-relaxed text-foreground">{c.ai_guidance}</p>
         </div>
       )}
 
-      {/* Checklist phases */}
       {c.checklist && <ChecklistView checklist={c.checklist} />}
 
       <p className="text-right text-xs text-muted-foreground">
-        Generated{" "}
+        {t("visa", "generated", lang)}{" "}
         {new Date(c.created_at).toLocaleDateString(undefined, {
           day: "numeric",
           month: "short",
@@ -107,6 +104,7 @@ function RoadmapView({ consultation: c }: { consultation: VisaConsultation }) {
 // ---------------------------------------------------------------------------
 
 function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
+  const { lang } = useLang();
   const [openPhase, setOpenPhase] = useState<number>(0);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
 
@@ -120,7 +118,7 @@ function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">Your roadmap</p>
+      <p className="text-sm font-medium">{t("visa", "yourRoadmap", lang)}</p>
       {checklist.phases.map((phase, idx) => {
         const isOpen = openPhase === idx;
         const doneCount = phase.steps.filter((s) => completed.has(s.id)).length;
@@ -170,9 +168,7 @@ function PhaseNumber({ index, done }: { index: number; done: boolean }) {
   return (
     <span
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        done
-          ? "bg-green-100 text-green-700"
-          : "bg-primary/10 text-primary"
+        done ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"
       }`}
     >
       {done ? "✓" : index + 1}
@@ -189,6 +185,7 @@ function StepRow({
   checked: boolean;
   onToggle: () => void;
 }) {
+  const { lang } = useLang();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -205,7 +202,7 @@ function StepRow({
             <p className={`font-medium ${checked ? "line-through" : ""}`}>{step.title}</p>
             {!step.required && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                optional
+                {t("visa", "optional", lang)}
               </span>
             )}
             {step.estimated_weeks > 0 && (
@@ -217,15 +214,13 @@ function StepRow({
 
           {!checked && (
             <>
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                {step.detail}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{step.detail}</p>
               {(step.resources.length > 0 || step.detail.length > 120) && (
                 <button
                   onClick={() => setExpanded((v) => !v)}
                   className="mt-1 text-xs text-primary hover:underline"
                 >
-                  {expanded ? "Show less" : "Show more"}
+                  {expanded ? t("visa", "showLess", lang) : t("visa", "showMore", lang)}
                 </button>
               )}
               {expanded && (
@@ -233,12 +228,12 @@ function StepRow({
                   <p className="text-xs text-foreground">{step.detail}</p>
                   {step.resources.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground">Resources</p>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {t("visa", "resources", lang)}
+                      </p>
                       <ul className="mt-0.5 space-y-0.5">
                         {step.resources.map((r, i) => (
-                          <li key={i} className="text-xs text-muted-foreground">
-                            • {r}
-                          </li>
+                          <li key={i} className="text-xs text-muted-foreground">• {r}</li>
                         ))}
                       </ul>
                     </div>
@@ -264,11 +259,13 @@ function PastConsultations({
   list: { id: string; visa_type: string | null; created_at: string }[];
   currentId: string | undefined;
 }) {
-  const { mutate } = useGenerateVisa();
+  const { lang } = useLang();
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-muted-foreground">Previous roadmaps</p>
+      <p className="text-sm font-medium text-muted-foreground">
+        {t("visa", "previousRoadmaps", lang)}
+      </p>
       <ul className="space-y-1.5">
         {list
           .filter((c) => c.id !== currentId)
@@ -291,10 +288,6 @@ function PastConsultations({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Skeleton
-// ---------------------------------------------------------------------------
 
 function RoadmapSkeleton() {
   return (

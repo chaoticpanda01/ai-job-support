@@ -7,20 +7,26 @@ import {
   useUpdateApplication,
   useDeleteApplication,
 } from "@/hooks/useApplications";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { ApplicationStatus, JobApplication } from "@/types/api";
 
 // ---------------------------------------------------------------------------
 // Column definitions
 // ---------------------------------------------------------------------------
 
-const COLUMNS: { status: ApplicationStatus; label: string; color: string }[] = [
-  { status: "planning",     label: "Planning",     color: "bg-slate-100  border-slate-300" },
-  { status: "applied",      label: "Applied",      color: "bg-blue-50    border-blue-200"  },
-  { status: "interviewing", label: "Interviewing", color: "bg-amber-50   border-amber-200" },
-  { status: "offered",      label: "Offered",      color: "bg-green-50   border-green-200" },
-  { status: "rejected",     label: "Rejected",     color: "bg-red-50     border-red-200"   },
-  { status: "withdrawn",    label: "Withdrawn",    color: "bg-muted      border-border"    },
+const COLUMN_KEYS: ApplicationStatus[] = [
+  "planning", "applied", "interviewing", "offered", "rejected", "withdrawn",
 ];
+
+const COLUMN_COLORS: Record<ApplicationStatus, string> = {
+  planning:     "bg-slate-100  border-slate-300",
+  applied:      "bg-blue-50    border-blue-200",
+  interviewing: "bg-amber-50   border-amber-200",
+  offered:      "bg-green-50   border-green-200",
+  rejected:     "bg-red-50     border-red-200",
+  withdrawn:    "bg-muted      border-border",
+};
 
 const STATUS_NEXT: Partial<Record<ApplicationStatus, ApplicationStatus[]>> = {
   planning:     ["applied", "withdrawn"],
@@ -35,38 +41,45 @@ const STATUS_NEXT: Partial<Record<ApplicationStatus, ApplicationStatus[]>> = {
 
 export default function ApplicationsPage() {
   const { data: apps, isLoading, error } = useApplications();
+  const { lang } = useLang();
 
   const grouped = groupByStatus(apps ?? []);
+
+  const columns = COLUMN_KEYS.map((status) => ({
+    status,
+    label: t("jobs", `col${status.charAt(0).toUpperCase() + status.slice(1)}` as never, lang),
+    color: COLUMN_COLORS[status],
+  }));
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Application Tracker</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Track your job applications through the hiring pipeline.
-          </p>
+          <h1 className="text-2xl font-semibold">{t("jobs", "appTitle", lang)}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("jobs", "appSub", lang)}</p>
         </div>
         <Link
           href="/dashboard/jobs"
           className="shrink-0 rounded-md border px-3 py-2 text-sm hover:bg-accent"
         >
-          ← Job board
+          {t("jobs", "jobBoard", lang)}
         </Link>
       </div>
 
       {error && (
-        <p className="text-sm text-destructive">Failed to load applications. Please refresh.</p>
+        <p className="text-sm text-destructive">{t("jobs", "appLoadError", lang)}</p>
       )}
 
       {isLoading ? (
-        <KanbanSkeleton />
+        <KanbanSkeleton columns={columns} />
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <KanbanColumn
               key={col.status}
-              column={col}
+              status={col.status}
+              label={col.label}
+              color={col.color}
               apps={grouped[col.status] ?? []}
             />
           ))}
@@ -81,16 +94,20 @@ export default function ApplicationsPage() {
 // ---------------------------------------------------------------------------
 
 function KanbanColumn({
-  column,
+  status,
+  label,
+  color,
   apps,
 }: {
-  column: (typeof COLUMNS)[number];
+  status: ApplicationStatus;
+  label: string;
+  color: string;
   apps: JobApplication[];
 }) {
   return (
-    <div className={`rounded-lg border ${column.color} flex flex-col min-h-[200px]`}>
+    <div className={`rounded-lg border ${color} flex flex-col min-h-[200px]`}>
       <div className="flex items-center justify-between border-b px-3 py-2">
-        <p className="text-xs font-semibold uppercase tracking-wide">{column.label}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
         <span className="rounded-full bg-background px-1.5 py-0.5 text-xs font-medium tabular-nums">
           {apps.length}
         </span>
@@ -98,7 +115,7 @@ function KanbanColumn({
 
       <ul className="flex flex-1 flex-col gap-2 p-2">
         {apps.map((app) => (
-          <ApplicationCard key={app.id} app={app} />
+          <ApplicationCard key={app.id} app={app} nextStatuses={STATUS_NEXT[status] ?? []} />
         ))}
         {apps.length === 0 && (
           <li className="flex flex-1 items-center justify-center">
@@ -114,15 +131,22 @@ function KanbanColumn({
 // Card
 // ---------------------------------------------------------------------------
 
-function ApplicationCard({ app }: { app: JobApplication }) {
+function ApplicationCard({
+  app,
+  nextStatuses,
+}: {
+  app: JobApplication;
+  nextStatuses: ApplicationStatus[];
+}) {
   const [showMenu, setShowMenu] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notes, setNotes] = useState(app.notes ?? "");
+  const { lang } = useLang();
 
   const update = useUpdateApplication();
   const remove = useDeleteApplication();
 
-  const nextStatuses = STATUS_NEXT[app.status] ?? [];
+  void showMenu; // suppress unused warning
 
   function moveToStatus(newStatus: ApplicationStatus) {
     update.mutate({ id: app.id, data: { status: newStatus } });
@@ -140,13 +164,12 @@ function ApplicationCard({ app }: { app: JobApplication }) {
 
   return (
     <li className="relative rounded-md border bg-background p-3 shadow-sm text-sm space-y-1.5">
-      {/* Job info */}
       <div>
         <Link
           href={`/dashboard/jobs/${app.job_posting_id}`}
           className="font-medium leading-snug hover:underline line-clamp-2"
         >
-          {app.job_title ?? "Untitled posting"}
+          {app.job_title ?? t("jobs", "untitled", lang)}
         </Link>
         {app.job_company && (
           <p className="text-xs text-muted-foreground">{app.job_company}</p>
@@ -154,10 +177,11 @@ function ApplicationCard({ app }: { app: JobApplication }) {
       </div>
 
       {appliedDate && (
-        <p className="text-xs text-muted-foreground">Applied {appliedDate}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("jobs", "appliedOn", lang)} {appliedDate}
+        </p>
       )}
 
-      {/* Notes */}
       {!editingNotes && app.notes && (
         <p className="text-xs text-muted-foreground line-clamp-2 italic">{app.notes}</p>
       )}
@@ -177,21 +201,19 @@ function ApplicationCard({ app }: { app: JobApplication }) {
               disabled={update.isPending}
               className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground disabled:opacity-50"
             >
-              Save
+              {t("common", "saveChanges", lang).split(" ")[0]}
             </button>
             <button
               onClick={() => { setEditingNotes(false); setNotes(app.notes ?? ""); }}
               className="rounded border px-2 py-0.5 text-xs hover:bg-accent"
             >
-              Cancel
+              {t("common", "cancel", lang)}
             </button>
           </div>
         </div>
       )}
 
-      {/* Actions row */}
       <div className="flex items-center gap-1 pt-0.5">
-        {/* Move to next status buttons */}
         {nextStatuses.map((s) => (
           <button
             key={s}
@@ -213,7 +235,7 @@ function ApplicationCard({ app }: { app: JobApplication }) {
           </button>
           <button
             onClick={() => {
-              if (confirm("Remove this application from the tracker?")) {
+              if (confirm(t("jobs", "confirmRemove", lang))) {
                 remove.mutate(app.id);
               }
             }}
@@ -234,17 +256,17 @@ function ApplicationCard({ app }: { app: JobApplication }) {
 
 function groupByStatus(apps: JobApplication[]): Record<ApplicationStatus, JobApplication[]> {
   const result = {} as Record<ApplicationStatus, JobApplication[]>;
-  for (const col of COLUMNS) result[col.status] = [];
+  for (const status of COLUMN_KEYS) result[status] = [];
   for (const app of apps) {
     if (result[app.status]) result[app.status].push(app);
   }
   return result;
 }
 
-function KanbanSkeleton() {
+function KanbanSkeleton({ columns }: { columns: { status: ApplicationStatus; color: string }[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-      {COLUMNS.map((col) => (
+      {columns.map((col) => (
         <div key={col.status} className={`rounded-lg border ${col.color} min-h-[200px]`}>
           <div className="border-b px-3 py-2">
             <div className="h-3 w-20 animate-pulse rounded bg-muted" />

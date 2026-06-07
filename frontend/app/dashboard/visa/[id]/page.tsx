@@ -3,6 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { useVisaConsultation } from "@/hooks/useVisa";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { VisaChecklist, VisaChecklistStep } from "@/types/api";
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 export default function VisaConsultationPage({ params }: Props) {
   const { id } = use(params);
   const { data: consultation, isLoading, error } = useVisaConsultation(id);
+  const { lang } = useLang();
 
   if (isLoading) {
     return (
@@ -30,7 +33,7 @@ export default function VisaConsultationPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-destructive">Consultation not found.</p>
+        <p className="text-sm text-destructive">{t("visa", "consultNotFound", lang)}</p>
       </div>
     );
   }
@@ -40,9 +43,9 @@ export default function VisaConsultationPage({ params }: Props) {
       <BackLink />
 
       <div>
-        <h1 className="text-2xl font-semibold">Visa Roadmap</h1>
+        <h1 className="text-2xl font-semibold">{t("visa", "roadmapTitle", lang)}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Generated{" "}
+          {t("visa", "generated", lang)}{" "}
           {new Date(consultation.created_at).toLocaleDateString(undefined, {
             day: "numeric",
             month: "long",
@@ -54,7 +57,7 @@ export default function VisaConsultationPage({ params }: Props) {
       {/* Visa type banner */}
       <div className="rounded-lg border bg-primary/5 px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Recommended visa category
+          {t("visa", "recommendedVisa", lang)}
         </p>
         <p className="mt-1 text-lg font-semibold">{consultation.visa_type ?? "—"}</p>
       </div>
@@ -63,13 +66,13 @@ export default function VisaConsultationPage({ params }: Props) {
       {consultation.ai_guidance && (
         <div className="rounded-lg border bg-card p-5">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Guidance
+            {t("visa", "guidance", lang)}
           </p>
           <p className="text-sm leading-relaxed">{consultation.ai_guidance}</p>
         </div>
       )}
 
-      {/* Checklist phases (read-only, no checkbox state) */}
+      {/* Checklist phases (read-only) */}
       {consultation.checklist && (
         <ReadOnlyChecklist checklist={consultation.checklist as VisaChecklist} />
       )}
@@ -77,14 +80,11 @@ export default function VisaConsultationPage({ params }: Props) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Read-only checklist (no interactive state — useful for reviewing old roadmaps)
-// ---------------------------------------------------------------------------
-
 function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
+  const { lang } = useLang();
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">Roadmap phases</p>
+      <p className="text-sm font-medium">{t("visa", "roadmapPhases", lang)}</p>
       {checklist.phases.map((phase, idx) => (
         <div key={idx} className="rounded-lg border bg-card overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/30">
@@ -108,6 +108,7 @@ function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
 }
 
 function StepRow({ step }: { step: VisaChecklistStep }) {
+  const { lang } = useLang();
   return (
     <li className="px-4 py-3 text-sm">
       <div className="flex items-start justify-between gap-4">
@@ -116,7 +117,7 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
             <p className="font-medium">{step.title}</p>
             {!step.required && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                optional
+                {t("visa", "optional", lang)}
               </span>
             )}
           </div>
@@ -124,9 +125,7 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
           {step.resources.length > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {step.resources.map((r, i) => (
-                <li key={i} className="text-xs text-muted-foreground">
-                  • {r}
-                </li>
+                <li key={i} className="text-xs text-muted-foreground">• {r}</li>
               ))}
             </ul>
           )}
@@ -140,12 +139,13 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
 }
 
 function BackLink() {
+  const { lang } = useLang();
   return (
     <Link
       href="/dashboard/visa"
       className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
     >
-      ← Back to Visa Guidance
+      {t("visa", "backToVisa", lang)}
     </Link>
   );
 }
