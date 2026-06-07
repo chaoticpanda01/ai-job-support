@@ -133,14 +133,21 @@ class ClerkJWTMiddleware(BaseHTTPMiddleware):
             return _unauthorized("Token validation failed")
 
         clerk_id: str | None = claims.get("sub")
-        email: str | None = claims.get("email")
+        email: str | None = claims.get("email") or None  # treat "" as None
 
         if not clerk_id:
             return _unauthorized("Token missing subject claim")
 
         # Resolve DB user
-        async with AsyncSessionFactory() as session:
-            user = await _resolve_user(session, clerk_id, email or "")
+        try:
+            async with AsyncSessionFactory() as session:
+                user = await _resolve_user(session, clerk_id, email or "")
+        except Exception as exc:
+            logger.error("Failed to resolve user clerk_id=%s: %s", clerk_id, exc)
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "User resolution failed — check server logs"},
+            )
 
         if user is None:
             # User deleted from DB but token still valid — treat as unauthorized
@@ -166,6 +173,17 @@ async def _resolve_user(session: AsyncSession, clerk_id: str, email: str) -> Any
     # No DB row yet (webhook not configured or not fired in local dev).
     # Create the user just-in-time from the JWT claims so the app works
     # without requiring a Clerk webhook setup.
+    # Skip JIT creation if email is missing — the DB has an email format CHECK
+    # constraint that would reject an empty string. The Clerk JWT template must
+    # include the email claim for JIT creation to work.
+    if not email:
+        logger.warning(
+            "JIT user creation skipped: clerk_id=%s has no email in JWT. "
+            "Add email to the Clerk JWT template in the Clerk dashboard.",
+            clerk_id,
+        )
+        return None
+
     user, _ = await repo.upsert_from_clerk(
         clerk_id=clerk_id,
         email=email,
