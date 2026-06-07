@@ -29,15 +29,21 @@ class ResponseParseError(Exception):
 
 def extract_json(text: str) -> dict[str, Any]:
     """
-    Extract the first JSON object from a Claude response string.
-    Strips markdown code fences if present.
+    Extract the first JSON object from an AI response string.
+    Strips markdown code fences if present (handles both closed and unclosed fences).
     Raises ResponseParseError if no valid JSON is found.
     """
-    # Try fenced block first
+    # Try closed fence first: ```json ... ```
     fence_match = _FENCE_RE.search(text)
-    candidate = fence_match.group(1).strip() if fence_match else text.strip()
+    if fence_match:
+        candidate = fence_match.group(1).strip()
+    else:
+        # Handle unclosed fence (response truncated before closing ```)
+        # Strip leading ```json or ``` marker if present
+        stripped = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)
+        candidate = stripped.strip()
 
-    # Find first '{' … last '}' if the candidate has surrounding prose
+    # Find first '{' … last '}' to ignore surrounding prose
     start = candidate.find("{")
     end = candidate.rfind("}")
     if start != -1 and end != -1:
@@ -47,7 +53,7 @@ def extract_json(text: str) -> dict[str, Any]:
         parsed = json.loads(candidate)
     except json.JSONDecodeError as exc:
         logger.warning("JSON decode failed: %s | raw=%r", exc, text[:200])
-        raise ResponseParseError(f"No valid JSON in Claude response: {exc}") from exc
+        raise ResponseParseError(f"No valid JSON in AI response: {exc}") from exc
 
     if not isinstance(parsed, dict):
         raise ResponseParseError(f"Expected JSON object, got {type(parsed).__name__}")

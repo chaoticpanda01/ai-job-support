@@ -130,7 +130,7 @@ async def _run_analysis(
             response_text, input_tokens, output_tokens = await ai_client.generate(
                 system,
                 user_prompt,
-                max_tokens=1500,
+                max_tokens=8192,
                 feature="resume_analysis",
             )
         except AIError as exc:
