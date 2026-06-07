@@ -101,15 +101,16 @@ async def _run_analysis(
             logger.warning("Budget exceeded for user=%s: %s", user_id, exc)
             raise
 
-        # -- Fetch file bytes from S3
+        # -- Fetch file bytes from S3 / Backblaze B2
         import boto3  # type: ignore[import-untyped]
-        import io
-        s3 = boto3.client(
-            "s3",
+        s3_kwargs: dict = dict(
             region_name=settings.aws_region,
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
         )
+        if settings.cloudflare_r2_endpoint_url:
+            s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
+        s3 = boto3.client("s3", **s3_kwargs)
         obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=resume.file_url)
         file_bytes = obj["Body"].read()
 
@@ -148,7 +149,7 @@ async def _run_analysis(
             resume_id=resume_id,
             analysis_type=AnalysisType(analysis_type),
             job_posting_id=job_posting_id,
-            ai_model=settings.anthropic_default_model,
+            ai_model=settings.gemini_default_model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             result=parsed.model_dump(),
@@ -158,7 +159,7 @@ async def _run_analysis(
         await usage_tracker.record(
             user_id=user_id,
             feature="resume_analysis",
-            model=settings.anthropic_default_model,
+            model=settings.gemini_default_model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             latency_ms=latency_ms,
