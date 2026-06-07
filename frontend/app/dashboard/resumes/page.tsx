@@ -3,33 +3,34 @@
 import Link from "next/link";
 import { useResumes, useDeleteResume, useSetPrimaryResume } from "@/hooks/useResumes";
 import { ResumeUploader } from "@/components/resume/ResumeUploader";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
 
 export default function ResumesPage() {
   const { data, isLoading, error } = useResumes();
+  const { lang } = useLang();
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Resumes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload your resume to get started. We'll analyse it for the Japanese job market.
-        </p>
+        <h1 className="text-2xl font-semibold">{t("resumes", "title", lang)}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("resumes", "sub", lang)}</p>
       </div>
 
       <ResumeUploader />
 
       <section>
-        <h2 className="mb-4 text-base font-medium">Your resumes</h2>
+        <h2 className="mb-4 text-base font-medium">{t("resumes", "yourResumes", lang)}</h2>
 
         {isLoading && <ResumesSkeleton />}
 
         {error && (
-          <p className="text-sm text-destructive">Failed to load resumes. Please refresh.</p>
+          <p className="text-sm text-destructive">{t("resumes", "loadError", lang)}</p>
         )}
 
         {data && data.items.length === 0 && !isLoading && (
-          <p className="text-sm text-muted-foreground">No resumes yet. Upload one above.</p>
+          <p className="text-sm text-muted-foreground">{t("resumes", "noResumes", lang)}</p>
         )}
 
         {data && data.items.length > 0 && (
@@ -47,6 +48,7 @@ export default function ResumesPage() {
 function ResumeCard({ resume }: { resume: Resume }) {
   const deleteMutation = useDeleteResume();
   const setPrimaryMutation = useSetPrimaryResume();
+  const { lang } = useLang();
 
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
   const uploadedAt = new Date(resume.created_at).toLocaleDateString();
@@ -66,7 +68,7 @@ function ResumeCard({ resume }: { resume: Resume }) {
             {fileSizeKB} KB · {uploadedAt}
             {resume.is_primary && (
               <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Primary
+                {t("common", "primary", lang)}
               </span>
             )}
           </p>
@@ -80,23 +82,23 @@ function ResumeCard({ resume }: { resume: Resume }) {
             disabled={setPrimaryMutation.isPending}
             className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
-            Set primary
+            {t("resumes", "setPrimary", lang)}
           </button>
         )}
         <Link
           href={`/dashboard/resumes/${resume.id}`}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          View
+          {t("common", "view", lang)}
         </Link>
         <button
           onClick={() => {
-            if (confirm("Delete this resume?")) deleteMutation.mutate(resume.id);
+            if (confirm(t("resumes", "confirmDelete", lang))) deleteMutation.mutate(resume.id);
           }}
           disabled={deleteMutation.isPending}
           className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
         >
-          Delete
+          {t("common", "delete", lang)}
         </button>
       </div>
     </li>

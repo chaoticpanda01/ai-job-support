@@ -6,6 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { JapaneseLevel, PreferredLanguage, VisaStatus } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ export default function OnboardingPage() {
   const { data: me } = useMe();
   const updateProfile = useUpdateProfile();
   const recordConsent = useRecordConsent();
+  const { lang } = useLang();
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,14 +59,16 @@ export default function OnboardingPage() {
     }
   }, [me?.profile?.onboarding_completed, router]);
 
+  const stepLabel = t("onboarding", "stepOf", lang)
+    .replace("{n}", String(step))
+    .replace("{t}", String(TOTAL_STEPS));
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-lg rounded-xl border bg-card p-8 shadow-sm">
         {/* Progress header */}
         <div className="mb-8">
-          <p className="text-sm font-medium text-muted-foreground">
-            Step {step} of {TOTAL_STEPS}
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">{stepLabel}</p>
           <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
             <div
               className="h-1.5 rounded-full bg-primary transition-all duration-300"
@@ -87,7 +92,7 @@ export default function OnboardingPage() {
                 await recordConsent.mutateAsync();
                 setStep(2);
               } catch {
-                setError("Something went wrong. Please try again.");
+                setError(t("common", "error", lang));
               }
             }}
             loading={recordConsent.isPending}
@@ -106,7 +111,7 @@ export default function OnboardingPage() {
                 });
                 setStep(3);
               } catch {
-                setError("Something went wrong. Please try again.");
+                setError(t("common", "error", lang));
               }
             }}
             onBack={() => setStep(1)}
@@ -129,7 +134,7 @@ export default function OnboardingPage() {
                 });
                 setStep(4);
               } catch {
-                setError("Something went wrong. Please try again.");
+                setError(t("common", "error", lang));
               }
             }}
             onBack={() => setStep(2)}
@@ -158,7 +163,7 @@ export default function OnboardingPage() {
                 });
                 router.push("/dashboard/resumes");
               } catch {
-                setError("Something went wrong. Please try again.");
+                setError(t("common", "error", lang));
               }
             }}
             onBack={() => setStep(3)}
@@ -171,7 +176,7 @@ export default function OnboardingPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1 — AI processing consent (Section 8.4)
+// Step 1 — AI processing consent
 // ---------------------------------------------------------------------------
 
 function Step1Consent({
@@ -181,37 +186,31 @@ function Step1Consent({
   onNext: () => Promise<void>;
   loading: boolean;
 }) {
+  const { lang } = useLang();
   const [checked, setChecked] = useState(false);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Before we begin</h1>
+        <h1 className="text-2xl font-semibold">{t("onboarding", "s1Title", lang)}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Japan Job Support uses AI to analyse your resume and generate career documents.
-          Please read and accept the following before continuing.
+          {t("onboarding", "s1Sub", lang)}
         </p>
       </div>
 
       <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground space-y-2">
-        <p>By continuing, you agree that Japan Job Support may:</p>
+        <p>{t("onboarding", "s1Agree", lang)}</p>
         <ul className="ml-4 list-disc space-y-1">
-          <li>
-            Process the content of your uploaded resume using the Anthropic Claude API
-            to generate analysis, career documents, and job-match scores.
-          </li>
-          <li>
-            Store AI-generated results (scores, translations, documents) in our
-            database to provide the service.
-          </li>
-          <li>
-            Send anonymised usage data to Anthropic as part of normal API operation.
-            Your personal details are never used to train AI models.
-          </li>
+          <li>{t("onboarding", "s1P1", lang)}</li>
+          <li>{t("onboarding", "s1P2", lang)}</li>
+          <li>{t("onboarding", "s1P3", lang)}</li>
         </ul>
         <p>
-          You can withdraw consent at any time by deleting your account from{" "}
-          <span className="font-medium text-foreground">Settings → Danger zone</span>.
+          {t("onboarding", "s1Withdraw", lang)}{" "}
+          <span className="font-medium text-foreground">
+            {t("onboarding", "s1DangerZone", lang)}
+          </span>
+          .
         </p>
       </div>
 
@@ -222,9 +221,7 @@ function Step1Consent({
           onChange={(e) => setChecked(e.target.checked)}
           className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
         />
-        <span className="text-sm">
-          I understand and consent to AI processing of my resume data as described above.
-        </span>
+        <span className="text-sm">{t("onboarding", "s1Checkbox", lang)}</span>
       </label>
 
       <button
@@ -232,7 +229,7 @@ function Step1Consent({
         disabled={!checked || loading}
         className="flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {loading ? "Saving…" : "I agree — continue"}
+        {loading ? t("common", "saving", lang) : t("onboarding", "s1Btn", lang)}
       </button>
     </div>
   );
@@ -251,6 +248,7 @@ function Step2({
   onBack: () => void;
   loading: boolean;
 }) {
+  const { lang } = useLang();
   const {
     register,
     handleSubmit,
@@ -262,14 +260,14 @@ function Step2({
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">Welcome! Let's get started</h1>
-      <p className="text-sm text-muted-foreground">Tell us your name and preferred language.</p>
+      <h1 className="text-2xl font-semibold">{t("onboarding", "s2Title", lang)}</h1>
+      <p className="text-sm text-muted-foreground">{t("onboarding", "s2Sub", lang)}</p>
 
-      <Field label="Full name" error={errors.full_name?.message}>
+      <Field label={t("onboarding", "s2Name", lang)} error={errors.full_name?.message}>
         <input {...register("full_name")} placeholder="Budi Santoso" className={inputCls} />
       </Field>
 
-      <Field label="Preferred language" error={errors.preferred_language?.message}>
+      <Field label={t("onboarding", "s2Lang", lang)} error={errors.preferred_language?.message}>
         <select {...register("preferred_language")} className={inputCls}>
           <option value="id">Indonesian (Bahasa Indonesia)</option>
           <option value="en">English</option>
@@ -279,9 +277,9 @@ function Step2({
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          Back
+          {t("common", "back", lang)}
         </button>
-        <SubmitBtn loading={loading}>Continue</SubmitBtn>
+        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
       </div>
     </form>
   );
@@ -300,6 +298,7 @@ function Step3({
   onBack: () => void;
   loading: boolean;
 }) {
+  const { lang } = useLang();
   const {
     register,
     handleSubmit,
@@ -311,14 +310,14 @@ function Step3({
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">Your background</h1>
-      <p className="text-sm text-muted-foreground">Help us tailor your Japan job search.</p>
+      <h1 className="text-2xl font-semibold">{t("onboarding", "s3Title", lang)}</h1>
+      <p className="text-sm text-muted-foreground">{t("onboarding", "s3Sub", lang)}</p>
 
-      <Field label="Nationality" error={errors.nationality?.message}>
+      <Field label={t("onboarding", "s3Nation", lang)} error={errors.nationality?.message}>
         <input {...register("nationality")} placeholder="Indonesian" className={inputCls} />
       </Field>
 
-      <Field label="Current location" error={errors.current_location?.message}>
+      <Field label={t("onboarding", "s3CurrLoc", lang)} error={errors.current_location?.message}>
         <input
           {...register("current_location")}
           placeholder="Jakarta, Indonesia"
@@ -326,11 +325,11 @@ function Step3({
         />
       </Field>
 
-      <Field label="Target location in Japan" error={errors.target_location?.message}>
+      <Field label={t("onboarding", "s3TargLoc", lang)} error={errors.target_location?.message}>
         <input {...register("target_location")} placeholder="Tokyo" className={inputCls} />
       </Field>
 
-      <Field label="Years of work experience" error={errors.years_experience?.message}>
+      <Field label={t("onboarding", "s3ExpYears", lang)} error={errors.years_experience?.message}>
         <input
           {...register("years_experience")}
           type="number"
@@ -342,9 +341,9 @@ function Step3({
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          Back
+          {t("common", "back", lang)}
         </button>
-        <SubmitBtn loading={loading}>Continue</SubmitBtn>
+        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
       </div>
     </form>
   );
@@ -363,6 +362,7 @@ function Step4({
   onBack: () => void;
   loading: boolean;
 }) {
+  const { lang } = useLang();
   const {
     register,
     handleSubmit,
@@ -374,14 +374,12 @@ function Step4({
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">Japanese & preferences</h1>
-      <p className="text-sm text-muted-foreground">
-        This helps us score your resume for the Japanese market.
-      </p>
+      <h1 className="text-2xl font-semibold">{t("onboarding", "s4Title", lang)}</h1>
+      <p className="text-sm text-muted-foreground">{t("onboarding", "s4Sub", lang)}</p>
 
-      <Field label="Japanese level" error={errors.japanese_level?.message}>
+      <Field label={t("onboarding", "s4JpLevel", lang)} error={errors.japanese_level?.message}>
         <select {...register("japanese_level")} className={inputCls}>
-          <option value="none">No Japanese</option>
+          <option value="none">{t("onboarding", "noJapanese", lang)}</option>
           <option value="N5">N5 — Basic</option>
           <option value="N4">N4 — Elementary</option>
           <option value="N3">N3 — Intermediate</option>
@@ -390,18 +388,15 @@ function Step4({
         </select>
       </Field>
 
-      <Field label="Visa status" error={errors.visa_status?.message}>
+      <Field label={t("onboarding", "s4Visa", lang)} error={errors.visa_status?.message}>
         <select {...register("visa_status")} className={inputCls}>
-          <option value="none">No visa yet</option>
-          <option value="pending">Application in progress</option>
-          <option value="held">Already holding a visa</option>
+          <option value="none">{t("onboarding", "visaNone", lang)}</option>
+          <option value="pending">{t("onboarding", "visaPending", lang)}</option>
+          <option value="held">{t("onboarding", "visaHeld", lang)}</option>
         </select>
       </Field>
 
-      <Field
-        label="Target industries (comma-separated)"
-        error={errors.target_industry?.message}
-      >
+      <Field label={t("onboarding", "s4Industries", lang)} error={errors.target_industry?.message}>
         <input
           {...register("target_industry")}
           placeholder="IT, Manufacturing, Finance"
@@ -409,7 +404,7 @@ function Step4({
         />
       </Field>
 
-      <Field label="Target roles (comma-separated)" error={errors.target_role?.message}>
+      <Field label={t("onboarding", "s4Roles", lang)} error={errors.target_role?.message}>
         <input
           {...register("target_role")}
           placeholder="Software Engineer, Project Manager"
@@ -419,9 +414,9 @@ function Step4({
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          Back
+          {t("common", "back", lang)}
         </button>
-        <SubmitBtn loading={loading}>Complete setup</SubmitBtn>
+        <SubmitBtn loading={loading} label={t("onboarding", "completeBtn", lang)} />
       </div>
     </form>
   );
@@ -449,14 +444,15 @@ function Field({
   );
 }
 
-function SubmitBtn({ children, loading }: { children: React.ReactNode; loading: boolean }) {
+function SubmitBtn({ label, loading }: { label: string; loading: boolean }) {
+  const { lang } = useLang();
   return (
     <button
       type="submit"
       disabled={loading}
       className="flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
     >
-      {loading ? "Saving…" : children}
+      {loading ? t("common", "saving", lang) : label}
     </button>
   );
 }

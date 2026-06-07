@@ -3,6 +3,8 @@
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useInterview, useInterviewSession } from "@/hooks/useInterview";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
 
 interface Props {
@@ -19,10 +21,8 @@ export default function InterviewSessionPage({ params }: Props) {
     endSession,
     abort,
   } = useInterview();
+  const { lang } = useLang();
 
-  // Wire the hook to the existing session from the URL
-  // The hook's sessionId is only set when createSession() is called on this mount.
-  // For direct URL visits (e.g. after redirect), we drive off the fetched session.
   const resolvedSessionId = activeId ?? id;
 
   const [input, setInput] = useState("");
@@ -32,7 +32,6 @@ export default function InterviewSessionPage({ params }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Populate local messages from fetched session data
   useEffect(() => {
     if (session?.messages) {
       setLocalMessages(session.messages);
@@ -40,7 +39,6 @@ export default function InterviewSessionPage({ params }: Props) {
     }
   }, [session]);
 
-  // Auto-scroll to bottom whenever content changes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages, state.streamingText, state.lastEval, state.summary]);
@@ -53,7 +51,6 @@ export default function InterviewSessionPage({ params }: Props) {
     const text = input.trim();
     if (!text || state.isStreaming) return;
 
-    // Optimistically add user message to local list
     setLocalMessages((prev) => [
       ...prev,
       {
@@ -71,7 +68,7 @@ export default function InterviewSessionPage({ params }: Props) {
   }
 
   function handleEnd() {
-    if (!confirm("End this interview session and get your overall feedback?")) return;
+    if (!confirm(t("interview", "endConfirm", lang))) return;
     setEnded(true);
     endSession();
   }
@@ -98,7 +95,7 @@ export default function InterviewSessionPage({ params }: Props) {
             <p className="text-sm font-medium">
               {session
                 ? `${capitalise(session.session_type)} Interview`
-                : "Interview Session"}
+                : t("interview", "sessionTitle", lang)}
             </p>
             {session?.target_role && (
               <p className="text-xs text-muted-foreground">{session.target_role}</p>
@@ -112,7 +109,7 @@ export default function InterviewSessionPage({ params }: Props) {
               onClick={handleEnd}
               className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
             >
-              End session
+              {t("interview", "endSession", lang)}
             </button>
           )}
           {state.isStreaming && (
@@ -120,7 +117,7 @@ export default function InterviewSessionPage({ params }: Props) {
               onClick={abort}
               className="rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
             >
-              Stop
+              {t("interview", "stop", lang)}
             </button>
           )}
         </div>
@@ -133,17 +130,14 @@ export default function InterviewSessionPage({ params }: Props) {
             <MessageBubble key={msg.id} message={msg} />
           ))}
 
-          {/* Live streaming bubble */}
           {state.isStreaming && state.streamingText && (
             <StreamingBubble text={state.streamingText} />
           )}
 
-          {/* Eval card appearing after user turn */}
           {state.lastEval && !state.isStreaming && (
             <EvalCard eval={state.lastEval} />
           )}
 
-          {/* End-of-session summary */}
           {state.summary && (
             <SummaryCard summary={state.summary} />
           )}
@@ -165,7 +159,7 @@ export default function InterviewSessionPage({ params }: Props) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your answer… (Enter to send, Shift+Enter for new line)"
+              placeholder={t("interview", "inputPlaceholder", lang)}
               rows={3}
               disabled={state.isStreaming}
               className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
@@ -178,12 +172,12 @@ export default function InterviewSessionPage({ params }: Props) {
               {state.isStreaming ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               ) : (
-                "Send"
+                t("interview", "send", lang)
               )}
             </button>
           </div>
           <p className="mx-auto mt-1.5 max-w-2xl text-right text-xs text-muted-foreground">
-            Enter to send · Shift+Enter for new line
+            {t("interview", "enterHint", lang)}
           </p>
         </div>
       )}
@@ -223,10 +217,6 @@ function MessageBubble({ message }: { message: InterviewMessage }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Streaming bubble (live token accumulation)
-// ---------------------------------------------------------------------------
-
 function StreamingBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-start">
@@ -245,32 +235,35 @@ function StreamingBubble({ text }: { text: string }) {
 // ---------------------------------------------------------------------------
 
 function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
+  const { lang } = useLang();
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Answer feedback
+        {t("interview", "answerFeedback", lang)}
       </p>
 
       <div className="grid grid-cols-3 gap-3">
-        <ScoreBar label="Keigo" value={e.keigo_score} />
-        <ScoreBar label="Relevance" value={e.content_relevance} />
-        <ScoreBar label="Specificity" value={e.specificity_score} />
+        <ScoreBar label={t("interview", "keigo", lang)} value={e.keigo_score} />
+        <ScoreBar label={t("interview", "relevance", lang)} value={e.content_relevance} />
+        <ScoreBar label={t("interview", "specificity", lang)} value={e.specificity_score} />
       </div>
 
       <div className="space-y-1.5 text-sm">
         <p className="text-green-700">
-          <span className="font-medium">Good: </span>
+          <span className="font-medium">{t("interview", "goodLabel", lang)} </span>
           {e.positive_feedback}
         </p>
         <p className="text-amber-700">
-          <span className="font-medium">Tip: </span>
+          <span className="font-medium">{t("interview", "tipLabel", lang)} </span>
           {e.improvement_tip}
         </p>
       </div>
 
       {e.grammar_issues.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Grammar notes</p>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            {t("interview", "grammarNotes", lang)}
+          </p>
           <ul className="space-y-0.5">
             {e.grammar_issues.map((issue, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -307,17 +300,18 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 // ---------------------------------------------------------------------------
 
 function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
+  const { lang } = useLang();
   const score = Math.round(s.overall_score);
   const scoreColor =
     score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
   const readiness =
     score >= 80
-      ? "Interview-ready"
+      ? t("interview", "readiness80", lang)
       : score >= 60
-        ? "Almost ready"
+        ? t("interview", "readiness60", lang)
         : score >= 40
-          ? "Keep practising"
-          : "More preparation needed";
+          ? t("interview", "readiness40", lang)
+          : t("interview", "readiness0", lang);
 
   return (
     <div className="rounded-xl border-2 border-primary/20 bg-card p-6 space-y-5">
@@ -327,17 +321,25 @@ function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
           <p className={`mt-0.5 text-sm font-medium ${scoreColor}`}>{readiness}</p>
         </div>
         <div>
-          <p className="text-sm font-semibold">Session Complete</p>
+          <p className="text-sm font-semibold">{t("interview", "sessionComplete", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">{s.feedback_summary}</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {s.top_strengths.length > 0 && (
-          <BulletList title="Strengths" items={s.top_strengths} dot="bg-green-500" />
+          <BulletList
+            title={t("interview", "strengthsLabel", lang)}
+            items={s.top_strengths}
+            dot="bg-green-500"
+          />
         )}
         {s.top_improvements.length > 0 && (
-          <BulletList title="Areas to improve" items={s.top_improvements} dot="bg-amber-500" />
+          <BulletList
+            title={t("interview", "improvementsLabel", lang)}
+            items={s.top_improvements}
+            dot="bg-amber-500"
+          />
         )}
       </div>
 
@@ -346,7 +348,7 @@ function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
           href="/dashboard/interview"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
-          Back to sessions
+          {t("interview", "backToSessions", lang)}
         </Link>
       </div>
     </div>
@@ -371,16 +373,20 @@ function BulletList({ title, items, dot }: { title: string; items: string[]; dot
   );
 }
 
-// ---------------------------------------------------------------------------
-// Shared
-// ---------------------------------------------------------------------------
-
 function StatusPill({ status }: { status: string }) {
+  const { lang } = useLang();
   const styles: Record<string, string> = {
     active:    "bg-green-100 text-green-800",
     completed: "bg-blue-100 text-blue-800",
     abandoned: "bg-muted text-muted-foreground",
   };
+  const label =
+    status === "active"
+      ? t("interview", "statusActive", lang)
+      : status === "completed"
+        ? t("interview", "statusCompleted", lang)
+        : t("interview", "statusAbandoned", lang);
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] ?? styles["abandoned"]}`}
@@ -388,7 +394,7 @@ function StatusPill({ status }: { status: string }) {
       {status === "active" && (
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
       )}
-      {status}
+      {label}
     </span>
   );
 }

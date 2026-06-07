@@ -3,20 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useDocuments } from "@/hooks/useDocuments";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { Document, DocumentStatus, DocumentType } from "@/types/api";
 
 export default function DocumentsPage() {
   const [filter, setFilter] = useState<DocumentType | "all">("all");
   const { data, isLoading, error } = useDocuments(filter === "all" ? undefined : filter);
+  const { lang } = useLang();
 
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Documents</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Generate Japanese-format career documents from your resume.
-          </p>
+          <h1 className="text-2xl font-semibold">{t("documents", "title", lang)}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("documents", "sub", lang)}</p>
         </div>
 
         <div className="flex shrink-0 gap-2">
@@ -37,17 +38,21 @@ export default function DocumentsPage() {
 
       {/* Filter tabs */}
       <div className="flex gap-1 border-b">
-        {(["all", "rirekisho", "shokumukeirekisho"] as const).map((t) => (
+        {(["all", "rirekisho", "shokumukeirekisho"] as const).map((tp) => (
           <button
-            key={t}
-            onClick={() => setFilter(t)}
+            key={tp}
+            onClick={() => setFilter(tp)}
             className={`px-3 py-2 text-sm transition-colors ${
-              filter === t
+              filter === tp
                 ? "border-b-2 border-primary font-medium text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "all" ? "All" : t === "rirekisho" ? "履歴書" : "職務経歴書"}
+            {tp === "all"
+              ? t("documents", "all", lang)
+              : tp === "rirekisho"
+                ? "履歴書"
+                : "職務経歴書"}
           </button>
         ))}
       </div>
@@ -55,22 +60,22 @@ export default function DocumentsPage() {
       {isLoading && <DocumentsSkeleton />}
 
       {error && (
-        <p className="text-sm text-destructive">Failed to load documents. Please refresh.</p>
+        <p className="text-sm text-destructive">{t("documents", "loadError", lang)}</p>
       )}
 
       {data && data.items.length === 0 && !isLoading && (
         <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">No documents yet.</p>
+          <p className="text-sm text-muted-foreground">{t("documents", "noDocuments", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Generate a{" "}
+            {t("documents", "generateA", lang)}{" "}
             <Link href="/dashboard/documents/rirekisho/new" className="underline hover:text-foreground">
               履歴書
             </Link>{" "}
-            or{" "}
+            {t("documents", "orLabel", lang)}{" "}
             <Link href="/dashboard/documents/shokumu/new" className="underline hover:text-foreground">
               職務経歴書
             </Link>{" "}
-            to get started.
+            {t("documents", "toGetStarted", lang)}
           </p>
         </div>
       )}
@@ -87,6 +92,7 @@ export default function DocumentsPage() {
 }
 
 function DocumentCard({ doc }: { doc: Document }) {
+  const { lang } = useLang();
   const label = doc.document_type === "rirekisho" ? "履歴書" : "職務経歴書";
   const createdAt = new Date(doc.created_at).toLocaleDateString();
 
@@ -99,7 +105,7 @@ function DocumentCard({ doc }: { doc: Document }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{label}</p>
           <p className="text-xs text-muted-foreground">
-            Created {createdAt}
+            {t("documents", "created", lang)} {createdAt}
           </p>
         </div>
       </div>
@@ -110,7 +116,7 @@ function DocumentCard({ doc }: { doc: Document }) {
           href={`/dashboard/documents/${doc.id}`}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          View →
+          {t("common", "view", lang)} →
         </Link>
       </div>
     </li>
@@ -118,11 +124,18 @@ function DocumentCard({ doc }: { doc: Document }) {
 }
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
+  const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
-    pending: "bg-yellow-100 text-yellow-800",
+    pending:    "bg-yellow-100 text-yellow-800",
     processing: "bg-blue-100 text-blue-800",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
+    completed:  "bg-green-100 text-green-800",
+    failed:     "bg-red-100 text-red-800",
+  };
+  const labels: Record<DocumentStatus, string> = {
+    pending:    t("documents", "statusPending", lang),
+    processing: t("documents", "statusProcessing", lang),
+    completed:  t("documents", "statusCompleted", lang),
+    failed:     t("documents", "statusFailed", lang),
   };
   return (
     <span
@@ -131,7 +144,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
       {status === "processing" && (
         <span className="h-2 w-2 animate-spin rounded-full border border-blue-800 border-t-transparent" />
       )}
-      {status}
+      {labels[status]}
     </span>
   );
 }
