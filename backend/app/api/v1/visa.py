@@ -103,6 +103,7 @@ async def create_consultation(
             build_user_prompt(snapshot),
             max_tokens=_VISA_MAX_TOKENS,
             feature="visa_guidance",
+            json_mode=True,
         )
     except AIError as exc:
         logger.error("Visa AI call failed: %s", exc)

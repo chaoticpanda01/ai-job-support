@@ -38,11 +38,13 @@ class AIClient:
         *,
         max_tokens: int,
         feature: str = "unknown",
+        json_mode: bool = False,
     ) -> tuple[str, int, int]:
         safe_user = f"<user_content>{user_prompt}</user_content>"
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
+            response_mime_type="application/json" if json_mode else "text/plain",
         )
         last_exc: Exception | None = None
 
