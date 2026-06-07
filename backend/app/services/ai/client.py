@@ -85,14 +85,18 @@ class AIClient:
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
         )
-        response = await asyncio.to_thread(
-            _client.models.generate_content,
-            model=self._model,
-            contents=safe_user,
-            config=config,
-        )
-        if response.text:
-            yield response.text
+
+        try:
+            async for chunk in await _client.aio.models.generate_content_stream(
+                model=self._model,
+                contents=safe_user,
+                config=config,
+            ):
+                if chunk.text:
+                    yield chunk.text
+        except Exception as exc:
+            logger.warning("Gemini stream error for feature=%s: %s", feature, exc)
+            raise AIError(f"Gemini stream failed for feature={feature}") from exc
 
 
 ai_client = AIClient()
