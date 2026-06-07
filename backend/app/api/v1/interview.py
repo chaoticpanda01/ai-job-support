@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interview", tags=["interview"])
 
 _QUESTION_MAX_TOKENS = 800
-_EVAL_MAX_TOKENS = 800
+_EVAL_MAX_TOKENS = 2048
 _SUMMARY_MAX_TOKENS = 800
 
 # Cap conversation history sent to Claude — keeps context window predictable

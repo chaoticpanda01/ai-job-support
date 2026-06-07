@@ -16,6 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import AuthUser, DbSession
 from app.repositories.visa import VisaConsultationRepository
 from app.repositories.user import ProfileRepository
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/visa", tags=["visa"])
 
-_VISA_MAX_TOKENS = 1500
+_VISA_MAX_TOKENS = 4096
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +67,13 @@ async def create_consultation(
     Generate a personalised visa roadmap using the user's current profile.
     Calls Claude, persists the result, and returns the full consultation.
     """
-    from app.services.ai.client import ai_client
+    from app.services.ai.client import AIError, ai_client
     from app.services.ai.prompts.visa import (
         VisaRoadmapResult,
         build_system_prompt,
         build_user_prompt,
     )
+    from app.services.ai.response_parser import ResponseParseError, parse_response
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 
     profile_repo = ProfileRepository(db)
@@ -95,15 +97,23 @@ async def create_consultation(
     snapshot = _profile_snapshot(profile)
 
     t0 = time.monotonic()
-    raw = await ai_client.complete(
-        system_prompt=build_system_prompt(),
-        user_prompt=build_user_prompt(snapshot),
-        max_tokens=_VISA_MAX_TOKENS,
-    )
+    try:
+        response_text, input_tokens, output_tokens = await ai_client.generate(
+            build_system_prompt(),
+            build_user_prompt(snapshot),
+            max_tokens=_VISA_MAX_TOKENS,
+            feature="visa_guidance",
+        )
+    except AIError as exc:
+        logger.error("Visa AI call failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service unavailable. Please try again.",
+        ) from exc
     elapsed = time.monotonic() - t0
 
     try:
-        result = VisaRoadmapResult.model_validate_json(raw.content)
+        result = parse_response(response_text, VisaRoadmapResult)
     except Exception as exc:
         logger.error("Visa prompt returned invalid JSON: %s", exc)
         raise HTTPException(
@@ -123,9 +133,9 @@ async def create_consultation(
     await usage_tracker.record(
         user_id=current_user.user_id,
         feature="visa_guidance",
-        model=raw.model,
-        input_tokens=raw.input_tokens,
-        output_tokens=raw.output_tokens,
+        model=settings.gemini_default_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
         latency_ms=int(elapsed * 1000),
         db=db,
     )
