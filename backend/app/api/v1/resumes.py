@@ -16,7 +16,7 @@ import logging
 from uuid import UUID
 
 import magic
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, status
 
 from app.dependencies import AuthUser, DbSession
 from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
@@ -203,26 +203,28 @@ async def analyze_resume(
     body: AnalyzeRequest,
     current_user: AuthUser,
     db: DbSession,
+    background_tasks: BackgroundTasks,
 ) -> AnalyzeResponse:
     """
-    Enqueue a Celery task to analyse the resume with Claude.
-    Returns immediately with a task_id; the client polls GET /resumes/{id}/analysis.
+    Trigger resume analysis as a FastAPI background task (no Celery required).
+    Returns immediately; the client polls GET /resumes/{id}/analysis for results.
     """
     repo = ResumeRepository(db)
     resume = await repo.get_owned(resume_id, current_user.user_id)
     if resume is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
-    from app.workers.analysis_tasks import analyze_resume_task  # lazy import avoids circular
+    from app.workers.analysis_tasks import _run_analysis  # call inner async fn directly
 
-    task = analyze_resume_task.delay(
-        str(resume_id),
-        str(current_user.user_id),
+    background_tasks.add_task(
+        _run_analysis,
+        resume_id,
+        current_user.user_id,
         body.analysis_type.value,
-        str(body.job_posting_id) if body.job_posting_id else None,
+        body.job_posting_id,
     )
 
-    return AnalyzeResponse(task_id=task.id, resume_id=resume_id)
+    return AnalyzeResponse(task_id=str(resume_id), resume_id=resume_id)
 
 
 # ---------------------------------------------------------------------------
