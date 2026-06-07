@@ -58,6 +58,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("transfer-encoding"); // avoid chunked encoding issues
   responseHeaders.delete("content-encoding");  // body already decoded by Node fetch; don't re-decode
+  responseHeaders.delete("content-length");    // compressed length no longer valid after decoding
 
   // SSE endpoints must stream; everything else should be buffered to avoid
   // issues with gzip-decoded streams being re-encoded or truncated.
