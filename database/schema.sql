@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Japan Job Support Platform — PostgreSQL Schema
--- Version: 1.2 | PostgreSQL 14+
+-- Version: 1.2 | PostgreSQL 16
 -- Changelog:
 --   1.2 — Fixed table ordering (job_postings before resume_analyses),
 --          subscription_limits before views, pg_cron block made optional,
