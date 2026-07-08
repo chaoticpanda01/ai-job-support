@@ -47,7 +47,13 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          # Clerk validates the publishable key's structure (base64-decodes to a
+          # frontend-api hostname) even for a build-time placeholder — an
+          # arbitrary string like "pk_test_placeholder" makes `next build` crash
+          # while prerendering any page that touches ClerkProvider. This decodes
+          # to "placeholder.clerk.accounts.dev$", satisfying the format check
+          # without being a real key.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_cGxhY2Vob2xkZXIuY2xlcmsuYWNjb3VudHMuZGV2JA==
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
 
   # ---------------------------------------------------------------------------
@@ -169,7 +175,7 @@ jobs:
           docker build \
             --target runner \
             --build-arg NEXT_PUBLIC_API_URL=http://placeholder \
-            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_placeholder \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_cGxhY2Vob2xkZXIuY2xlcmsuYWNjb3VudHMuZGV2JA== \
             --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder \
             --tag ai-job-support-frontend:ci \
             ./frontend
