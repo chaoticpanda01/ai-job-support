@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/onboarding(.*)",
+  "/admin(.*)",
 ]);
 
 const isPublicRoute = createRouteMatcher([

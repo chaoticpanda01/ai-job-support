@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SIGN_IN_ROUTE, SIGN_UP_ROUTE } from "@/lib/routes";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -33,13 +34,13 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <Link
-              href="/sign-in"
+              href={SIGN_IN_ROUTE}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {t("nav", "signIn", lang)}
             </Link>
             <Link
-              href="/sign-up"
+              href={SIGN_UP_ROUTE}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
               {t("nav", "getStarted", lang)}
@@ -63,7 +64,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/sign-up"
+              href={SIGN_UP_ROUTE}
               className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
               {t("landing", "ctaPrimary", lang)}
@@ -124,7 +125,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold">{t("landing", "ctaTitle", lang)}</h2>
           <p className="mt-3 text-muted-foreground">{t("landing", "ctaSub", lang)}</p>
           <Link
-            href="/sign-up"
+            href={SIGN_UP_ROUTE}
             className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
           >
             {t("landing", "ctaBtn", lang)}

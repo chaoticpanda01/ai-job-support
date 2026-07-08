@@ -28,7 +28,7 @@ from app.schemas.resume import (
     ResumeListResponse,
     ResumeResponse,
 )
-from app.services.file_storage import StorageError, file_storage
+from app.services.file_storage import StorageError, file_storage, sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +73,13 @@ async def upload_resume(
             detail="Only PDF and DOCX files are accepted",
         )
 
+    safe_filename = sanitize_filename(file.filename or "resume")
+
     try:
         s3_key = file_storage.upload_resume(
             file_bytes=file_bytes,
             user_id=current_user.user_id,
-            original_filename=file.filename or "resume",
+            original_filename=safe_filename,
             mime_type=detected_mime,
         )
     except StorageError as exc:
@@ -90,7 +92,7 @@ async def upload_resume(
     repo = ResumeRepository(db)
     resume = await repo.create(
         user_id=current_user.user_id,
-        file_name=file.filename or "resume",
+        file_name=safe_filename,
         file_url=s3_key,
         file_size_bytes=len(file_bytes),
         mime_type=detected_mime,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api-client";
 import type { Resume } from "@/types/api";
@@ -33,7 +33,7 @@ export function ResumeUploader({ onUploaded }: Props) {
   });
 
   const onDrop = useCallback(
-    (accepted: File[], rejected: { file: File; errors: { message: string }[] }[]) => {
+    (accepted: File[], rejected: FileRejection[]) => {
       setFileError(null);
 
       if (rejected.length > 0) {

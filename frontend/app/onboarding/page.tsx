@@ -8,7 +8,7 @@ import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { JapaneseLevel, PreferredLanguage, VisaStatus } from "@/types/api";
+import type { JapaneseLevel, VisaStatus } from "@/types/api";
 
 // ---------------------------------------------------------------------------
 // Step schemas
@@ -432,7 +432,7 @@ function Field({
   children,
 }: {
   label: string;
-  error?: string;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

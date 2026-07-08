@@ -102,23 +102,13 @@ async def _run_analysis(
             raise
 
         # -- Fetch file bytes from S3 / Backblaze B2
-        import boto3  # type: ignore[import-untyped]
-        s3_kwargs: dict = dict(
-            region_name=settings.aws_region,
-            aws_access_key_id=settings.aws_access_key_id,
-            aws_secret_access_key=settings.aws_secret_access_key,
-        )
-        if settings.cloudflare_r2_endpoint_url:
-            s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
-        s3 = boto3.client("s3", **s3_kwargs)
-        obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=resume.file_url)
-        file_bytes = obj["Body"].read()
+        file_bytes = file_storage.download(resume.file_url)
 
         # -- Extract text
         try:
             resume_text = extract_text(file_bytes, resume.mime_type)
         except ParseError as exc:
-            raise ValueError(f"Text extraction failed: {exc}") from exc
+            raise ValueError("Could not read resume file — unsupported or corrupt format") from exc
 
         # -- Build prompts
         system = build_system_prompt()

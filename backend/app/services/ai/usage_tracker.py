@@ -3,8 +3,14 @@ AI usage budget enforcement and logging.
 
 Two operations:
   check_budget(user_id, feature, db) — runs BEFORE every AI call.
-      Reads v_user_monthly_usage and subscription_limits.
-      Raises AIBudgetError (→ HTTP 429) if the user is over their token budget.
+      Enforces a flat per-user fair-use quota (DAILY_AI_CALL_LIMIT calls/day,
+      across all AI features combined). Raises AIBudgetError (→ HTTP 429) once
+      the user's calls today reach the limit.
+
+      This is a fair-use ceiling, not a billing tier — every user gets the
+      same limit regardless of subscription. It exists to bound worst-case
+      Gemini API cost from a single compromised/scripted account, not to
+      gate features behind payment.
 
   record(user_id, feature, model, input_tokens, output_tokens, latency_ms, db)
       — runs AFTER every AI call.
@@ -33,15 +39,19 @@ logger = logging.getLogger(__name__)
 _INPUT_COST_PER_TOKEN = Decimal("0.000003")
 _OUTPUT_COST_PER_TOKEN = Decimal("0.000015")
 
+# Flat fair-use ceiling: total AI calls/day, summed across every feature,
+# applied equally to all users regardless of subscription tier.
+DAILY_AI_CALL_LIMIT = 5
+
 
 class AIBudgetError(Exception):
-    """Raised when a user has exceeded their monthly token budget."""
+    """Raised when a user has exceeded their daily fair-use AI call quota."""
 
     def __init__(self, used: int, limit: int) -> None:
         self.used = used
         self.limit = limit
         super().__init__(
-            f"Monthly AI token budget exceeded: used={used}, limit={limit}"
+            f"Daily AI usage limit reached: used={used}, limit={limit}. Try again tomorrow."
         )
 
 
@@ -57,13 +67,13 @@ class UsageTracker:
         db: AsyncSession,
     ) -> None:
         """
-        Budget enforcement is disabled — platform is fully free.
-        All users have unlimited access. This method is a no-op.
-
-        To re-enable: restore the tier/subscription_limits logic from git history
-        (see the billing feature branch backup).
+        Enforce the flat daily fair-use quota (DAILY_AI_CALL_LIMIT calls/day,
+        all features combined). Raises AIBudgetError once the user hits it.
         """
-        return
+        repo = AIUsageRepository(db)
+        used = await repo.get_daily_call_count(user_id)
+        if used >= DAILY_AI_CALL_LIMIT:
+            raise AIBudgetError(used=used, limit=DAILY_AI_CALL_LIMIT)
 
     async def record(
         self,

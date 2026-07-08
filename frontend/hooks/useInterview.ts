@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
 import { apiClient } from "@/lib/api-client";
 import type {
   CreateSessionRequest,
@@ -124,10 +124,9 @@ export function useInterview() {
       abortRef.current = ctrl;
       _resetStream();
 
-      void fetchEventSource(`${API_PREFIX}${path}`, {
+      const init: FetchEventSourceInit = {
         method,
         headers: { "Content-Type": "application/json" },
-        body: body !== null ? JSON.stringify(body) : undefined,
         signal: ctrl.signal,
         openWhenHidden: true,
 
@@ -167,7 +166,10 @@ export function useInterview() {
           // Don't retry — throw to stop fetchEventSource's internal retry loop
           throw err;
         },
-      });
+      };
+      if (body !== null) init.body = JSON.stringify(body);
+
+      void fetchEventSource(`${API_PREFIX}${path}`, init);
     },
     [_handleEvent],
   );

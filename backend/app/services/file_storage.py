@@ -133,6 +133,19 @@ class FileStorage:
         return key
 
     # ------------------------------------------------------------------
+    # Download
+    # ------------------------------------------------------------------
+
+    def download(self, key: str) -> bytes:
+        """Fetch an object's raw bytes from S3."""
+        try:
+            obj = _get_client().get_object(Bucket=self.bucket, Key=key)
+            return obj["Body"].read()  # type: ignore[no-any-return]
+        except (BotoCoreError, ClientError) as exc:
+            logger.error("S3 download failed: key=%s error=%s", key, exc)
+            raise StorageError(f"Download failed: {exc}") from exc
+
+    # ------------------------------------------------------------------
     # Presigned URL
     # ------------------------------------------------------------------
 
@@ -176,6 +189,25 @@ class FileStorage:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_MAX_FILENAME_LENGTH = 255
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a user-supplied filename before it's persisted or echoed back
+    via the API. The S3 object key is always UUID-based and unaffected by
+    this value, but resumes.file_name stores the raw name verbatim — this
+    strips path components and control characters and caps the length so a
+    hostile filename can't cause issues in any future consumer of that
+    column (e.g. a `Content-Disposition` header or a file-manager UI).
+    """
+    name = filename.replace("\\", "/")
+    name = os.path.basename(name)
+    name = "".join(ch for ch in name if ch.isprintable())
+    name = name.strip()
+    return name[:_MAX_FILENAME_LENGTH] if name else "resume"
+
 
 def _extension_for(mime_type: str, original_filename: str) -> str:
     """Return file extension including the dot, e.g. '.pdf'."""

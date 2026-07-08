@@ -40,6 +40,22 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         r = row.one()
         return r.call_count, r.total_tokens, r.total_cost_usd
 
+    async def get_daily_call_count(self, user_id: UUID) -> int:
+        """
+        Returns total AI call count across all features for the current
+        calendar day (server timezone). Used by the per-user fair-use quota
+        enforced in check_budget — deliberately whole-app, not per-feature,
+        so a user can't just spread calls across endpoints to dodge the cap.
+        """
+        row = await self.session.execute(
+            select(func.count()).where(
+                AIUsageLog.user_id == user_id,
+                func.date_trunc("day", AIUsageLog.created_at)
+                == func.date_trunc("day", func.now()),
+            )
+        )
+        return row.scalar_one()
+
     async def get_all_features_this_month(
         self, user_id: UUID
     ) -> list[dict]:
