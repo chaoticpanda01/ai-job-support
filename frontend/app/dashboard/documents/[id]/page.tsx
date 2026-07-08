@@ -3,6 +3,7 @@
 import { use, useEffect } from "react";
 import Link from "next/link";
 import { useDocumentStatus, useDocumentDetail } from "@/hooks/useDocuments";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { DocumentStatus } from "@/types/api";
@@ -33,7 +34,9 @@ export default function DocumentDetailPage({ params }: Props) {
   if (!statusData) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <Breadcrumbs
+          items={[{ label: t("documents", "title", lang), href: "/dashboard/documents" }]}
+        />
         <p className="text-sm text-destructive">{t("documents", "notFound", lang)}</p>
       </div>
     );
@@ -41,7 +44,12 @@ export default function DocumentDetailPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <BackLink />
+      <Breadcrumbs
+        items={[
+          { label: t("documents", "title", lang), href: "/dashboard/documents" },
+          { label: t("documents", "statusHeading", lang) },
+        ]}
+      />
 
       <div className="rounded-lg border bg-card p-6 space-y-6">
         <div className="flex items-center justify-between gap-4">
@@ -186,17 +194,6 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   );
 }
 
-function BackLink() {
-  const { lang } = useLang();
-  return (
-    <Link
-      href="/dashboard/documents"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      {t("documents", "backToDocuments", lang)}
-    </Link>
-  );
-}
 
 function PageSkeleton() {
   return (

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
+import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { JapaneseLevel, VisaStatus } from "@/types/api";
@@ -38,6 +39,10 @@ type Step3Data = z.infer<typeof step3Schema>;
 type Step4Data = z.infer<typeof step4Schema>;
 
 const TOTAL_STEPS = 4;
+
+function errorMessage(err: unknown, lang: Parameters<typeof t>[2]): string {
+  return err instanceof ApiClientError ? err.detail : t("common", "error", lang);
+}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -91,8 +96,8 @@ export default function OnboardingPage() {
               try {
                 await recordConsent.mutateAsync();
                 setStep(2);
-              } catch {
-                setError(t("common", "error", lang));
+              } catch (err) {
+                setError(errorMessage(err, lang));
               }
             }}
             loading={recordConsent.isPending}
@@ -110,8 +115,8 @@ export default function OnboardingPage() {
                   onboarding_step: 1,
                 });
                 setStep(3);
-              } catch {
-                setError(t("common", "error", lang));
+              } catch (err) {
+                setError(errorMessage(err, lang));
               }
             }}
             onBack={() => setStep(1)}
@@ -133,8 +138,8 @@ export default function OnboardingPage() {
                   onboarding_step: 2,
                 });
                 setStep(4);
-              } catch {
-                setError(t("common", "error", lang));
+              } catch (err) {
+                setError(errorMessage(err, lang));
               }
             }}
             onBack={() => setStep(2)}
@@ -162,8 +167,8 @@ export default function OnboardingPage() {
                   onboarding_step: 4,
                 });
                 router.push("/dashboard/resumes");
-              } catch {
-                setError(t("common", "error", lang));
+              } catch (err) {
+                setError(errorMessage(err, lang));
               }
             }}
             onBack={() => setStep(3)}

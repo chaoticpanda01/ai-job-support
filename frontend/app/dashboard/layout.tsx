@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { lang } = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   const NAV_ITEMS = [
     { href: "/dashboard/resumes",           key: "resumes" },
@@ -20,6 +23,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/culture",           key: "culture" },
     { href: "/dashboard/settings",          key: "settings" },
   ] as const;
+
+  function isActive(href: string) {
+    return pathname === href || pathname?.startsWith(`${href}/`);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,7 +41,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                  className={cn(
+                    "text-sm transition-colors hover:text-foreground",
+                    isActive(item.href)
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground",
+                  )}
                 >
                   {t("nav", item.key, lang)}
                 </Link>
@@ -63,7 +76,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-md px-2 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted hover:text-foreground",
+                    isActive(item.href)
+                      ? "font-medium text-foreground bg-muted"
+                      : "text-muted-foreground",
+                  )}
                   onClick={() => setMenuOpen(false)}
                 >
                   {t("nav", item.key, lang)}

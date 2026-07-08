@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { useCultureTopic } from "@/hooks/useCulture";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -21,7 +22,9 @@ export default function CultureTopicPage({ params }: Props) {
   if (error || !topic) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <Breadcrumbs
+          items={[{ label: t("culture", "title", lang), href: "/dashboard/culture" }]}
+        />
         <p className="text-sm text-destructive">{t("culture", "notFound", lang)}</p>
       </div>
     );
@@ -35,7 +38,12 @@ export default function CultureTopicPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <BackLink />
+      <Breadcrumbs
+        items={[
+          { label: t("culture", "title", lang), href: "/dashboard/culture" },
+          { label: topic.title },
+        ]}
+      />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-semibold leading-tight">{topic.title}</h1>

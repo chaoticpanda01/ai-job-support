@@ -1,8 +1,8 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 import { useVisaConsultation } from "@/hooks/useVisa";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { VisaChecklist, VisaChecklistStep } from "@/types/api";
@@ -32,7 +32,7 @@ export default function VisaConsultationPage({ params }: Props) {
   if (error || !consultation) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <Breadcrumbs items={[{ label: t("visa", "title", lang), href: "/dashboard/visa" }]} />
         <p className="text-sm text-destructive">{t("visa", "consultNotFound", lang)}</p>
       </div>
     );
@@ -40,7 +40,12 @@ export default function VisaConsultationPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <BackLink />
+      <Breadcrumbs
+        items={[
+          { label: t("visa", "title", lang), href: "/dashboard/visa" },
+          { label: t("visa", "roadmapTitle", lang) },
+        ]}
+      />
 
       <div>
         <h1 className="text-2xl font-semibold">{t("visa", "roadmapTitle", lang)}</h1>
@@ -138,14 +143,3 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
   );
 }
 
-function BackLink() {
-  const { lang } = useLang();
-  return (
-    <Link
-      href="/dashboard/visa"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      {t("visa", "backToVisa", lang)}
-    </Link>
-  );
-}

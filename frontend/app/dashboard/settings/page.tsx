@@ -3,6 +3,7 @@
 import { cloneElement, isValidElement, useEffect, useId, useState, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
+import { z } from "zod";
 import { useMe, useUpdateProfile } from "@/hooks/useMe";
 import { useDeleteAccount } from "@/hooks/useBilling";
 import { useLang } from "@/lib/language-context";
@@ -14,6 +15,18 @@ import type {
   ProfileUpdateRequest,
   VisaStatus,
 } from "@/types/api";
+
+const profileFormSchema = z.object({
+  years_experience: z.coerce
+    .number()
+    .min(0, "Must be 0 or greater")
+    .max(80, "Must be 80 or less")
+    .optional(),
+});
+
+type ProfileFieldErrors = Partial<
+  Record<keyof z.infer<typeof profileFormSchema>, string | undefined>
+>;
 
 const JAPANESE_LEVELS: JapaneseLevel[] = ["N1", "N2", "N3", "N4", "N5", "none"];
 const LANGUAGES: { value: PreferredLanguage; label: string }[] = [
@@ -54,6 +67,7 @@ function ProfileSection() {
 
   const [form, setForm] = useState<ProfileUpdateRequest>({});
   const [saved, setSaved] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
 
   useEffect(() => {
     if (!me?.profile) return;
@@ -74,11 +88,22 @@ function ProfileSection() {
     value: ProfileUpdateRequest[K],
   ) {
     setSaved(false);
+    if (key === "years_experience") setFieldErrors({ years_experience: undefined });
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const result = profileFormSchema.safeParse(form);
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      setFieldErrors({ years_experience: errors.years_experience?.[0] });
+      setSaved(false);
+      return;
+    }
+    setFieldErrors({});
+
     await updateProfile.mutateAsync(form);
     setSaved(true);
   }
@@ -128,7 +153,7 @@ function ProfileSection() {
           </select>
         </Field>
 
-        <Field label={t("settings", "yearsExp", lang)}>
+        <Field label={t("settings", "yearsExp", lang)} error={fieldErrors.years_experience}>
           <input
             type="number"
             min={0}
@@ -323,14 +348,18 @@ function DangerZone() {
 function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="text-sm font-medium">{label}</label>
@@ -340,11 +369,24 @@ function Field({
         </p>
       )}
       {isValidElement(children)
-        ? cloneElement(children as ReactElement<{ id?: string; "aria-describedby"?: string }>, {
-            id,
-            ...(hintId ? { "aria-describedby": hintId } : {}),
-          })
+        ? cloneElement(
+            children as ReactElement<{
+              id?: string;
+              "aria-describedby"?: string;
+              "aria-invalid"?: boolean;
+            }>,
+            {
+              id,
+              "aria-invalid": Boolean(error),
+              ...(describedBy ? { "aria-describedby": describedBy } : {}),
+            },
+          )
         : children}
+      {error && (
+        <p id={errorId} className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 import { useResume, useResumeAnalysis, useAnalyzeResume } from "@/hooks/useResumes";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { ResumeAnalysis } from "@/types/api";
@@ -22,7 +22,9 @@ export default function ResumeDetailPage({ params }: Props) {
   if (error || !resume) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <Breadcrumbs
+          items={[{ label: t("resumes", "yourResumes", lang), href: "/dashboard/resumes" }]}
+        />
         <p className="text-sm text-destructive">{t("resumes", "notFound", lang)}</p>
       </div>
     );
@@ -33,7 +35,12 @@ export default function ResumeDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <BackLink />
+      <Breadcrumbs
+        items={[
+          { label: t("resumes", "yourResumes", lang), href: "/dashboard/resumes" },
+          { label: resume.file_name },
+        ]}
+      />
 
       {/* Resume meta */}
       <div className="rounded-lg border bg-card p-6">
@@ -178,18 +185,6 @@ function AnalysisSection({
         ))}
       </ul>
     </div>
-  );
-}
-
-function BackLink() {
-  const { lang } = useLang();
-  return (
-    <Link
-      href="/dashboard/resumes"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      {t("resumes", "backToResumes", lang)}
-    </Link>
   );
 }
 

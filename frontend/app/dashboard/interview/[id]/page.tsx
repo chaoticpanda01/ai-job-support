@@ -95,6 +95,7 @@ export default function InterviewSessionPage({ params }: Props) {
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/interview"
+            aria-label={t("interview", "backToSessions", lang)}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             ←

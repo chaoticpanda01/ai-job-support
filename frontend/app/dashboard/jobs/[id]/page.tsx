@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
@@ -21,7 +22,7 @@ export default function JobDetailPage({ params }: Props) {
   if (error || !job) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <Breadcrumbs items={[{ label: t("jobs", "title", lang), href: "/dashboard/jobs" }]} />
         <p className="text-sm text-destructive">{t("jobs", "jobNotFound", lang)}</p>
       </div>
     );
@@ -29,7 +30,12 @@ export default function JobDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-8">
-      <BackLink />
+      <Breadcrumbs
+        items={[
+          { label: t("jobs", "title", lang), href: "/dashboard/jobs" },
+          { label: job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang) },
+        ]}
+      />
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Main content */}
@@ -380,18 +386,6 @@ function BulletList({
         ))}
       </ul>
     </div>
-  );
-}
-
-function BackLink() {
-  const { lang } = useLang();
-  return (
-    <Link
-      href="/dashboard/jobs"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      {t("jobs", "backToJobs", lang)}
-    </Link>
   );
 }
 
