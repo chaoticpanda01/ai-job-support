@@ -32,7 +32,9 @@ export default function ResumesPage() {
         )}
 
         {data && data.items.length === 0 && !isLoading && (
-          <p className="text-sm text-muted-foreground">{t("resumes", "noResumes", lang)}</p>
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <p className="text-sm text-muted-foreground">{t("resumes", "noResumes", lang)}</p>
+          </div>
         )}
 
         {data && data.items.length > 0 && (

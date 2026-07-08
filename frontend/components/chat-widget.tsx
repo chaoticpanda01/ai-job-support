@@ -88,6 +88,7 @@ export function ChatWidget() {
             </div>
             <button
               onClick={() => setOpen(false)}
+              aria-label="Close chat"
               className="text-primary-foreground/70 hover:text-primary-foreground text-lg leading-none"
             >
               ✕
