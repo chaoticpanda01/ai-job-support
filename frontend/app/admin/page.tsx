@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { useToast } from "@/hooks/use-toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -174,11 +176,15 @@ function StatsTab() {
 function UsersTab() {
   const { data, isLoading, error } = useUsers();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const promoteUser = useMutation({
     mutationFn: ({ id, role }: { id: string; role: string }) =>
       apiClient.patch(`/admin/users/${id}/role`, { role }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to update role. Please try again." });
+    },
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -258,6 +264,8 @@ function UsersTab() {
 function CultureTab() {
   const { data, isLoading, error } = useTopics();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const confirmDialog = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ slug: "", title: "", body: "", tags: "", published: true });
 
@@ -267,6 +275,10 @@ function CultureTab() {
       queryClient.invalidateQueries({ queryKey: ["admin", "topics"] });
       setShowForm(false);
       setForm({ slug: "", title: "", body: "", tags: "", published: true });
+      toast({ variant: "success", description: "Topic created." });
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to create topic. Please try again." });
     },
   });
 
@@ -274,12 +286,30 @@ function CultureTab() {
     mutationFn: ({ slug, published }: { slug: string; published: boolean }) =>
       apiClient.patch(`/admin/culture/topics/${slug}`, { published }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "topics"] }),
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to update topic. Please try again." });
+    },
   });
 
   const deleteTopic = useMutation({
     mutationFn: (slug: string) => apiClient.delete(`/admin/culture/topics/${slug}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "topics"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "topics"] });
+      toast({ variant: "success", description: "Topic deleted." });
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to delete topic. Please try again." });
+    },
   });
+
+  async function handleDeleteTopic(slug: string, title: string) {
+    const ok = await confirmDialog({
+      title: `Delete "${title}"?`,
+      variant: "destructive",
+      confirmLabel: "Delete",
+    });
+    if (ok) deleteTopic.mutate(slug);
+  }
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (error) return <p className="text-sm text-destructive">Failed to load topics.</p>;
@@ -409,9 +439,7 @@ function CultureTab() {
                     {topic.published ? "Unpublish" : "Publish"}
                   </button>
                   <button
-                    onClick={() => {
-                      if (confirm(`Delete "${topic.title}"?`)) deleteTopic.mutate(topic.slug);
-                    }}
+                    onClick={() => handleDeleteTopic(topic.slug, topic.title)}
                     className="text-xs text-destructive underline hover:opacity-80"
                   >
                     Delete
@@ -433,6 +461,8 @@ function CultureTab() {
 function GlossaryTab() {
   const { data, isLoading, error } = useGlossary();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const confirmDialog = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ term_ja: "", reading_romaji: "", definition_id: "" });
 
@@ -442,13 +472,32 @@ function GlossaryTab() {
       queryClient.invalidateQueries({ queryKey: ["admin", "glossary"] });
       setShowForm(false);
       setForm({ term_ja: "", reading_romaji: "", definition_id: "" });
+      toast({ variant: "success", description: "Entry created." });
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to create entry. Please try again." });
     },
   });
 
   const deleteEntry = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/admin/culture/glossary/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "glossary"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "glossary"] });
+      toast({ variant: "success", description: "Entry deleted." });
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: "Failed to delete entry. Please try again." });
+    },
   });
+
+  async function handleDeleteEntry(id: string, termJa: string) {
+    const ok = await confirmDialog({
+      title: `Delete "${termJa}"?`,
+      variant: "destructive",
+      confirmLabel: "Delete",
+    });
+    if (ok) deleteEntry.mutate(id);
+  }
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (error) return <p className="text-sm text-destructive">Failed to load glossary.</p>;
@@ -517,9 +566,7 @@ function GlossaryTab() {
                 </td>
                 <td className="px-4 py-2">
                   <button
-                    onClick={() => {
-                      if (confirm(`Delete "${entry.term_ja}"?`)) deleteEntry.mutate(entry.id);
-                    }}
+                    onClick={() => handleDeleteEntry(entry.id, entry.term_ja)}
                     className="text-xs text-destructive underline hover:opacity-80"
                   >
                     Delete

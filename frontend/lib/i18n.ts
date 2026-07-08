@@ -90,6 +90,9 @@ export const translations = {
     no:          { en: "No",              id: "Tidak",            ja: "なし" },
     notMentioned:{ en: "Not mentioned",   id: "Tidak disebutkan", ja: "記載なし" },
     error:       { en: "Something went wrong. Please try again.", id: "Terjadi kesalahan. Coba lagi.", ja: "エラーが発生しました。再試行してください。" },
+    deleted:     { en: "Deleted",         id: "Terhapus",         ja: "削除しました" },
+    deleteFailed:{ en: "Failed to delete. Please try again.", id: "Gagal menghapus. Coba lagi.", ja: "削除に失敗しました。再試行してください。" },
+    updateFailed:{ en: "Failed to update. Please try again.", id: "Gagal memperbarui. Coba lagi.", ja: "更新に失敗しました。再試行してください。" },
   },
 
   // ---------------------------------------------------------------------------

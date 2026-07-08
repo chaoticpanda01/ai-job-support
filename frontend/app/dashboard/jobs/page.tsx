@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useJobs, useDeleteJob } from "@/hooks/useJobs";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { JobPosting } from "@/types/api";
@@ -123,6 +125,8 @@ export default function JobsPage() {
 function JobCard({ job }: { job: JobPosting }) {
   const deleteMutation = useDeleteJob();
   const { lang } = useLang();
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
   const sd = job.structured_data;
   const score = job.foreigner_friendliness_score;
   const scoreColor =
@@ -133,6 +137,25 @@ function JobCard({ job }: { job: JobPosting }) {
         : score >= 50
           ? "text-warning"
           : "text-destructive";
+
+  async function handleDelete() {
+    const ok = await confirmDialog({
+      title: t("jobs", "confirmDelete", lang),
+      variant: "destructive",
+      confirmLabel: t("common", "delete", lang),
+      cancelLabel: t("common", "cancel", lang),
+    });
+    if (!ok) return;
+
+    deleteMutation.mutate(job.id, {
+      onSuccess: () => {
+        toast({ variant: "success", description: t("common", "deleted", lang) });
+      },
+      onError: () => {
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
+      },
+    });
+  }
 
   return (
     <li className="rounded-lg border bg-card p-4">
@@ -184,11 +207,7 @@ function JobCard({ job }: { job: JobPosting }) {
               {t("common", "view", lang)} →
             </Link>
             <button
-              onClick={() => {
-                if (confirm(t("jobs", "confirmDelete", lang))) {
-                  deleteMutation.mutate(job.id);
-                }
-              }}
+              onClick={handleDelete}
               disabled={deleteMutation.isPending}
               className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
             >

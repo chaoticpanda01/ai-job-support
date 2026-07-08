@@ -3,6 +3,7 @@
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useInterview, useInterviewSession } from "@/hooks/useInterview";
+import { useConfirm } from "@/components/confirm-dialog-provider";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
@@ -22,6 +23,7 @@ export default function InterviewSessionPage({ params }: Props) {
     abort,
   } = useInterview();
   const { lang } = useLang();
+  const confirmDialog = useConfirm();
 
   const resolvedSessionId = activeId ?? id;
 
@@ -67,8 +69,14 @@ export default function InterviewSessionPage({ params }: Props) {
     sendMessage(text);
   }
 
-  function handleEnd() {
-    if (!confirm(t("interview", "endConfirm", lang))) return;
+  async function handleEnd() {
+    const ok = await confirmDialog({
+      title: t("interview", "endConfirm", lang),
+      variant: "destructive",
+      confirmLabel: t("common", "yes", lang),
+      cancelLabel: t("common", "cancel", lang),
+    });
+    if (!ok) return;
     setEnded(true);
     endSession();
   }

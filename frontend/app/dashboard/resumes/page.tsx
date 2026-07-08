@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useResumes, useDeleteResume, useSetPrimaryResume } from "@/hooks/useResumes";
 import { ResumeUploader } from "@/components/resume/ResumeUploader";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
@@ -49,9 +51,38 @@ function ResumeCard({ resume }: { resume: Resume }) {
   const deleteMutation = useDeleteResume();
   const setPrimaryMutation = useSetPrimaryResume();
   const { lang } = useLang();
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
 
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
   const uploadedAt = new Date(resume.created_at).toLocaleDateString();
+
+  function handleSetPrimary() {
+    setPrimaryMutation.mutate(resume.id, {
+      onError: () => {
+        toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+      },
+    });
+  }
+
+  async function handleDelete() {
+    const ok = await confirmDialog({
+      title: t("resumes", "confirmDelete", lang),
+      variant: "destructive",
+      confirmLabel: t("common", "delete", lang),
+      cancelLabel: t("common", "cancel", lang),
+    });
+    if (!ok) return;
+
+    deleteMutation.mutate(resume.id, {
+      onSuccess: () => {
+        toast({ variant: "success", description: t("common", "deleted", lang) });
+      },
+      onError: () => {
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
+      },
+    });
+  }
 
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
@@ -78,7 +109,7 @@ function ResumeCard({ resume }: { resume: Resume }) {
       <div className="ml-4 flex shrink-0 gap-2">
         {!resume.is_primary && (
           <button
-            onClick={() => setPrimaryMutation.mutate(resume.id)}
+            onClick={handleSetPrimary}
             disabled={setPrimaryMutation.isPending}
             className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
@@ -92,9 +123,7 @@ function ResumeCard({ resume }: { resume: Resume }) {
           {t("common", "view", lang)}
         </Link>
         <button
-          onClick={() => {
-            if (confirm(t("resumes", "confirmDelete", lang))) deleteMutation.mutate(resume.id);
-          }}
+          onClick={handleDelete}
           disabled={deleteMutation.isPending}
           className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
         >

@@ -7,6 +7,8 @@ import {
   useUpdateApplication,
   useDeleteApplication,
 } from "@/hooks/useApplications";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { ApplicationStatus, JobApplication } from "@/types/api";
@@ -147,6 +149,8 @@ function ApplicationCard({
   const [editingNotes, setEditingNotes] = useState(false);
   const [notes, setNotes] = useState(app.notes ?? "");
   const { lang } = useLang();
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
 
   const update = useUpdateApplication();
   const remove = useDeleteApplication();
@@ -154,13 +158,43 @@ function ApplicationCard({
   void showMenu; // suppress unused warning
 
   function moveToStatus(newStatus: ApplicationStatus) {
-    update.mutate({ id: app.id, data: { status: newStatus } });
+    update.mutate(
+      { id: app.id, data: { status: newStatus } },
+      {
+        onError: () => {
+          toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+        },
+      },
+    );
     setShowMenu(false);
   }
 
   async function saveNotes() {
-    await update.mutateAsync({ id: app.id, data: { notes } });
-    setEditingNotes(false);
+    try {
+      await update.mutateAsync({ id: app.id, data: { notes } });
+      setEditingNotes(false);
+    } catch {
+      toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+    }
+  }
+
+  async function handleRemove() {
+    const ok = await confirmDialog({
+      title: t("jobs", "confirmRemove", lang),
+      variant: "destructive",
+      confirmLabel: t("common", "delete", lang),
+      cancelLabel: t("common", "cancel", lang),
+    });
+    if (!ok) return;
+
+    remove.mutate(app.id, {
+      onSuccess: () => {
+        toast({ variant: "success", description: t("common", "deleted", lang) });
+      },
+      onError: () => {
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
+      },
+    });
   }
 
   const appliedDate = app.applied_at
@@ -236,17 +270,15 @@ function ApplicationCard({
             onClick={() => setEditingNotes(true)}
             className="text-xs text-muted-foreground hover:text-foreground"
             title="Edit notes"
+            aria-label="Edit notes"
           >
             ✎
           </button>
           <button
-            onClick={() => {
-              if (confirm(t("jobs", "confirmRemove", lang))) {
-                remove.mutate(app.id);
-              }
-            }}
+            onClick={handleRemove}
             className="text-xs text-muted-foreground hover:text-destructive"
             title="Remove"
+            aria-label="Remove"
           >
             ✕
           </button>

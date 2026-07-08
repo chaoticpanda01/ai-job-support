@@ -3,6 +3,7 @@ import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import { ChatWidget } from "@/components/chat-widget";
+import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
@@ -36,6 +37,7 @@ export default function RootLayout({
           <Providers>
             {children}
             <ChatWidget />
+            <Toaster />
           </Providers>
         </body>
       </html>
