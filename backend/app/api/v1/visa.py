@@ -91,7 +91,7 @@ async def create_consultation(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     snapshot = _profile_snapshot(profile)

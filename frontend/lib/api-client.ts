@@ -45,12 +45,11 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_PREFIX}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    signal,
-  });
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  if (signal !== undefined) init.signal = signal;
+
+  const response = await fetch(`${API_PREFIX}${path}`, init);
 
   if (!response.ok) {
     let detail = `HTTP ${response.status}`;
@@ -84,12 +83,10 @@ async function upload<T>(
   }
   // Do NOT set Content-Type — browser sets it with the correct boundary
 
-  const response = await fetch(`${API_PREFIX}${path}`, {
-    method: "POST",
-    headers,
-    body: formData,
-    signal,
-  });
+  const init: RequestInit = { method: "POST", headers, body: formData };
+  if (signal !== undefined) init.signal = signal;
+
+  const response = await fetch(`${API_PREFIX}${path}`, init);
 
   if (!response.ok) {
     let detail = `HTTP ${response.status}`;

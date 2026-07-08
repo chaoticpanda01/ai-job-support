@@ -28,7 +28,6 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-import boto3  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -120,9 +119,7 @@ class DocumentGenerator:
         try:
             await usage_tracker.check_budget(user_id, feature, db)
         except AIBudgetError as exc:
-            raise DocumentGenerationError(
-                f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})"
-            ) from exc
+            raise DocumentGenerationError(str(exc)) from exc
 
         # -- Build prompts and call Claude
         t0 = time.monotonic()
@@ -183,23 +180,16 @@ class DocumentGenerator:
     async def _fetch_and_extract(self, s3_key: str, mime_type: str) -> str:
         """Fetch resume bytes from S3 and extract plain text."""
         try:
-            s3_kwargs: dict = dict(
-                region_name=settings.aws_region,
-                aws_access_key_id=settings.aws_access_key_id,
-                aws_secret_access_key=settings.aws_secret_access_key,
-            )
-            if settings.cloudflare_r2_endpoint_url:
-                s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
-            s3 = boto3.client("s3", **s3_kwargs)
-            obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=s3_key)
-            file_bytes: bytes = obj["Body"].read()
-        except Exception as exc:
-            raise DocumentGenerationError(f"Failed to fetch resume from S3: {exc}") from exc
+            file_bytes = file_storage.download(s3_key)
+        except StorageError as exc:
+            raise DocumentGenerationError("Failed to fetch resume file. Please try again.") from exc
 
         try:
             return extract_text(file_bytes, mime_type)
         except ParseError as exc:
-            raise DocumentGenerationError(f"Resume text extraction failed: {exc}") from exc
+            raise DocumentGenerationError(
+                "Could not read this resume file. Please re-upload it in a supported format."
+            ) from exc
 
     async def _call_ai(
         self,

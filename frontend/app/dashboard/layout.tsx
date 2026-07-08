@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/visa",              key: "visa" },
     { href: "/dashboard/culture",           key: "culture" },
     { href: "/dashboard/settings",          key: "settings" },
-  ];
+  ] as const;
 
   return (
     <div className="flex min-h-screen flex-col">

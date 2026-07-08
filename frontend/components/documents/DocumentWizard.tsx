@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { ResumeList } from "@/types/api";
@@ -45,9 +46,9 @@ export function DocumentWizard({
         {!resumesLoading && resumes.length === 0 && (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
             {t("documents", "wizNoResumes", lang)}{" "}
-            <a href="/dashboard/resumes" className="underline hover:text-foreground">
+            <Link href="/dashboard/resumes" className="underline hover:text-foreground">
               {t("documents", "wizUploadFirst", lang)}
-            </a>
+            </Link>
           </p>
         )}
 

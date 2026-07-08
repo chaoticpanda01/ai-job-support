@@ -176,11 +176,24 @@ async def _check(redis: Any, key: str, limit: int, window_seconds: int) -> bool:
 
 
 def _extract_ip(request: Request) -> str:
-    """Extract real client IP, honouring X-Forwarded-For from trusted proxies."""
+    """
+    Extract the real client IP, trusting only the hop(s) appended by our own
+    reverse proxy (settings.trusted_proxy_hops, e.g. 1 for Render's edge LB).
+
+    X-Forwarded-For is a client-appendable header: a direct request can set
+    it to anything. A trusted proxy appends the connecting IP as the last
+    entry in the chain rather than replacing it, so the only value that
+    cannot be forged by the client is the Nth-from-the-right entry, where N
+    is the number of trusted proxies between the client and this process.
+    Taking the leftmost (client-supplied) entry — the previous behaviour —
+    lets any direct caller spoof rate limiting entirely.
+    """
+    hops = settings.trusted_proxy_hops
     forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        # Take the leftmost (original client) IP
-        return forwarded_for.split(",")[0].strip()
+    if forwarded_for and hops > 0:
+        parts = [p.strip() for p in forwarded_for.split(",") if p.strip()]
+        if len(parts) >= hops:
+            return parts[-hops]
     if request.client:
         return request.client.host
     return "unknown"

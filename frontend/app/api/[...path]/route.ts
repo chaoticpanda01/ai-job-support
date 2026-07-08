@@ -17,8 +17,50 @@ const BACKEND_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000
 // Paths that must NOT have a JWT injected (Clerk webhook uses its own auth)
 const NO_AUTH_PATHS = new Set(["/api/v1/auth/webhook", "/api/v1/billing/webhook"]);
 
+const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * CSRF defense-in-depth for state-changing requests.
+ *
+ * This proxy authenticates via a Bearer JWT (not an ambient cookie sent to
+ * FastAPI directly), which already mitigates classic CSRF against the
+ * backend. This check adds a second, independent layer here at the proxy
+ * in case that assumption ever changes (e.g. a future cookie-based auth
+ * path) or Clerk's session cookie SameSite config is ever misconfigured.
+ *
+ * Sec-Fetch-Site is the more reliable signal (can't be forged, no known
+ * bypass) but isn't sent by every client; Origin is the fallback. If
+ * neither header is present — non-browser client, or an old browser —
+ * this fails open, since the Bearer-JWT model is the primary defense and
+ * blocking here would just break legitimate non-browser API callers.
+ */
+function isSameOriginRequest(request: NextRequest): boolean {
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  if (secFetchSite) {
+    return secFetchSite === "same-origin" || secFetchSite === "none";
+  }
+  const origin = request.headers.get("origin");
+  if (origin) {
+    return origin === request.nextUrl.origin;
+  }
+  return true;
+}
+
 async function handler(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
+
+  const isWebhook = NO_AUTH_PATHS.has(pathname);
+
+  if (
+    !isWebhook &&
+    STATE_CHANGING_METHODS.has(request.method) &&
+    !isSameOriginRequest(request)
+  ) {
+    return NextResponse.json(
+      { detail: "Cross-site request rejected" },
+      { status: 403 },
+    );
+  }
 
   // Strip the /api prefix — FastAPI already has /api/v1 in its router
   const backendPath = pathname.replace(/^\/api/, "");
@@ -27,8 +69,6 @@ async function handler(request: NextRequest): Promise<NextResponse> {
   // Build forwarded headers
   const headers = new Headers(request.headers);
   headers.delete("host");
-
-  const isWebhook = NO_AUTH_PATHS.has(pathname);
 
   if (!isWebhook) {
     try {

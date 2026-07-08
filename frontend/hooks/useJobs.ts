@@ -15,10 +15,10 @@ import type {
 // ---------------------------------------------------------------------------
 
 interface ListJobsParams {
-  q?: string;
-  min_score?: number;
-  offset?: number;
-  limit?: number;
+  q?: string | undefined;
+  min_score?: number | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
 }
 
 export function useJobs(params: ListJobsParams = {}) {

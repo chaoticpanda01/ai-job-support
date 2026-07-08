@@ -10,11 +10,15 @@ No persistence — history is managed client-side.
 from __future__ import annotations
 
 import logging
+import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
+from app.config import settings
+from app.dependencies import AuthUser, DbSession
 from app.services.ai.client import AIError, ai_client
+from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +60,19 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/message", response_model=ChatResponse)
-async def chat_message(body: ChatRequest) -> ChatResponse:
+async def chat_message(
+    body: ChatRequest,
+    current_user: AuthUser,
+    db: DbSession,
+) -> ChatResponse:
+    try:
+        await usage_tracker.check_budget(current_user.user_id, "chatbot", db)
+    except AIBudgetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+        ) from exc
+
     # Build conversation context from history (last 10 messages)
     history_text = ""
     for msg in body.history[-10:]:
@@ -65,8 +81,9 @@ async def chat_message(body: ChatRequest) -> ChatResponse:
 
     user_prompt = f"{history_text}User: {body.message}"
 
+    t0 = time.monotonic()
     try:
-        reply, _, _ = await ai_client.generate(
+        reply, input_tokens, output_tokens = await ai_client.generate(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
             max_tokens=1000,
@@ -74,6 +91,18 @@ async def chat_message(body: ChatRequest) -> ChatResponse:
         )
     except AIError as exc:
         logger.error("Chatbot AI error: %s", exc)
-        reply = "Sorry, I'm having trouble connecting right now. Please try again in a moment."
+        return ChatResponse(
+            reply="Sorry, I'm having trouble connecting right now. Please try again in a moment."
+        )
+
+    await usage_tracker.record(
+        user_id=current_user.user_id,
+        feature="chatbot",
+        model=settings.gemini_default_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=int((time.monotonic() - t0) * 1000),
+        db=db,
+    )
 
     return ChatResponse(reply=reply)
