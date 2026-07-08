@@ -16,23 +16,28 @@ import type { ApplicationStatus, JobApplication } from "@/types/api";
 // ---------------------------------------------------------------------------
 
 const COLUMN_KEYS: ApplicationStatus[] = [
-  "planning", "applied", "interviewing", "offered", "rejected", "withdrawn",
+  "planning",
+  "applied",
+  "interviewing",
+  "offered",
+  "rejected",
+  "withdrawn",
 ];
 
 const COLUMN_COLORS: Record<ApplicationStatus, string> = {
-  planning:     "bg-slate-100  border-slate-300",
-  applied:      "bg-blue-50    border-blue-200",
-  interviewing: "bg-amber-50   border-amber-200",
-  offered:      "bg-green-50   border-green-200",
-  rejected:     "bg-red-50     border-red-200",
-  withdrawn:    "bg-muted      border-border",
+  planning: "bg-muted border-border",
+  applied: "bg-primary/5 border-primary/20",
+  interviewing: "bg-warning/10 border-warning/30",
+  offered: "bg-success/10 border-success/30",
+  rejected: "bg-destructive/10 border-destructive/30",
+  withdrawn: "bg-muted border-border",
 };
 
 const STATUS_NEXT: Partial<Record<ApplicationStatus, ApplicationStatus[]>> = {
-  planning:     ["applied", "withdrawn"],
-  applied:      ["interviewing", "rejected", "withdrawn"],
+  planning: ["applied", "withdrawn"],
+  applied: ["interviewing", "rejected", "withdrawn"],
   interviewing: ["offered", "rejected", "withdrawn"],
-  offered:      ["withdrawn"],
+  offered: ["withdrawn"],
 };
 
 // ---------------------------------------------------------------------------
@@ -66,14 +71,12 @@ export default function ApplicationsPage() {
         </Link>
       </div>
 
-      {error && (
-        <p className="text-sm text-destructive">{t("jobs", "appLoadError", lang)}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{t("jobs", "appLoadError", lang)}</p>}
 
       {isLoading ? (
         <KanbanSkeleton columns={columns} />
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 xl:grid-cols-6">
           {columns.map((col) => (
             <KanbanColumn
               key={col.status}
@@ -105,7 +108,9 @@ function KanbanColumn({
   apps: JobApplication[];
 }) {
   return (
-    <div className={`rounded-lg border ${color} flex flex-col min-h-[200px]`}>
+    <div
+      className={`rounded-lg border ${color} flex min-h-[200px] w-64 shrink-0 snap-start flex-col lg:w-auto lg:shrink`}
+    >
       <div className="flex items-center justify-between border-b px-3 py-2">
         <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
         <span className="rounded-full bg-background px-1.5 py-0.5 text-xs font-medium tabular-nums">
@@ -163,17 +168,15 @@ function ApplicationCard({
     : null;
 
   return (
-    <li className="relative rounded-md border bg-background p-3 shadow-sm text-sm space-y-1.5">
+    <li className="relative space-y-1.5 rounded-md border bg-background p-3 text-sm shadow-sm">
       <div>
         <Link
           href={`/dashboard/jobs/${app.job_posting_id}`}
-          className="font-medium leading-snug hover:underline line-clamp-2"
+          className="line-clamp-2 font-medium leading-snug hover:underline"
         >
           {app.job_title ?? t("jobs", "untitled", lang)}
         </Link>
-        {app.job_company && (
-          <p className="text-xs text-muted-foreground">{app.job_company}</p>
-        )}
+        {app.job_company && <p className="text-xs text-muted-foreground">{app.job_company}</p>}
       </div>
 
       {appliedDate && (
@@ -183,7 +186,7 @@ function ApplicationCard({
       )}
 
       {!editingNotes && app.notes && (
-        <p className="text-xs text-muted-foreground line-clamp-2 italic">{app.notes}</p>
+        <p className="line-clamp-2 text-xs italic text-muted-foreground">{app.notes}</p>
       )}
 
       {editingNotes && (
@@ -204,7 +207,10 @@ function ApplicationCard({
               {t("common", "saveChanges", lang).split(" ")[0]}
             </button>
             <button
-              onClick={() => { setEditingNotes(false); setNotes(app.notes ?? ""); }}
+              onClick={() => {
+                setEditingNotes(false);
+                setNotes(app.notes ?? "");
+              }}
               className="rounded border px-2 py-0.5 text-xs hover:bg-accent"
             >
               {t("common", "cancel", lang)}
@@ -219,7 +225,7 @@ function ApplicationCard({
             key={s}
             onClick={() => moveToStatus(s)}
             disabled={update.isPending}
-            className="rounded border px-1.5 py-0.5 text-xs hover:bg-accent disabled:opacity-50 capitalize"
+            className="rounded border px-1.5 py-0.5 text-xs capitalize hover:bg-accent disabled:opacity-50"
           >
             → {s}
           </button>
@@ -265,13 +271,16 @@ function groupByStatus(apps: JobApplication[]): Record<ApplicationStatus, JobApp
 
 function KanbanSkeleton({ columns }: { columns: { status: ApplicationStatus; color: string }[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 xl:grid-cols-6">
       {columns.map((col) => (
-        <div key={col.status} className={`rounded-lg border ${col.color} min-h-[200px]`}>
+        <div
+          key={col.status}
+          className={`rounded-lg border ${col.color} min-h-[200px] w-64 shrink-0 lg:w-auto lg:shrink`}
+        >
           <div className="border-b px-3 py-2">
             <div className="h-3 w-20 animate-pulse rounded bg-muted" />
           </div>
-          <div className="p-2 space-y-2">
+          <div className="space-y-2 p-2">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="h-20 animate-pulse rounded-md bg-muted" />
             ))}

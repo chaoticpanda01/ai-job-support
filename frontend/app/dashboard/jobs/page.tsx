@@ -129,10 +129,10 @@ function JobCard({ job }: { job: JobPosting }) {
     score === null
       ? "text-muted-foreground"
       : score >= 70
-        ? "text-green-600"
+        ? "text-success"
         : score >= 50
-          ? "text-yellow-600"
-          : "text-red-600";
+          ? "text-warning"
+          : "text-destructive";
 
   return (
     <li className="rounded-lg border bg-card p-4">
@@ -212,7 +212,7 @@ function Tag({
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
         variant === "positive"
-          ? "bg-green-100 text-green-800"
+          ? "bg-success/10 text-success"
           : "bg-muted text-muted-foreground"
       }`}
     >

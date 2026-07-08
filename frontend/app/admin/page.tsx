@@ -87,13 +87,16 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-muted/40">
       {/* Header */}
-      <header className="border-b bg-background sticky top-0 z-40">
+      <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               🏠 Home
             </Link>
-            <Link href="/dashboard/resumes" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/dashboard/resumes"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               ← Back to app
             </Link>
             <span className="font-semibold">Admin Panel</span>
@@ -111,7 +114,7 @@ export default function AdminPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors ${
                 tab === t
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -122,10 +125,10 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === "stats"   && <StatsTab />}
-        {tab === "users"   && <UsersTab />}
+        {tab === "stats" && <StatsTab />}
+        {tab === "users" && <UsersTab />}
         {tab === "culture" && <CultureTab />}
-        {tab === "glossary"&& <GlossaryTab />}
+        {tab === "glossary" && <GlossaryTab />}
       </div>
     </div>
   );
@@ -139,16 +142,17 @@ function StatsTab() {
   const { data, isLoading, error } = useStats();
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (error) return <p className="text-sm text-destructive">Failed to load stats. Are you an admin?</p>;
+  if (error)
+    return <p className="text-sm text-destructive">Failed to load stats. Are you an admin?</p>;
   if (!data) return null;
 
   const cards = [
-    { label: "Total users",        value: data.total_users },
-    { label: "Active users",       value: data.active_users },
-    { label: "Resumes uploaded",   value: data.total_resumes },
-    { label: "Documents generated",value: data.total_documents },
-    { label: "Culture topics",     value: data.total_culture_topics },
-    { label: "Glossary entries",   value: data.total_glossary_entries },
+    { label: "Total users", value: data.total_users },
+    { label: "Active users", value: data.active_users },
+    { label: "Resumes uploaded", value: data.total_resumes },
+    { label: "Documents generated", value: data.total_documents },
+    { label: "Culture topics", value: data.total_culture_topics },
+    { label: "Glossary entries", value: data.total_glossary_entries },
   ];
 
   return (
@@ -181,60 +185,68 @@ function UsersTab() {
   if (error) return <p className="text-sm text-destructive">Failed to load users.</p>;
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b flex items-center justify-between">
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3">
         <span className="text-sm font-medium">Users ({data?.total ?? 0})</span>
       </div>
-      <table className="w-full text-sm">
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Email</th>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Name</th>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Role</th>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Tier</th>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Status</th>
-            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.items.map((user) => (
-            <tr key={user.id} className="border-b last:border-0 hover:bg-muted/20">
-              <td className="px-4 py-2">{user.email}</td>
-              <td className="px-4 py-2 text-muted-foreground">{user.full_name ?? "—"}</td>
-              <td className="px-4 py-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  user.role === "admin"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {user.role}
-                </span>
-              </td>
-              <td className="px-4 py-2 capitalize">{user.subscription_tier}</td>
-              <td className="px-4 py-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs ${
-                  user.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                }`}>
-                  {user.is_active ? "Active" : "Inactive"}
-                </span>
-              </td>
-              <td className="px-4 py-2">
-                <button
-                  onClick={() =>
-                    promoteUser.mutate({
-                      id: user.id,
-                      role: user.role === "admin" ? "user" : "admin",
-                    })
-                  }
-                  className="text-xs text-muted-foreground underline hover:text-foreground"
-                >
-                  {user.role === "admin" ? "Demote" : "Make admin"}
-                </button>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Email</th>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Name</th>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Role</th>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Tier</th>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data?.items.map((user) => (
+              <tr key={user.id} className="border-b last:border-0 hover:bg-muted/20">
+                <td className="px-4 py-2">{user.email}</td>
+                <td className="px-4 py-2 text-muted-foreground">{user.full_name ?? "—"}</td>
+                <td className="px-4 py-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      user.role === "admin"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {user.role}
+                  </span>
+                </td>
+                <td className="px-4 py-2 capitalize">{user.subscription_tier}</td>
+                <td className="px-4 py-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      user.is_active
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {user.is_active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="px-4 py-2">
+                  <button
+                    onClick={() =>
+                      promoteUser.mutate({
+                        id: user.id,
+                        role: user.role === "admin" ? "user" : "admin",
+                      })
+                    }
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    {user.role === "admin" ? "Demote" : "Make admin"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -284,7 +296,7 @@ function CultureTab() {
       </div>
 
       {showForm && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-3">
+        <div className="space-y-3 rounded-xl border bg-card p-6 shadow-sm">
           <h3 className="font-medium">New culture topic</h3>
           {(["slug", "title"] as const).map((field) => (
             <div key={field}>
@@ -322,7 +334,7 @@ function CultureTab() {
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               rows={6}
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono"
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
             />
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -337,7 +349,10 @@ function CultureTab() {
             onClick={() =>
               createTopic.mutate({
                 ...form,
-                tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+                tags: form.tags
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter(Boolean),
               })
             }
             disabled={createTopic.isPending}
@@ -348,8 +363,8 @@ function CultureTab() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
               <th className="px-4 py-2 text-left font-medium text-muted-foreground">Title</th>
@@ -363,24 +378,32 @@ function CultureTab() {
             {data?.map((topic) => (
               <tr key={topic.slug} className="border-b last:border-0 hover:bg-muted/20">
                 <td className="px-4 py-2 font-medium">{topic.title}</td>
-                <td className="px-4 py-2 text-muted-foreground font-mono text-xs">{topic.slug}</td>
+                <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{topic.slug}</td>
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap gap-1">
                     {topic.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-xs">{tag}</span>
+                      <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {tag}
+                      </span>
                     ))}
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${
-                    topic.published ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                  }`}>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      topic.published
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     {topic.published ? "Published" : "Draft"}
                   </span>
                 </td>
-                <td className="px-4 py-2 flex gap-3">
+                <td className="flex gap-3 px-4 py-2">
                   <button
-                    onClick={() => togglePublish.mutate({ slug: topic.slug, published: !topic.published })}
+                    onClick={() =>
+                      togglePublish.mutate({ slug: topic.slug, published: !topic.published })
+                    }
                     className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
                     {topic.published ? "Unpublish" : "Publish"}
@@ -442,7 +465,7 @@ function GlossaryTab() {
       </div>
 
       {showForm && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-3">
+        <div className="space-y-3 rounded-xl border bg-card p-6 shadow-sm">
           <h3 className="font-medium">New glossary entry</h3>
           {[
             { key: "term_ja", label: "Japanese term" },
@@ -450,7 +473,10 @@ function GlossaryTab() {
             { key: "definition_id", label: "Definition (Indonesian)" },
           ].map(({ key, label }) => (
             <div key={key}>
-              <label htmlFor={`glossary-${key}`} className="text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor={`glossary-${key}`}
+                className="text-xs font-medium text-muted-foreground"
+              >
                 {label}
               </label>
               <input
@@ -471,8 +497,8 @@ function GlossaryTab() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
               <th className="px-4 py-2 text-left font-medium text-muted-foreground">Japanese</th>
@@ -486,7 +512,9 @@ function GlossaryTab() {
               <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/20">
                 <td className="px-4 py-2 font-medium">{entry.term_ja}</td>
                 <td className="px-4 py-2 text-muted-foreground">{entry.reading_romaji}</td>
-                <td className="px-4 py-2 text-muted-foreground max-w-xs truncate">{entry.definition_id}</td>
+                <td className="max-w-xs truncate px-4 py-2 text-muted-foreground">
+                  {entry.definition_id}
+                </td>
                 <td className="px-4 py-2">
                   <button
                     onClick={() => {

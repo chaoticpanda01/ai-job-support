@@ -126,10 +126,10 @@ function DocumentCard({ doc }: { doc: Document }) {
 function StatusBadge({ status }: { status: DocumentStatus }) {
   const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
-    pending:    "bg-yellow-100 text-yellow-800",
-    processing: "bg-blue-100 text-blue-800",
-    completed:  "bg-green-100 text-green-800",
-    failed:     "bg-red-100 text-red-800",
+    pending:    "bg-warning/10 text-warning",
+    processing: "bg-primary/10 text-primary",
+    completed:  "bg-success/10 text-success",
+    failed:     "bg-destructive/10 text-destructive",
   };
   const labels: Record<DocumentStatus, string> = {
     pending:    t("documents", "statusPending", lang),
@@ -142,7 +142,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}
     >
       {status === "processing" && (
-        <span className="h-2 w-2 animate-spin rounded-full border border-blue-800 border-t-transparent" />
+        <span className="h-2 w-2 animate-spin rounded-full border border-primary border-t-transparent" />
       )}
       {labels[status]}
     </span>
