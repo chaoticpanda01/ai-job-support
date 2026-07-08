@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SIGN_IN_ROUTE, SIGN_UP_ROUTE } from "@/lib/routes";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+
+const DASHBOARD_ROUTE = "/dashboard/resumes";
 
 const FEATURES = [
   { icon: "📄", titleKey: "resume",    descKey: "resumeDesc" },
@@ -33,18 +36,29 @@ export default function LandingPage() {
           <span className="text-sm font-semibold">Japan Job Support</span>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <Link
-              href={SIGN_IN_ROUTE}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("nav", "signIn", lang)}
-            </Link>
-            <Link
-              href={SIGN_UP_ROUTE}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              {t("nav", "getStarted", lang)}
-            </Link>
+            <SignedOut>
+              <Link
+                href={SIGN_IN_ROUTE}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("nav", "signIn", lang)}
+              </Link>
+              <Link
+                href={SIGN_UP_ROUTE}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {t("nav", "getStarted", lang)}
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                href={DASHBOARD_ROUTE}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {t("nav", "goToDashboard", lang)}
+              </Link>
+              <UserButton afterSignOutUrl="/sign-in" />
+            </SignedIn>
           </div>
         </div>
       </header>
@@ -63,12 +77,22 @@ export default function LandingPage() {
             {t("landing", "heroSub", lang)}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href={SIGN_UP_ROUTE}
-              className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              {t("landing", "ctaPrimary", lang)}
-            </Link>
+            <SignedOut>
+              <Link
+                href={SIGN_UP_ROUTE}
+                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {t("landing", "ctaPrimary", lang)}
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                href={DASHBOARD_ROUTE}
+                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {t("nav", "goToDashboard", lang)}
+              </Link>
+            </SignedIn>
             <Link
               href="/dashboard/culture"
               className="rounded-md border px-6 py-3 text-sm font-medium hover:bg-accent transition-colors"
@@ -120,18 +144,20 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="border-t bg-muted/40 py-20 text-center">
-        <div className="container mx-auto max-w-xl">
-          <h2 className="text-2xl font-bold">{t("landing", "ctaTitle", lang)}</h2>
-          <p className="mt-3 text-muted-foreground">{t("landing", "ctaSub", lang)}</p>
-          <Link
-            href={SIGN_UP_ROUTE}
-            className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-          >
-            {t("landing", "ctaBtn", lang)}
-          </Link>
-        </div>
-      </section>
+      <SignedOut>
+        <section className="border-t bg-muted/40 py-20 text-center">
+          <div className="container mx-auto max-w-xl">
+            <h2 className="text-2xl font-bold">{t("landing", "ctaTitle", lang)}</h2>
+            <p className="mt-3 text-muted-foreground">{t("landing", "ctaSub", lang)}</p>
+            <Link
+              href={SIGN_UP_ROUTE}
+              className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              {t("landing", "ctaBtn", lang)}
+            </Link>
+          </div>
+        </section>
+      </SignedOut>
 
       {/* Footer */}
       <footer className="border-t py-8 text-center text-xs text-muted-foreground">

@@ -36,12 +36,25 @@ export function ChatWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/v1/chat/message", {
+      const response = await fetch("/api/v1/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history: messages.slice(-10) }),
-      }).then((r) => r.json()) as { reply: string };
-      setMessages([...newMessages, { role: "assistant", content: res.reply }]);
+      });
+      const body = (await response.json()) as { reply?: string; detail?: string };
+
+      if (!response.ok) {
+        const fallback =
+          response.status === 401
+            ? "Please sign in to chat with the assistant."
+            : response.status === 429
+              ? "You've reached today's chat limit — try again tomorrow."
+              : "Sorry, something went wrong. Please try again.";
+        setMessages([...newMessages, { role: "assistant", content: body.detail ?? fallback }]);
+        return;
+      }
+
+      setMessages([...newMessages, { role: "assistant", content: body.reply ?? "" }]);
     } catch {
       setMessages([
         ...newMessages,

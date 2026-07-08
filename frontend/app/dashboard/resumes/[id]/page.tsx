@@ -3,6 +3,8 @@
 import { use } from "react";
 import { useResume, useResumeAnalysis, useAnalyzeResume } from "@/hooks/useResumes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { useToast } from "@/hooks/use-toast";
+import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { ResumeAnalysis } from "@/types/api";
@@ -17,6 +19,21 @@ export default function ResumeDetailPage({ params }: Props) {
   const { data: analysis, isLoading: analysisLoading } = useResumeAnalysis(id);
   const analyzeMutation = useAnalyzeResume();
   const { lang } = useLang();
+  const { toast } = useToast();
+
+  function handleAnalyze() {
+    analyzeMutation.mutate(
+      { resumeId: id },
+      {
+        onError: (err) => {
+          toast({
+            variant: "destructive",
+            description: err instanceof ApiClientError ? err.detail : t("common", "error", lang),
+          });
+        },
+      },
+    );
+  }
 
   if (isLoading) return <PageSkeleton />;
   if (error || !resume) {
@@ -74,7 +91,7 @@ export default function ResumeDetailPage({ params }: Props) {
           <h2 className="text-base font-medium">{t("resumes", "aiAnalysis", lang)}</h2>
           {!analysis && !analysisLoading && (
             <button
-              onClick={() => analyzeMutation.mutate({ resumeId: id })}
+              onClick={handleAnalyze}
               disabled={analyzeMutation.isPending}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >

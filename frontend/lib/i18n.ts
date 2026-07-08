@@ -23,6 +23,7 @@ export const translations = {
     getStarted: { en: "Get started free", id: "Mulai gratis", ja: "無料で始める" },
     openMenu:   { en: "Open menu",  id: "Buka menu",   ja: "メニューを開く" },
     closeMenu:  { en: "Close menu", id: "Tutup menu",  ja: "メニューを閉じる" },
+    goToDashboard: { en: "Go to Dashboard", id: "Ke Dasbor", ja: "ダッシュボードへ" },
   },
 
   // ---------------------------------------------------------------------------
@@ -148,6 +149,15 @@ export const translations = {
     loadError:      { en: "Failed to load resumes. Please refresh.", id: "Gagal memuat resume. Coba muat ulang.", ja: "履歴書の読み込みに失敗しました。更新してください。" },
     setPrimary:     { en: "Set primary",       id: "Jadikan utama",   ja: "メインに設定" },
     confirmDelete:  { en: "Delete this resume?", id: "Hapus resume ini?", ja: "この履歴書を削除しますか？" },
+    // Uploader
+    dragDrop:       { en: "Drag & drop your resume", id: "Seret & lepas resume kamu", ja: "履歴書をドラッグ＆ドロップ" },
+    dropHere:       { en: "Drop your resume here", id: "Lepaskan resume kamu di sini", ja: "ここに履歴書をドロップ" },
+    fileTypeHint:   { en: "PDF or DOCX · max 10 MB", id: "PDF atau DOCX · maks 10 MB", ja: "PDFまたはDOCX · 最大10MB" },
+    chooseFile:     { en: "Choose file",       id: "Pilih file",      ja: "ファイルを選択" },
+    uploading:      { en: "Uploading…",        id: "Mengunggah…",     ja: "アップロード中…" },
+    invalidFile:    { en: "Invalid file",      id: "File tidak valid", ja: "無効なファイルです" },
+    uploadFailed:   { en: "Upload failed. Please try again.", id: "Unggah gagal. Coba lagi.", ja: "アップロードに失敗しました。再試行してください。" },
+    uploadSuccess:  { en: "Resume uploaded successfully.", id: "Resume berhasil diunggah.", ja: "履歴書が正常にアップロードされました。" },
     // Detail
     backToResumes:  { en: "← Back to resumes", id: "← Kembali ke resume", ja: "← 履歴書一覧へ" },
     notFound:       { en: "Resume not found.", id: "Resume tidak ditemukan.", ja: "履歴書が見つかりません。" },

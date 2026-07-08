@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/lib/language-context";
+import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
 
 const ACCEPTED_MIME = {
@@ -19,6 +22,8 @@ interface Props {
 export function ResumeUploader({ onUploaded }: Props) {
   const queryClient = useQueryClient();
   const [fileError, setFileError] = useState<string | null>(null);
+  const { lang } = useLang();
+  const { toast } = useToast();
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => {
@@ -29,6 +34,7 @@ export function ResumeUploader({ onUploaded }: Props) {
     onSuccess: (resume) => {
       queryClient.invalidateQueries({ queryKey: ["resumes"] });
       onUploaded?.(resume);
+      toast({ variant: "success", description: t("resumes", "uploadSuccess", lang) });
     },
   });
 
@@ -37,7 +43,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       setFileError(null);
 
       if (rejected.length > 0) {
-        const firstError = rejected[0]?.errors[0]?.message ?? "Invalid file";
+        const firstError = rejected[0]?.errors[0]?.message ?? t("resumes", "invalidFile", lang);
         setFileError(firstError);
         return;
       }
@@ -46,7 +52,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       if (!file) return;
       uploadMutation.mutate(file);
     },
-    [uploadMutation],
+    [uploadMutation, lang],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -61,7 +67,7 @@ export function ResumeUploader({ onUploaded }: Props) {
     uploadMutation.error instanceof ApiClientError
       ? uploadMutation.error.detail
       : uploadMutation.error
-        ? "Upload failed. Please try again."
+        ? t("resumes", "uploadFailed", lang)
         : null;
 
   const displayError = fileError ?? uploadError;
@@ -81,27 +87,21 @@ export function ResumeUploader({ onUploaded }: Props) {
         <input {...getInputProps()} />
         <UploadIcon />
         <p className="mt-3 text-sm font-medium text-foreground">
-          {isDragActive ? "Drop your resume here" : "Drag & drop your resume"}
+          {isDragActive ? t("resumes", "dropHere", lang) : t("resumes", "dragDrop", lang)}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">PDF or DOCX · max 10 MB</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("resumes", "fileTypeHint", lang)}</p>
         <button
           type="button"
           className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           disabled={uploadMutation.isPending}
         >
-          {uploadMutation.isPending ? "Uploading…" : "Choose file"}
+          {uploadMutation.isPending ? t("resumes", "uploading", lang) : t("resumes", "chooseFile", lang)}
         </button>
       </div>
 
       {displayError && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {displayError}
-        </p>
-      )}
-
-      {uploadMutation.isSuccess && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-          Resume uploaded successfully.
         </p>
       )}
     </div>
