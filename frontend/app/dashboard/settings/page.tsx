@@ -7,6 +7,7 @@ import { useMe, useUpdateProfile } from "@/hooks/useMe";
 import { useDeleteAccount } from "@/hooks/useBilling";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { SIGN_IN_ROUTE } from "@/lib/routes";
 import type {
   JapaneseLevel,
   PreferredLanguage,
@@ -241,7 +242,7 @@ function DangerZone() {
     if (!ready) return;
     await deleteAccount.mutateAsync();
     await signOut();
-    router.push("/sign-in");
+    router.push(SIGN_IN_ROUTE);
   }
 
   return (

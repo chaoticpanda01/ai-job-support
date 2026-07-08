@@ -644,31 +644,29 @@ JOIN subscription_limits sl ON sl.tier = s.tier
 WHERE s.status IN ('active', 'trialing');
 
 -- =============================================================================
--- ROW LEVEL SECURITY
+-- DATABASE ROLES
 -- =============================================================================
-
-ALTER TABLE users               ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles            ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resumes             ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resume_analyses     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE generated_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE job_matches         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE saved_jobs          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE job_applications    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE interview_sessions  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE interview_messages  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE visa_consultations  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subscriptions       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE billing_events      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notification_log    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_usage_logs       ENABLE ROW LEVEL SECURITY;
+-- Row Level Security is intentionally NOT used here. An earlier version of
+-- this schema ran `ENABLE ROW LEVEL SECURITY` on every table with zero
+-- `CREATE POLICY` statements defined — RLS with no policies enforces nothing
+-- (a table owner is unaffected by RLS; a non-owner role with no permissive
+-- policy is blocked entirely), so it provided no actual protection while
+-- implying to readers that row-level isolation existed. It didn't.
+--
+-- Access control is enforced at the application layer instead: every
+-- repository method that fetches a user-owned row (resumes, documents,
+-- interview sessions, visa consultations, etc.) filters by the owning
+-- user_id — see `get_owned()` in backend/app/repositories/*.py. If real
+-- database-layer isolation is wanted later, add explicit `CREATE POLICY`
+-- statements keyed on a per-request session variable (e.g.
+-- `current_setting('app.user_id')`) rather than re-enabling RLS with no
+-- policies.
 
 DO $$ BEGIN
   CREATE ROLE app_service;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-ALTER TABLE users FORCE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_service;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_service;
 

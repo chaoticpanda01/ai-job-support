@@ -98,7 +98,7 @@ async def translate_job(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     # -- Call Claude
@@ -276,8 +276,6 @@ async def match_job(
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
     from app.services.file_storage import StorageError, file_storage
     from app.services.resume_parser import ParseError, extract_text
-    import boto3  # type: ignore[import-untyped]
-    import io
 
     # -- Load job
     job_repo = JobPostingRepository(db)
@@ -308,22 +306,13 @@ async def match_job(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     # -- Extract resume text from S3 / Backblaze B2
     try:
-        s3_kwargs: dict = dict(
-            region_name=settings.aws_region,
-            aws_access_key_id=settings.aws_access_key_id,
-            aws_secret_access_key=settings.aws_secret_access_key,
-        )
-        if settings.cloudflare_r2_endpoint_url:
-            s3_kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
-        s3 = boto3.client("s3", **s3_kwargs)
-        obj = s3.get_object(Bucket=settings.s3_bucket_name, Key=resume.file_url)
-        file_bytes: bytes = obj["Body"].read()
-    except Exception as exc:
+        file_bytes = file_storage.download(resume.file_url)
+    except StorageError as exc:
         logger.error("S3 fetch failed for resume=%s: %s", resume.id, exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -333,9 +322,10 @@ async def match_job(
     try:
         resume_text = extract_text(file_bytes, resume.mime_type)
     except ParseError as exc:
+        logger.warning("Resume text extraction failed for resume=%s: %s", resume.id, exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Resume text extraction failed: {exc}",
+            detail="Could not read this resume file. Please re-upload it in a supported format.",
         ) from exc
 
     # -- Call Claude

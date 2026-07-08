@@ -111,7 +111,11 @@ function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
   function toggleStep(stepId: string) {
     setCompleted((prev) => {
       const next = new Set(prev);
-      next.has(stepId) ? next.delete(stepId) : next.add(stepId);
+      if (next.has(stepId)) {
+        next.delete(stepId);
+      } else {
+        next.add(stepId);
+      }
       return next;
     });
   }

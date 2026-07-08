@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # Explicit opt-in for /docs, /redoc, /openapi.json. Defaults to false
+    # everywhere — deliberately NOT inferred from app_env, so a misconfigured
+    # or forgotten APP_ENV in some deployed environment can't silently expose
+    # the API schema. Set ENABLE_DOCS=true in your local .env for dev.
+    enable_docs: bool = False
+
     # --- API Server ---
     host: str = "0.0.0.0"
     port: int = 8000
@@ -86,6 +92,12 @@ class Settings(BaseSettings):
     rate_limit_ai_features_per_hour_free: int = 20
     rate_limit_job_translate_per_hour: int = 10
     rate_limit_global_per_ip_per_minute: int = 60
+
+    # Number of trusted reverse-proxy hops in front of the app (e.g. Render's
+    # edge load balancer = 1). Only the Nth-from-right entry in X-Forwarded-For
+    # is trusted as the real client IP; anything a direct client sets itself
+    # is beyond that hop count and ignored. See middleware/rate_limiter.py.
+    trusted_proxy_hops: int = 1
 
     # --- PDF ---
     pdf_font_path: str = "/usr/share/fonts/noto"

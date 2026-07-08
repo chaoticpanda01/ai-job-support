@@ -69,7 +69,7 @@ async def create_session(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     # Load candidate profile for richer question context
@@ -151,7 +151,7 @@ async def send_message(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     # Fetch recent history for context
@@ -220,7 +220,7 @@ async def end_session(
     except AIBudgetError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly AI token budget exceeded (used={exc.used}, limit={exc.limit})",
+            detail=str(exc),
         ) from exc
 
     msg_repo = InterviewMessageRepository(db)

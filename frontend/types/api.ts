@@ -49,7 +49,7 @@ export interface ProfileUpdateRequest {
   japanese_level?: JapaneseLevel;
   target_industry?: string[];
   target_role?: string[];
-  years_experience?: number;
+  years_experience?: number | undefined;
   current_location?: string;
   target_location?: string;
   visa_status?: VisaStatus;

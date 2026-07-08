@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
@@ -89,12 +90,12 @@ export default function AdminPage() {
       <header className="border-b bg-background sticky top-0 z-40">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               🏠 Home
-            </a>
-            <a href="/dashboard/resumes" className="text-sm text-muted-foreground hover:text-foreground">
+            </Link>
+            <Link href="/dashboard/resumes" className="text-sm text-muted-foreground hover:text-foreground">
               ← Back to app
-            </a>
+            </Link>
             <span className="font-semibold">Admin Panel</span>
           </div>
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">

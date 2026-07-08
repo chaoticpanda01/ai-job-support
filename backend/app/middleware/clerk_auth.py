@@ -51,7 +51,6 @@ _BYPASS_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("GET", "/health"),
         ("POST", "/api/v1/auth/webhook"),
         ("POST", "/api/v1/billing/webhook"),
-        ("POST", "/api/v1/chat/message"),
     ]
 )
 

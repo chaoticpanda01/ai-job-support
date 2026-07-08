@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { apiClient } from "@/lib/api-client";
 
 interface Message {
   role: "user" | "assistant";

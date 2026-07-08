@@ -12,9 +12,9 @@ const STALE_TIME_MS = 10 * 60 * 1000;
 // ---------------------------------------------------------------------------
 
 interface ListTopicsParams {
-  tag?: string;
-  offset?: number;
-  limit?: number;
+  tag?: string | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
 }
 
 export function useCultureTopics(params: ListTopicsParams = {}) {
