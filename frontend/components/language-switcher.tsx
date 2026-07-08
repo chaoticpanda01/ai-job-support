@@ -7,7 +7,7 @@ export function LanguageSwitcher() {
   const { lang, setLang } = useLang();
 
   return (
-    <div className="flex items-center rounded-md border bg-background overflow-hidden">
+    <div className="flex items-center overflow-hidden rounded-md border bg-background">
       {LANGUAGES.map(({ code, label }) => (
         <button
           key={code}
@@ -15,7 +15,7 @@ export function LanguageSwitcher() {
           className={`px-2.5 py-1 text-xs font-medium transition-colors ${
             lang === code
               ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
         >
           {label}

@@ -25,12 +25,11 @@ import logging
 from uuid import UUID
 
 import resend
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.enums import NotificationChannel, NotificationStatus
+from app.models.enums import NotificationChannel
 from app.repositories.billing import NotificationLogRepository
-from app.models.billing import NotificationLog
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +37,13 @@ logger = logging.getLogger(__name__)
 # Template IDs — must match Resend dashboard exactly
 # ---------------------------------------------------------------------------
 
+
 class Templates:
-    WELCOME             = "welcome_v1"
-    SUBSCRIPTION_START  = "subscription_started_v1"
+    WELCOME = "welcome_v1"
+    SUBSCRIPTION_START = "subscription_started_v1"
     SUBSCRIPTION_CANCEL = "subscription_cancelled_v1"
-    PAYMENT_FAILED      = "payment_failed_v1"
-    ACCOUNT_DELETED     = "account_deleted_v1"
+    PAYMENT_FAILED = "payment_failed_v1"
+    ACCOUNT_DELETED = "account_deleted_v1"
 
 
 # Default cooldown: don't re-send the same template to the same user within 1 hour.
@@ -57,6 +57,7 @@ class EmailServiceError(Exception):
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
+
 
 class EmailService:
     def __init__(self) -> None:
@@ -86,9 +87,7 @@ class EmailService:
         log_repo = NotificationLogRepository(db)
 
         if user_id is not None:
-            already_sent = await log_repo.was_sent_recently(
-                user_id, template_id, cooldown_seconds
-            )
+            already_sent = await log_repo.was_sent_recently(user_id, template_id, cooldown_seconds)
             if already_sent:
                 logger.info(
                     "Skipping %s to user %s — sent within cooldown window.",
@@ -98,7 +97,6 @@ class EmailService:
                 return
 
         provider_id: str | None = None
-        status = NotificationStatus.sent
 
         try:
             response = await asyncio.to_thread(
@@ -113,7 +111,6 @@ class EmailService:
             provider_id = response.get("id") if isinstance(response, dict) else None
         except Exception as exc:
             logger.error("Resend send failed for template %s: %s", template_id, exc)
-            status = NotificationStatus.failed
             raise EmailServiceError(f"Failed to send email ({template_id}).") from exc
         finally:
             await log_repo.record(
@@ -218,11 +215,11 @@ class EmailService:
 # ---------------------------------------------------------------------------
 
 _SUBJECTS: dict[str, str] = {
-    Templates.WELCOME:             "Welcome to Japan Job Support!",
-    Templates.SUBSCRIPTION_START:  "Your subscription is now active",
+    Templates.WELCOME: "Welcome to Japan Job Support!",
+    Templates.SUBSCRIPTION_START: "Your subscription is now active",
     Templates.SUBSCRIPTION_CANCEL: "Your subscription has been cancelled",
-    Templates.PAYMENT_FAILED:      "Action required: payment failed",
-    Templates.ACCOUNT_DELETED:     "Your account has been deleted",
+    Templates.PAYMENT_FAILED: "Action required: payment failed",
+    Templates.ACCOUNT_DELETED: "Your account has been deleted",
 }
 
 

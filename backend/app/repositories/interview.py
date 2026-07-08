@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.interview import InterviewMessage, InterviewSession
 from app.models.enums import InterviewStatus, MessageRole
+from app.models.interview import InterviewMessage, InterviewSession
 from app.repositories.base import BaseRepository
 
 
@@ -25,9 +25,7 @@ class InterviewSessionRepository(BaseRepository[InterviewSession]):
             )
         )
 
-    async def get_with_messages(
-        self, session_id: UUID, user_id: UUID
-    ) -> InterviewSession | None:
+    async def get_with_messages(self, session_id: UUID, user_id: UUID) -> InterviewSession | None:
         return await self.session.scalar(
             select(InterviewSession)
             .where(
@@ -51,7 +49,7 @@ class InterviewSessionRepository(BaseRepository[InterviewSession]):
             status=InterviewStatus.completed,
             overall_score=overall_score,
             feedback_summary=feedback_summary,
-            completed_at=datetime.now(tz=timezone.utc),
+            completed_at=datetime.now(tz=UTC),
         )
 
     async def abandon(self, session_id: UUID, user_id: UUID) -> InterviewSession | None:
@@ -61,7 +59,7 @@ class InterviewSessionRepository(BaseRepository[InterviewSession]):
         return await self.update(
             sess,
             status=InterviewStatus.abandoned,
-            completed_at=datetime.now(tz=timezone.utc),
+            completed_at=datetime.now(tz=UTC),
         )
 
     async def list_completed(
@@ -118,9 +116,7 @@ class InterviewMessageRepository(BaseRepository[InterviewMessage]):
             ai_evaluation=ai_evaluation,
         )
 
-    async def add_interviewer_turn(
-        self, session_id: UUID, content: str
-    ) -> InterviewMessage:
+    async def add_interviewer_turn(self, session_id: UUID, content: str) -> InterviewMessage:
         return await self.create(
             session_id=session_id,
             role=MessageRole.interviewer,

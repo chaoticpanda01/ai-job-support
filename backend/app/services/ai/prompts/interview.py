@@ -45,13 +45,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------
 
+
 class InterviewEvalResult(BaseModel):
     """Per-answer evaluation. Stored in interview_messages.ai_evaluation."""
+
     keigo_score: int = Field(ge=0, le=100)
     content_relevance: int = Field(ge=0, le=100)
     specificity_score: int = Field(ge=0, le=100)
@@ -62,6 +63,7 @@ class InterviewEvalResult(BaseModel):
 
 class InterviewSummaryResult(BaseModel):
     """End-of-session summary. Stored in interview_sessions."""
+
     overall_score: int = Field(ge=0, le=100)
     feedback_summary: str = Field(min_length=1)
     top_strengths: list[str]
@@ -71,6 +73,7 @@ class InterviewSummaryResult(BaseModel):
 # ---------------------------------------------------------------------------
 # 1. Question prompt — interviewer turn
 # ---------------------------------------------------------------------------
+
 
 def build_question_system_prompt(
     session_type: str,
@@ -149,8 +152,7 @@ def build_question_user_prompt(
 
     if conversation_history:
         history_lines = "\n".join(
-            f"{msg['role'].upper()}: {msg['content']}"
-            for msg in conversation_history
+            f"{msg['role'].upper()}: {msg['content']}" for msg in conversation_history
         )
         parts.append(f"CONVERSATION SO FAR:\n{history_lines}")
 
@@ -165,6 +167,7 @@ def build_question_user_prompt(
 # ---------------------------------------------------------------------------
 # 2. Evaluation prompt — assess candidate's answer
 # ---------------------------------------------------------------------------
+
 
 def build_eval_system_prompt(language: str) -> str:
     """
@@ -222,6 +225,7 @@ def build_eval_user_prompt(question: str, answer: str) -> str:
 # 3. Summary prompt — end-of-session feedback
 # ---------------------------------------------------------------------------
 
+
 def build_summary_system_prompt() -> str:
     return """\
 You are a senior interview coach summarising a completed mock interview session. \
@@ -268,8 +272,7 @@ def build_summary_user_prompt(
         parts.append(f"TARGET ROLE: {target_role}")
 
     history_lines = "\n".join(
-        f"{msg['role'].upper()}: {msg['content']}"
-        for msg in conversation_history
+        f"{msg['role'].upper()}: {msg['content']}" for msg in conversation_history
     )
     parts.append(f"FULL CONVERSATION:\n{history_lines}")
 
@@ -282,9 +285,7 @@ def build_summary_user_prompt(
         )
         parts.append(f"PER-ANSWER SCORES:\n{score_lines}")
 
-    parts.append(
-        "Please provide the overall session summary as a JSON object only."
-    )
+    parts.append("Please provide the overall session summary as a JSON object only.")
 
     return "\n\n".join(parts)
 
@@ -292,6 +293,7 @@ def build_summary_user_prompt(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _lang_instruction(language: str) -> str:
     if language == "ja":

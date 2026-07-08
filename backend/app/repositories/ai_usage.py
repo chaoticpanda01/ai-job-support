@@ -14,9 +14,7 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
 
-    async def get_monthly_stats(
-        self, user_id: UUID, feature: str
-    ) -> tuple[int, int, Decimal]:
+    async def get_monthly_stats(self, user_id: UUID, feature: str) -> tuple[int, int, Decimal]:
         """
         Returns (call_count, total_tokens, total_cost_usd) for the current
         calendar month. Used by pre-call budget enforcement.
@@ -27,9 +25,7 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
                 func.coalesce(
                     func.sum(AIUsageLog.input_tokens + AIUsageLog.output_tokens), 0
                 ).label("total_tokens"),
-                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label(
-                    "total_cost_usd"
-                ),
+                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label("total_cost_usd"),
             ).where(
                 AIUsageLog.user_id == user_id,
                 AIUsageLog.feature == feature,
@@ -50,15 +46,12 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         row = await self.session.execute(
             select(func.count()).where(
                 AIUsageLog.user_id == user_id,
-                func.date_trunc("day", AIUsageLog.created_at)
-                == func.date_trunc("day", func.now()),
+                func.date_trunc("day", AIUsageLog.created_at) == func.date_trunc("day", func.now()),
             )
         )
         return row.scalar_one()
 
-    async def get_all_features_this_month(
-        self, user_id: UUID
-    ) -> list[dict]:
+    async def get_all_features_this_month(self, user_id: UUID) -> list[dict]:
         """
         Returns per-feature usage for the current month.
         Used by GET /users/usage to populate the frontend usage meters.
@@ -70,9 +63,7 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
                 func.coalesce(
                     func.sum(AIUsageLog.input_tokens + AIUsageLog.output_tokens), 0
                 ).label("total_tokens"),
-                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label(
-                    "total_cost_usd"
-                ),
+                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label("total_cost_usd"),
             )
             .where(
                 AIUsageLog.user_id == user_id,
@@ -117,12 +108,8 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         rows = await self.session.execute(
             select(
                 AIUsageLog.user_id,
-                func.sum(AIUsageLog.input_tokens + AIUsageLog.output_tokens).label(
-                    "total_tokens"
-                ),
-                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label(
-                    "total_cost_usd"
-                ),
+                func.sum(AIUsageLog.input_tokens + AIUsageLog.output_tokens).label("total_tokens"),
+                func.coalesce(func.sum(AIUsageLog.cost_usd), Decimal("0")).label("total_cost_usd"),
             )
             .where(
                 AIUsageLog.user_id.is_not(None),

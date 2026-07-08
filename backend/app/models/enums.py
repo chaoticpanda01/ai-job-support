@@ -13,10 +13,10 @@ import enum
 
 from sqlalchemy import Enum as SAEnum
 
-
 # ---------------------------------------------------------------------------
 # Python Enums
 # ---------------------------------------------------------------------------
+
 
 class SubscriptionTier(str, enum.Enum):
     free = "free"
@@ -147,21 +147,21 @@ class UserRole(str, enum.Enum):
 
 _kw = {"create_type": False, "validate_strings": True}
 
-sa_user_role            = SAEnum(UserRole,            name="user_role",            **_kw)
-sa_subscription_tier    = SAEnum(SubscriptionTier,    name="subscription_tier",    **_kw)
-sa_japanese_level       = SAEnum(JapaneseLevel,       name="japanese_level",       **_kw)
-sa_preferred_language   = SAEnum(PreferredLanguage,   name="preferred_language",   **_kw)
-sa_visa_status          = SAEnum(VisaStatus,          name="visa_status",          **_kw)
-sa_document_type        = SAEnum(DocumentType,        name="document_type",        **_kw)
-sa_document_status      = SAEnum(DocumentStatus,      name="document_status",      **_kw)
-sa_job_source_platform  = SAEnum(JobSourcePlatform,   name="job_source_platform",  **_kw)
-sa_interview_type       = SAEnum(InterviewType,       name="interview_type",       **_kw)
-sa_interview_status     = SAEnum(InterviewStatus,     name="interview_status",     **_kw)
-sa_message_role         = SAEnum(MessageRole,         name="message_role",         **_kw)
-sa_analysis_type        = SAEnum(AnalysisType,        name="analysis_type",        **_kw)
-sa_original_language    = SAEnum(OriginalLanguage,    name="original_language",    **_kw)
+sa_user_role = SAEnum(UserRole, name="user_role", **_kw)
+sa_subscription_tier = SAEnum(SubscriptionTier, name="subscription_tier", **_kw)
+sa_japanese_level = SAEnum(JapaneseLevel, name="japanese_level", **_kw)
+sa_preferred_language = SAEnum(PreferredLanguage, name="preferred_language", **_kw)
+sa_visa_status = SAEnum(VisaStatus, name="visa_status", **_kw)
+sa_document_type = SAEnum(DocumentType, name="document_type", **_kw)
+sa_document_status = SAEnum(DocumentStatus, name="document_status", **_kw)
+sa_job_source_platform = SAEnum(JobSourcePlatform, name="job_source_platform", **_kw)
+sa_interview_type = SAEnum(InterviewType, name="interview_type", **_kw)
+sa_interview_status = SAEnum(InterviewStatus, name="interview_status", **_kw)
+sa_message_role = SAEnum(MessageRole, name="message_role", **_kw)
+sa_analysis_type = SAEnum(AnalysisType, name="analysis_type", **_kw)
+sa_original_language = SAEnum(OriginalLanguage, name="original_language", **_kw)
 sa_notification_channel = SAEnum(NotificationChannel, name="notification_channel", **_kw)
-sa_notification_status  = SAEnum(NotificationStatus,  name="notification_status",  **_kw)
-sa_subscription_status  = SAEnum(SubscriptionStatus,  name="subscription_status",  **_kw)
-sa_billing_event_type   = SAEnum(BillingEventType,    name="billing_event_type",   **_kw)
-sa_application_status   = SAEnum(ApplicationStatus,   name="application_status",   **_kw)
+sa_notification_status = SAEnum(NotificationStatus, name="notification_status", **_kw)
+sa_subscription_status = SAEnum(SubscriptionStatus, name="subscription_status", **_kw)
+sa_billing_event_type = SAEnum(BillingEventType, name="billing_event_type", **_kw)
+sa_application_status = SAEnum(ApplicationStatus, name="application_status", **_kw)

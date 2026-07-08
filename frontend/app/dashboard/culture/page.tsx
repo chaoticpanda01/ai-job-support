@@ -25,7 +25,7 @@ export default function CulturePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border bg-muted p-1 w-fit">
+      <div className="flex w-fit gap-1 rounded-lg border bg-muted p-1">
         {(["topics", "glossary"] as const).map((tab) => (
           <button
             key={tab}
@@ -98,9 +98,7 @@ export default function CulturePage() {
             </div>
           )}
 
-          {glossary && glossary.length > 0 && (
-            <GlossaryTable entries={glossary} />
-          )}
+          {glossary && glossary.length > 0 && <GlossaryTable entries={glossary} />}
         </>
       )}
     </div>
@@ -122,7 +120,7 @@ function TopicCard({ topic: tp }: { topic: CultureTopicSummary }) {
     <li>
       <Link
         href={`/dashboard/culture/${tp.slug}`}
-        className="block rounded-lg border bg-card p-5 hover:bg-accent transition-colors h-full"
+        className="block h-full rounded-lg border bg-card p-5 transition-colors hover:bg-accent"
       >
         <p className="font-medium leading-snug">{tp.title}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -167,14 +165,14 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
         placeholder={t("culture", "searchPlaceholder", lang)}
         className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
       />
-      <div className="rounded-lg border overflow-hidden">
+      <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50">
             <tr>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
                 {t("culture", "colTerm", lang)}
               </th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">
+              <th className="hidden px-4 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
                 {t("culture", "colReading", lang)}
               </th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
@@ -186,7 +184,7 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
             {filtered.map((entry) => (
               <tr key={entry.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3 font-medium">{entry.term_ja}</td>
-                <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+                <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {entry.reading_romaji ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{entry.definition_id}</td>

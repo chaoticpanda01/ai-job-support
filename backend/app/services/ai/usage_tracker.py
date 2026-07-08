@@ -21,15 +21,11 @@ Two operations:
 from __future__ import annotations
 
 import logging
-import time
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.billing import SubscriptionLimit
-from app.models.user import User
 from app.repositories.ai_usage import AIUsageRepository
 
 logger = logging.getLogger(__name__)

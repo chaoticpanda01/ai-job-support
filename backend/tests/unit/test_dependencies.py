@@ -5,15 +5,12 @@ Unit tests for FastAPI dependencies (get_current_user, get_admin_user).
 from __future__ import annotations
 
 import uuid
-from unittest.mock import MagicMock
 
 import pytest
-from fastapi import HTTPException
-from starlette.requests import Request
-
 from app.dependencies import get_admin_user, get_current_user
 from app.models.enums import UserRole
-from tests.conftest import make_user
+from fastapi import HTTPException
+from starlette.requests import Request
 
 
 def _make_request(**state_attrs: object) -> Request:

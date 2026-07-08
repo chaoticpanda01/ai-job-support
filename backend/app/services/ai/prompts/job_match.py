@@ -29,10 +29,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Response schema
 # ---------------------------------------------------------------------------
+
 
 class MatchBreakdown(BaseModel):
     skills_match: int = Field(ge=0, le=100)
@@ -57,6 +57,7 @@ class JobMatchResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\
@@ -129,8 +130,6 @@ def build_user_prompt(
     if japanese_level:
         parts.append(f"\nCANDIDATE JAPANESE LEVEL (self-reported): {japanese_level}")
 
-    parts.append(
-        "\nReturn the JSON object only. Do not include any explanation outside the JSON."
-    )
+    parts.append("\nReturn the JSON object only. Do not include any explanation outside the JSON.")
 
     return "\n".join(parts)

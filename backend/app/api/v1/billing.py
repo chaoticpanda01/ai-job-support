@@ -19,7 +19,6 @@ from app.config import settings
 from app.dependencies import AuthUser, DbSession, PaginationDep
 from app.models.enums import (
     BillingEventType,
-    NotificationChannel,
     SubscriptionStatus,
     SubscriptionTier,
 )
@@ -48,6 +47,7 @@ _PORTAL_RETURN_PATH = "/dashboard/billing"
 # ---------------------------------------------------------------------------
 # Checkout
 # ---------------------------------------------------------------------------
+
 
 @router.post("/checkout", response_model=CheckoutResponse)
 async def create_checkout_session(
@@ -102,6 +102,7 @@ async def create_checkout_session(
 # Customer Portal
 # ---------------------------------------------------------------------------
 
+
 @router.post("/portal", response_model=PortalResponse)
 async def create_portal_session(
     request: Request,
@@ -141,6 +142,7 @@ async def create_portal_session(
 # ---------------------------------------------------------------------------
 # Stripe webhook
 # ---------------------------------------------------------------------------
+
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)
 async def stripe_webhook(request: Request, db: DbSession) -> dict:
@@ -191,6 +193,7 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict:
         # Retrieve the checkout session that created this subscription
         try:
             import stripe as _stripe
+
             sessions = _stripe.checkout.Session.list(
                 subscription=parsed.stripe_subscription_id, limit=1
             )
@@ -211,10 +214,10 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict:
 
     # Map Stripe status → our SubscriptionStatus enum
     status_map: dict[str, SubscriptionStatus] = {
-        "active":    SubscriptionStatus.active,
-        "trialing":  SubscriptionStatus.trialing,
-        "past_due":  SubscriptionStatus.past_due,
-        "canceled":  SubscriptionStatus.cancelled,
+        "active": SubscriptionStatus.active,
+        "trialing": SubscriptionStatus.trialing,
+        "past_due": SubscriptionStatus.past_due,
+        "canceled": SubscriptionStatus.cancelled,
         "cancelled": SubscriptionStatus.cancelled,
     }
     sub_status = status_map.get(parsed.status, SubscriptionStatus.active)
@@ -231,7 +234,7 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict:
     )
 
     # --- Persist subscription ---
-    subscription = await sub_repo.upsert_from_stripe(
+    await sub_repo.upsert_from_stripe(
         user_id=user_id,
         stripe_subscription_id=parsed.stripe_subscription_id,
         stripe_customer_id=parsed.stripe_customer_id,
@@ -262,16 +265,25 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict:
         try:
             if billing_event_type == BillingEventType.subscribed:
                 await email_service.send_subscription_started(
-                    to=user.email, first_name=first_name, tier=tier.value,
-                    user_id=user_id, db=db,
+                    to=user.email,
+                    first_name=first_name,
+                    tier=tier.value,
+                    user_id=user_id,
+                    db=db,
                 )
             elif billing_event_type == BillingEventType.cancelled:
                 await email_service.send_subscription_cancelled(
-                    to=user.email, first_name=first_name, user_id=user_id, db=db,
+                    to=user.email,
+                    first_name=first_name,
+                    user_id=user_id,
+                    db=db,
                 )
             elif billing_event_type == BillingEventType.payment_failed:
                 await email_service.send_payment_failed(
-                    to=user.email, first_name=first_name, user_id=user_id, db=db,
+                    to=user.email,
+                    first_name=first_name,
+                    user_id=user_id,
+                    db=db,
                 )
         except EmailServiceError as exc:
             logger.error("Email failed for billing event %s: %s", parsed.stripe_event_id, exc)
@@ -282,6 +294,7 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict:
 # ---------------------------------------------------------------------------
 # Read endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/subscription", response_model=SubscriptionResponse)
 async def get_subscription(
@@ -319,6 +332,7 @@ async def list_billing_events(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _classify_event(
     stripe_event_type: str,
     existing_tier: SubscriptionTier | None,
@@ -336,5 +350,3 @@ def _classify_event(
     if tier_order.get(new_tier, 0) < tier_order.get(existing_tier, 0):
         return BillingEventType.downgraded
     return BillingEventType.renewed
-
-

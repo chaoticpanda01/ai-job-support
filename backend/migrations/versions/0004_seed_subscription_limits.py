@@ -7,8 +7,8 @@ Create Date: 2026-06-06
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers
 revision = "0004"
@@ -93,6 +93,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "DELETE FROM subscription_limits WHERE tier IN ('free', 'basic', 'pro')"
-    )
+    op.execute("DELETE FROM subscription_limits WHERE tier IN ('free', 'basic', 'pro')")

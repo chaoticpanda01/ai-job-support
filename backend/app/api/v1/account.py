@@ -28,6 +28,7 @@ _CLERK_API_BASE = "https://api.clerk.com/v1"
 # Delete account
 # ---------------------------------------------------------------------------
 
+
 @router.delete("", status_code=status.HTTP_200_OK)
 async def delete_account(current_user: AuthUser, db: DbSession) -> dict:
     """
@@ -54,6 +55,7 @@ async def delete_account(current_user: AuthUser, db: DbSession) -> dict:
     if subscription is not None:
         try:
             import stripe
+
             stripe.api_key = settings.stripe_secret_key
             stripe.Subscription.cancel(subscription.stripe_subscription_id)
             logger.info(
@@ -79,6 +81,7 @@ async def delete_account(current_user: AuthUser, db: DbSession) -> dict:
     first_name = (user.full_name or "").split()[0] if user.full_name else ""
     if user.email:
         from app.services.email_service import EmailServiceError, email_service
+
         try:
             await email_service.send_account_deleted(
                 to=user.email,

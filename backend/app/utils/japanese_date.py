@@ -26,17 +26,18 @@ from datetime import date
 # Era table — sorted oldest first for range lookups
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class _Era:
-    name_ja: str       # e.g. "令和"
-    name_romaji: str   # e.g. "Reiwa"
-    start: date        # first day of this era (inclusive)
+    name_ja: str  # e.g. "令和"
+    name_romaji: str  # e.g. "Reiwa"
+    start: date  # first day of this era (inclusive)
 
 
 _ERAS: tuple[_Era, ...] = (
-    _Era("昭和", "Showa",  date(1926, 12, 25)),
-    _Era("平成", "Heisei", date(1989,  1,  8)),
-    _Era("令和", "Reiwa",  date(2019,  5,  1)),
+    _Era("昭和", "Showa", date(1926, 12, 25)),
+    _Era("平成", "Heisei", date(1989, 1, 8)),
+    _Era("令和", "Reiwa", date(2019, 5, 1)),
 )
 
 
@@ -47,6 +48,7 @@ class EraConversionError(ValueError):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def western_to_wareki(year: int, month: int = 1) -> tuple[str, int]:
     """

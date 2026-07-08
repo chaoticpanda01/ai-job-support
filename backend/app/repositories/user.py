@@ -1,3 +1,4 @@
+from datetime import UTC
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,28 +20,20 @@ class UserRepository(BaseRepository[User]):
     # ------------------------------------------------------------------
 
     async def get_by_clerk_id(self, clerk_id: str) -> User | None:
-        return await self.session.scalar(
-            select(User).where(User.clerk_id == clerk_id)
-        )
+        return await self.session.scalar(select(User).where(User.clerk_id == clerk_id))
 
     async def get_by_email(self, email: str) -> User | None:
-        return await self.session.scalar(
-            select(User).where(User.email == email)
-        )
+        return await self.session.scalar(select(User).where(User.email == email))
 
     async def get_with_profile(self, user_id: UUID) -> User | None:
         """Eagerly loads the profile in a single query."""
         return await self.session.scalar(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.profile))
+            select(User).where(User.id == user_id).options(selectinload(User.profile))
         )
 
     async def get_by_clerk_id_with_profile(self, clerk_id: str) -> User | None:
         return await self.session.scalar(
-            select(User)
-            .where(User.clerk_id == clerk_id)
-            .options(selectinload(User.profile))
+            select(User).where(User.clerk_id == clerk_id).options(selectinload(User.profile))
         )
 
     # ------------------------------------------------------------------
@@ -84,9 +77,7 @@ class ProfileRepository(BaseRepository[Profile]):
         super().__init__(session)
 
     async def get_by_user_id(self, user_id: UUID) -> Profile | None:
-        return await self.session.scalar(
-            select(Profile).where(Profile.user_id == user_id)
-        )
+        return await self.session.scalar(select(Profile).where(Profile.user_id == user_id))
 
     async def get_or_create(self, user_id: UUID) -> tuple[Profile, bool]:
         profile = await self.get_by_user_id(user_id)
@@ -114,10 +105,9 @@ class ProfileRepository(BaseRepository[Profile]):
         Creates the profile row if it doesn't exist yet (new users hit
         /auth/consent before any PUT /auth/me call).
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         profile, _ = await self.get_or_create(user_id)
         if profile.consent_given_at is not None:
             return profile  # already consented
-        return await self.update(
-            profile, consent_given_at=datetime.now(tz=timezone.utc)
-        )
+        return await self.update(profile, consent_given_at=datetime.now(tz=UTC))

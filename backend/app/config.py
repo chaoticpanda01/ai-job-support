@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AnyUrl, field_validator, model_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     enable_docs: bool = False
 
     # --- API Server ---
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # noqa: S104 — must bind all interfaces inside the container
     port: int = 8000
     allowed_origins: str = "http://localhost:3000"
     allowed_hosts: str = "localhost,127.0.0.1"
@@ -131,7 +131,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_sync_url(cls, v: str) -> str:
         if not v.startswith("postgresql+psycopg2://") and not v.startswith("postgresql://"):
-            raise ValueError("DATABASE_SYNC_URL must use postgresql+psycopg2:// or postgresql:// scheme")
+            raise ValueError(
+                "DATABASE_SYNC_URL must use postgresql+psycopg2:// or postgresql:// scheme"
+            )
         return v
 
 

@@ -15,13 +15,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   const NAV_ITEMS = [
-    { href: "/dashboard/resumes",           key: "resumes" },
-    { href: "/dashboard/documents",         key: "documents" },
-    { href: "/dashboard/jobs",              key: "jobs" },
-    { href: "/dashboard/interview",         key: "interview" },
-    { href: "/dashboard/visa",              key: "visa" },
-    { href: "/dashboard/culture",           key: "culture" },
-    { href: "/dashboard/settings",          key: "settings" },
+    { href: "/dashboard/resumes", key: "resumes" },
+    { href: "/dashboard/documents", key: "documents" },
+    { href: "/dashboard/jobs", key: "jobs" },
+    { href: "/dashboard/interview", key: "interview" },
+    { href: "/dashboard/visa", key: "visa" },
+    { href: "/dashboard/culture", key: "culture" },
+    { href: "/dashboard/settings", key: "settings" },
   ] as const;
 
   function isActive(href: string) {
@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-semibold hover:opacity-80 transition-opacity">
+            <Link href="/" className="text-sm font-semibold transition-opacity hover:opacity-80">
               🏠 Japan Job Support
             </Link>
             <nav className="hidden gap-4 md:flex">
@@ -44,9 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   aria-current={isActive(item.href) ? "page" : undefined}
                   className={cn(
                     "text-sm transition-colors hover:text-foreground",
-                    isActive(item.href)
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground",
+                    isActive(item.href) ? "font-medium text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {t("nav", item.key, lang)}
@@ -80,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className={cn(
                     "rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-muted hover:text-foreground",
                     isActive(item.href)
-                      ? "font-medium text-foreground bg-muted"
+                      ? "bg-muted font-medium text-foreground"
                       : "text-muted-foreground",
                   )}
                   onClick={() => setMenuOpen(false)}

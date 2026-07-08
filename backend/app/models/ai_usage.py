@@ -42,11 +42,7 @@ class AIUsageLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     feature: Mapped[str] = mapped_column(String(100), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
-    input_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
-    output_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
     latency_ms: Mapped[int | None] = mapped_column(Integer)

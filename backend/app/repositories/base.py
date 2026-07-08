@@ -65,7 +65,9 @@ class BaseRepository(Generic[ModelT]):
 
     async def count_by_user(self, user_id: UUID) -> int:
         result = await self.session.scalar(
-            select(func.count()).select_from(self.model).where(
+            select(func.count())
+            .select_from(self.model)
+            .where(
                 self.model.user_id == user_id  # type: ignore[attr-defined]
             )
         )

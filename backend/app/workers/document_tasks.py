@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 class _BaseDocTask(Task):  # type: ignore[type-arg]
     abstract = True
 
-    def on_failure(self, exc: Exception, task_id: str, args: list, kwargs: dict, einfo: object) -> None:
+    def on_failure(
+        self, exc: Exception, task_id: str, args: list, kwargs: dict, einfo: object
+    ) -> None:
         logger.error("Document task %s failed: %s", task_id, exc)
 
 

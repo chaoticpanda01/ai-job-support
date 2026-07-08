@@ -5,7 +5,11 @@ Alembic autogenerate or any metadata.create_all() call.
 Adding a new model file? Import it here.
 """
 
+from app.models.ai_usage import AIUsageLog
 from app.models.base import Base
+from app.models.billing import BillingEvent, NotificationLog, Subscription, SubscriptionLimit
+from app.models.culture import CultureGlossary, CultureTopic
+from app.models.document import GeneratedDocument
 from app.models.enums import (
     AnalysisType,
     ApplicationStatus,
@@ -26,15 +30,11 @@ from app.models.enums import (
     UserRole,
     VisaStatus,
 )
-from app.models.user import Profile, User
-from app.models.resume import Resume, ResumeAnalysis
-from app.models.document import GeneratedDocument
-from app.models.job import JobApplication, JobMatch, JobPosting, SavedJob
 from app.models.interview import InterviewMessage, InterviewSession
+from app.models.job import JobApplication, JobMatch, JobPosting, SavedJob
+from app.models.resume import Resume, ResumeAnalysis
+from app.models.user import Profile, User
 from app.models.visa import VisaConsultation
-from app.models.culture import CultureGlossary, CultureTopic
-from app.models.billing import BillingEvent, NotificationLog, Subscription, SubscriptionLimit
-from app.models.ai_usage import AIUsageLog
 
 __all__ = [
     "Base",

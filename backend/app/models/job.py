@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -13,7 +13,8 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -27,8 +28,8 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.resume import Resume
+    from app.models.user import User
 
 
 class JobPosting(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -115,7 +116,9 @@ class JobMatch(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             name="job_matches_score_range",
         ),
         UniqueConstraint(
-            "user_id", "resume_id", "job_posting_id",
+            "user_id",
+            "resume_id",
+            "job_posting_id",
             name="job_matches_unique_triple",
         ),
         Index("idx_job_matches_score", "user_id", "match_score"),
@@ -151,9 +154,7 @@ class SavedJob(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Lightweight bookmark. Separate from JobMatch — saving ≠ applying."""
 
     __tablename__ = "saved_jobs"
-    __table_args__ = (
-        UniqueConstraint("user_id", "job_posting_id", name="saved_jobs_unique"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "job_posting_id", name="saved_jobs_unique"),)
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),

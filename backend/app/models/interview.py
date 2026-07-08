@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -12,10 +12,11 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
     InterviewStatus,
     InterviewType,
@@ -98,9 +99,7 @@ class InterviewMessage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """
 
     __tablename__ = "interview_messages"
-    __table_args__ = (
-        Index("idx_interview_messages_session", "session_id", "created_at"),
-    )
+    __table_args__ = (Index("idx_interview_messages_session", "session_id", "created_at"),)
 
     session_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),

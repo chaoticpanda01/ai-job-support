@@ -21,7 +21,6 @@ responsibility so that failed partial runs can be recorded cleanly.
 
 from __future__ import annotations
 
-import io
 import logging
 import time
 from dataclasses import dataclass
@@ -203,12 +202,14 @@ class DocumentGenerator:
                 build_system_prompt,
                 build_user_prompt,
             )
+
             max_tokens = 2500
         else:
             from app.services.ai.prompts.shokumu import (  # type: ignore[assignment]
                 build_system_prompt,
                 build_user_prompt,
             )
+
             max_tokens = 3000
 
         system = build_system_prompt()
@@ -224,15 +225,15 @@ class DocumentGenerator:
             feature=_feature_name(document_type),
         )
 
-    def _parse_response(
-        self, document_type: DocumentType, response_text: str
-    ) -> dict[str, Any]:
+    def _parse_response(self, document_type: DocumentType, response_text: str) -> dict[str, Any]:
         try:
             if document_type == DocumentType.rirekisho:
                 from app.services.ai.prompts.rirekisho import RirekishoResult
+
                 result = parse_response(response_text, RirekishoResult)
             else:
                 from app.services.ai.prompts.shokumu import ShokumuResult
+
                 result = parse_response(response_text, ShokumuResult)
         except ResponseParseError as exc:
             raise DocumentGenerationError(f"Response validation failed: {exc}") from exc
@@ -243,6 +244,7 @@ class DocumentGenerator:
 # ---------------------------------------------------------------------------
 # HTML renderers
 # ---------------------------------------------------------------------------
+
 
 def _render_html(document_type: DocumentType, content: dict[str, Any]) -> str:
     if document_type == DocumentType.rirekisho:
@@ -256,18 +258,14 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
     from app.utils.japanese_date import format_wareki_date
 
     education_rows = "".join(
-        f"<tr><td>{format_wareki_date(e['year'], e['month'])}</td>"
-        f"<td>{_esc(e['entry'])}</td></tr>"
+        f"<tr><td>{format_wareki_date(e['year'], e['month'])}</td><td>{_esc(e['entry'])}</td></tr>"
         for e in c.get("education", [])
     )
     work_rows = "".join(
-        f"<tr><td>{format_wareki_date(w['year'], w['month'])}</td>"
-        f"<td>{_esc(w['entry'])}</td></tr>"
+        f"<tr><td>{format_wareki_date(w['year'], w['month'])}</td><td>{_esc(w['entry'])}</td></tr>"
         for w in c.get("work_history", [])
     )
-    qualifications = "".join(
-        f"<li>{_esc(q)}</li>" for q in c.get("qualifications", [])
-    )
+    qualifications = "".join(f"<li>{_esc(q)}</li>" for q in c.get("qualifications", []))
 
     return f"""
 <div style="max-width:170mm; margin:0 auto;">
@@ -278,25 +276,25 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
   <table style="margin-bottom:6px;">
     <tr>
       <th style="width:16%;">ふりがな</th>
-      <td style="width:42%;">{_esc(p.get('name_kana', ''))}</td>
+      <td style="width:42%;">{_esc(p.get("name_kana", ""))}</td>
       <th style="width:12%;">性別</th>
-      <td style="width:30%;">{_esc(p.get('gender', ''))}</td>
+      <td style="width:30%;">{_esc(p.get("gender", ""))}</td>
     </tr>
     <tr>
       <th>氏名</th>
-      <td style="font-size:13pt; font-weight:bold;">{_esc(p.get('name_kanji', ''))}</td>
+      <td style="font-size:13pt; font-weight:bold;">{_esc(p.get("name_kanji", ""))}</td>
       <th>生年月日</th>
-      <td>{_esc(p.get('date_of_birth', ''))}（{p.get('age', '')}歳）</td>
+      <td>{_esc(p.get("date_of_birth", ""))}（{p.get("age", "")}歳）</td>
     </tr>
     <tr>
       <th>住所</th>
-      <td colspan="3">{_esc(p.get('address', ''))}</td>
+      <td colspan="3">{_esc(p.get("address", ""))}</td>
     </tr>
     <tr>
       <th>電話番号</th>
-      <td>{_esc(p.get('phone', ''))}</td>
+      <td>{_esc(p.get("phone", ""))}</td>
       <th>メール</th>
-      <td>{_esc(p.get('email', ''))}</td>
+      <td>{_esc(p.get("email", ""))}</td>
     </tr>
   </table>
 
@@ -318,10 +316,10 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
   <ul style="padding-left:1.2em; margin:4px 0;">{qualifications}</ul>
 
   <p class="section-title">自己PR</p>
-  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get('self_pr', ''))}</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("self_pr", ""))}</p>
 
   <p class="section-title">志望動機</p>
-  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get('motivation', ''))}</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("motivation", ""))}</p>
 </div>
 """
 
@@ -337,33 +335,33 @@ def _render_shokumu(c: dict[str, Any]) -> str:
         responsibilities = "".join(
             f"<li>{_esc(r)}</li>" for r in company.get("responsibilities", [])
         )
-        achievements = "".join(
-            f"<li>{_esc(a)}</li>" for a in company.get("achievements", [])
+        achievements = (
+            "".join(f"<li>{_esc(a)}</li>" for a in company.get("achievements", [])) or "<li>―</li>"
         )
         companies_html += f"""
 <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #ccc;">
   <table style="margin-bottom:4px;">
     <tr>
       <th style="width:20%;">会社名</th>
-      <td style="width:46%; font-weight:bold;">{_esc(company.get('company_name', ''))}</td>
+      <td style="width:46%; font-weight:bold;">{_esc(company.get("company_name", ""))}</td>
       <th style="width:14%;">業種</th>
-      <td>{_esc(company.get('industry', ''))}</td>
+      <td>{_esc(company.get("industry", ""))}</td>
     </tr>
     <tr>
       <th>従業員数</th>
-      <td>{_esc(company.get('employee_count', ''))}</td>
+      <td>{_esc(company.get("employee_count", ""))}</td>
       <th>在籍期間</th>
-      <td>{_esc(company.get('period_start', ''))} 〜 {_esc(company.get('period_end', ''))}</td>
+      <td>{_esc(company.get("period_start", ""))} 〜 {_esc(company.get("period_end", ""))}</td>
     </tr>
     <tr>
       <th>役職・職種</th>
-      <td colspan="3">{_esc(company.get('role', ''))}</td>
+      <td colspan="3">{_esc(company.get("role", ""))}</td>
     </tr>
   </table>
   <p class="label">【業務内容】</p>
   <ul style="padding-left:1.2em; margin:2px 0 6px;">{responsibilities}</ul>
   <p class="label">【実績・成果】</p>
-  <ul style="padding-left:1.2em; margin:2px 0;">{achievements if achievements else '<li>―</li>'}</ul>
+  <ul style="padding-left:1.2em; margin:2px 0;">{achievements}</ul>
 </div>
 """
 
@@ -375,7 +373,7 @@ def _render_shokumu(c: dict[str, Any]) -> str:
 
   <p class="section-title">職務要約</p>
   <p style="white-space:pre-wrap; padding:4px; margin-bottom:10px;">
-    {_esc(c.get('summary', ''))}
+    {_esc(c.get("summary", ""))}
   </p>
 
   <p class="section-title">職務経歴</p>
@@ -385,26 +383,26 @@ def _render_shokumu(c: dict[str, Any]) -> str:
   <table style="margin-bottom:10px;">
     <tr>
       <th style="width:22%;">技術スキル</th>
-      <td>{skill_items(skills.get('technical', []))}</td>
+      <td>{skill_items(skills.get("technical", []))}</td>
     </tr>
     <tr>
       <th>語学</th>
-      <td>{skill_items(skills.get('languages', []))}</td>
+      <td>{skill_items(skills.get("languages", []))}</td>
     </tr>
     <tr>
       <th>その他</th>
-      <td>{skill_items(skills.get('other', []))}</td>
+      <td>{skill_items(skills.get("other", []))}</td>
     </tr>
   </table>
 
   <p class="section-title">自己PR</p>
   <p style="white-space:pre-wrap; padding:4px; margin-bottom:10px;">
-    {_esc(c.get('self_pr', ''))}
+    {_esc(c.get("self_pr", ""))}
   </p>
 
   <p class="section-title">志望動機</p>
   <p style="white-space:pre-wrap; padding:4px;">
-    {_esc(c.get('motivation', ''))}
+    {_esc(c.get("motivation", ""))}
   </p>
 </div>
 """
@@ -414,6 +412,7 @@ def _render_shokumu(c: dict[str, Any]) -> str:
 # Utilities
 # ---------------------------------------------------------------------------
 
+
 def _feature_name(document_type: DocumentType) -> str:
     return "rirekisho" if document_type == DocumentType.rirekisho else "shokumu"
 
@@ -421,6 +420,7 @@ def _feature_name(document_type: DocumentType) -> str:
 def _esc(value: Any) -> str:
     """HTML-escape a string value safely."""
     import html
+
     return html.escape(str(value)) if value is not None else ""
 
 

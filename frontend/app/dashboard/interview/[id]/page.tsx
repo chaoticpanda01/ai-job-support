@@ -15,13 +15,7 @@ interface Props {
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
   const { data: session, isLoading } = useInterviewSession(id);
-  const {
-    sessionId: activeId,
-    state,
-    sendMessage,
-    endSession,
-    abort,
-  } = useInterview();
+  const { sessionId: activeId, state, sendMessage, endSession, abort } = useInterview();
   const { lang } = useLang();
   const confirmDialog = useConfirm();
 
@@ -143,17 +137,11 @@ export default function InterviewSessionPage({ params }: Props) {
             <StreamingBubble text={state.streamingText} />
           )}
 
-          {state.lastEval && !state.isStreaming && (
-            <EvalCard eval={state.lastEval} />
-          )}
+          {state.lastEval && !state.isStreaming && <EvalCard eval={state.lastEval} />}
 
-          {state.summary && (
-            <SummaryCard summary={state.summary} />
-          )}
+          {state.summary && <SummaryCard summary={state.summary} />}
 
-          {state.error && (
-            <p className="text-center text-sm text-destructive">{state.error}</p>
-          )}
+          {state.error && <p className="text-center text-sm text-destructive">{state.error}</p>}
 
           <div ref={bottomRef} />
         </div>
@@ -246,7 +234,7 @@ function StreamingBubble({ text }: { text: string }) {
 function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
   const { lang } = useLang();
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="space-y-3 rounded-lg border bg-card p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {t("interview", "answerFeedback", lang)}
       </p>
@@ -289,13 +277,12 @@ function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value);
-  const color =
-    pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
+  const color = pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums font-medium">{pct}</span>
+        <span className="font-medium tabular-nums">{pct}</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted">
         <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
@@ -323,7 +310,7 @@ function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
           : t("interview", "readiness0", lang);
 
   return (
-    <div className="rounded-xl border-2 border-primary/20 bg-card p-6 space-y-5">
+    <div className="space-y-5 rounded-xl border-2 border-primary/20 bg-card p-6">
       <div className="flex items-center gap-4">
         <div className="text-center">
           <p className={`text-5xl font-bold tabular-nums ${scoreColor}`}>{score}</p>
@@ -385,7 +372,7 @@ function BulletList({ title, items, dot }: { title: string; items: string[]; dot
 function StatusPill({ status }: { status: string }) {
   const { lang } = useLang();
   const styles: Record<string, string> = {
-    active:    "bg-green-100 text-green-800",
+    active: "bg-green-100 text-green-800",
     completed: "bg-blue-100 text-blue-800",
     abandoned: "bg-muted text-muted-foreground",
   };

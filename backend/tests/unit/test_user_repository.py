@@ -8,10 +8,8 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from app.models.enums import UserRole
-from app.models.user import Profile, User
 from app.repositories.user import ProfileRepository, UserRepository
+
 from tests.conftest import make_profile, make_user
 
 
@@ -30,6 +28,7 @@ def _make_session() -> MagicMock:
 # ---------------------------------------------------------------------------
 # UserRepository
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_by_clerk_id_returns_user() -> None:
@@ -101,6 +100,7 @@ async def test_upsert_updates_existing_user() -> None:
 # ---------------------------------------------------------------------------
 # ProfileRepository
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_or_create_creates_profile_when_none_exists() -> None:

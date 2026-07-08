@@ -11,20 +11,18 @@ optional blocks (pg_cron, pre-existing roles) don't abort the whole migration.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Union
 
 from alembic import op
 from sqlalchemy import text
 
 revision: str = "0001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
-_SCHEMA_PATH = (
-    Path(__file__).parent.parent.parent.parent / "database" / "schema.sql"
-)
+_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / "database" / "schema.sql"
 
 # Statements that are safe to skip if they fail (optional features / idempotency)
 _IGNORABLE_ERRORS = (
@@ -117,7 +115,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(text("""
+    op.execute(
+        text("""
         DROP VIEW IF EXISTS v_active_subscriptions CASCADE;
         DROP VIEW IF EXISTS v_user_document_stats CASCADE;
         DROP VIEW IF EXISTS v_interview_session_summary CASCADE;
@@ -166,4 +165,5 @@ def downgrade() -> None:
 
         DROP EXTENSION IF EXISTS btree_gin;
         DROP EXTENSION IF EXISTS pg_trgm;
-    """))
+    """)
+    )

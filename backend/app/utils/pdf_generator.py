@@ -98,7 +98,7 @@ def html_to_pdf(html_body: str) -> bytes:
     Raises PDFGenerationError on WeasyPrint failure.
     """
     try:
-        from weasyprint import HTML, CSS  # type: ignore[import-untyped]
+        from weasyprint import CSS, HTML  # type: ignore[import-untyped]
         from weasyprint.text.fonts import FontConfiguration  # type: ignore[import-untyped]
     except ImportError as exc:
         raise PDFGenerationError("weasyprint is not installed") from exc

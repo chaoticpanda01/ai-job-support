@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -46,12 +46,10 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
             ai_model=ai_model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            completed_at=datetime.now(tz=timezone.utc),
+            completed_at=datetime.now(tz=UTC),
         )
 
-    async def set_failed(
-        self, document_id: UUID, error_message: str
-    ) -> GeneratedDocument | None:
+    async def set_failed(self, document_id: UUID, error_message: str) -> GeneratedDocument | None:
         doc = await self.get(document_id)
         if doc is None:
             return None
@@ -59,7 +57,7 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
             doc,
             status=DocumentStatus.failed,
             error_message=error_message,
-            completed_at=datetime.now(tz=timezone.utc),
+            completed_at=datetime.now(tz=UTC),
         )
 
     # ------------------------------------------------------------------
@@ -71,9 +69,7 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
         return await self._scalars(
             select(GeneratedDocument)
             .where(
-                GeneratedDocument.status.in_(
-                    [DocumentStatus.pending, DocumentStatus.processing]
-                )
+                GeneratedDocument.status.in_([DocumentStatus.pending, DocumentStatus.processing])
             )
             .order_by(GeneratedDocument.created_at.asc())
             .limit(limit)
@@ -98,10 +94,9 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
             .limit(limit)
         )
 
-    async def count_completed_this_month(
-        self, user_id: UUID, document_type: DocumentType
-    ) -> int:
+    async def count_completed_this_month(self, user_id: UUID, document_type: DocumentType) -> int:
         from sqlalchemy import func
+
         result = await self.session.scalar(
             select(func.count())
             .select_from(GeneratedDocument)

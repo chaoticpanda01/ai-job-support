@@ -2,23 +2,21 @@
 
 from __future__ import annotations
 
-import io
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from app.services.resume_parser import (
+    MIME_DOCX,
+    MIME_PDF,
     ParseError,
     _clean,
     extract_text,
-    MIME_PDF,
-    MIME_DOCX,
 )
-
 
 # ---------------------------------------------------------------------------
 # _clean
 # ---------------------------------------------------------------------------
+
 
 def test_clean_collapses_blank_lines() -> None:
     raw = "Line 1\n\n\n\nLine 2"
@@ -39,6 +37,7 @@ def test_clean_strips_control_characters() -> None:
 # extract_text — PDF
 # ---------------------------------------------------------------------------
 
+
 def test_extract_pdf_returns_text() -> None:
     mock_page = MagicMock()
     mock_page.extract_text.return_value = "Resume content here"
@@ -57,20 +56,25 @@ def test_extract_pdf_raises_on_empty_text() -> None:
     mock_reader = MagicMock()
     mock_reader.pages = [mock_page]
 
-    with patch("PyPDF2.PdfReader", return_value=mock_reader):
-        with pytest.raises(ParseError, match="No readable text"):
-            extract_text(b"fake_pdf_bytes", MIME_PDF)
+    with (
+        patch("PyPDF2.PdfReader", return_value=mock_reader),
+        pytest.raises(ParseError, match="No readable text"),
+    ):
+        extract_text(b"fake_pdf_bytes", MIME_PDF)
 
 
 def test_extract_pdf_raises_on_reader_error() -> None:
-    with patch("PyPDF2.PdfReader", side_effect=Exception("corrupted")):
-        with pytest.raises(ParseError, match="PDF extraction failed"):
-            extract_text(b"bad_bytes", MIME_PDF)
+    with (
+        patch("PyPDF2.PdfReader", side_effect=Exception("corrupted")),
+        pytest.raises(ParseError, match="PDF extraction failed"),
+    ):
+        extract_text(b"bad_bytes", MIME_PDF)
 
 
 # ---------------------------------------------------------------------------
 # extract_text — DOCX
 # ---------------------------------------------------------------------------
+
 
 def test_extract_docx_returns_text() -> None:
     mock_para = MagicMock()
@@ -89,6 +93,7 @@ def test_extract_docx_returns_text() -> None:
 # extract_text — unsupported type
 # ---------------------------------------------------------------------------
 
+
 def test_extract_unsupported_mime_raises() -> None:
     with pytest.raises(ParseError, match="Unsupported MIME type"):
         extract_text(b"data", "image/png")
@@ -97,6 +102,7 @@ def test_extract_unsupported_mime_raises() -> None:
 # ---------------------------------------------------------------------------
 # Truncation
 # ---------------------------------------------------------------------------
+
 
 def test_extract_truncates_long_text() -> None:
     long_text = "A" * 25_000

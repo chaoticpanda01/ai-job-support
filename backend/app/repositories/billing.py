@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from app.models.billing import (
     SubscriptionLimit,
 )
 from app.models.enums import (
-    BillingEventType,
     NotificationChannel,
     SubscriptionStatus,
     SubscriptionTier,
@@ -30,15 +29,11 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         return await self.session.scalar(
             select(Subscription).where(
                 Subscription.user_id == user_id,
-                Subscription.status.in_(
-                    [SubscriptionStatus.active, SubscriptionStatus.trialing]
-                ),
+                Subscription.status.in_([SubscriptionStatus.active, SubscriptionStatus.trialing]),
             )
         )
 
-    async def get_by_stripe_id(
-        self, stripe_subscription_id: str
-    ) -> Subscription | None:
+    async def get_by_stripe_id(self, stripe_subscription_id: str) -> Subscription | None:
         return await self.session.scalar(
             select(Subscription).where(
                 Subscription.stripe_subscription_id == stripe_subscription_id
@@ -81,7 +76,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         return await self.update(
             sub,
             status=SubscriptionStatus.cancelled,
-            cancelled_at=datetime.now(tz=timezone.utc),
+            cancelled_at=datetime.now(tz=UTC),
         )
 
 
@@ -94,9 +89,7 @@ class BillingEventRepository(BaseRepository[BillingEvent]):
     async def exists_by_stripe_event_id(self, stripe_event_id: str) -> bool:
         """Idempotency check — return True if this Stripe event was already processed."""
         result = await self.session.scalar(
-            select(BillingEvent.id).where(
-                BillingEvent.stripe_event_id == stripe_event_id
-            )
+            select(BillingEvent.id).where(BillingEvent.stripe_event_id == stripe_event_id)
         )
         return result is not None
 
@@ -143,15 +136,16 @@ class NotificationLogRepository(BaseRepository[NotificationLog]):
         to this user within the cooldown window.
         """
         from sqlalchemy import func, text
-        cutoff = func.now() - func.cast(
-            f"{within_seconds} seconds", type_=text("interval")
-        )
+
+        cutoff = func.now() - func.cast(f"{within_seconds} seconds", type_=text("interval"))
         result = await self.session.scalar(
-            select(NotificationLog.id).where(
+            select(NotificationLog.id)
+            .where(
                 NotificationLog.user_id == user_id,
                 NotificationLog.template_id == template_id,
                 NotificationLog.created_at >= cutoff,
-            ).limit(1)
+            )
+            .limit(1)
         )
         return result is not None
 

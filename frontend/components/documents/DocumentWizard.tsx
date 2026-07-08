@@ -68,7 +68,8 @@ export function DocumentWizard({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{r.file_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round(r.file_size_bytes / 1024)} KB · {t("documents", "wizUploaded", lang)}{" "}
+                      {Math.round(r.file_size_bytes / 1024)} KB ·{" "}
+                      {t("documents", "wizUploaded", lang)}{" "}
                       {new Date(r.created_at).toLocaleDateString()}
                       {r.is_primary && (
                         <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -104,9 +105,7 @@ export function DocumentWizard({
       <div className="space-y-4">
         <StepHeader current={2} total={3} title={t("documents", "wizStep2Title", lang)} />
 
-        <p className="text-sm text-muted-foreground">
-          {t("documents", "wizStep2Sub", lang)}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("documents", "wizStep2Sub", lang)}</p>
 
         <input
           type="text"
@@ -141,7 +140,7 @@ export function DocumentWizard({
     <div className="space-y-4">
       <StepHeader current={3} total={3} title={t("documents", "wizStep3Title", lang)} />
 
-      <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
+      <div className="space-y-2 rounded-lg border bg-card p-4 text-sm">
         <Row
           label={t("documents", "wizResumeLabel", lang)}
           value={selectedResume?.file_name ?? resumeId}
@@ -152,9 +151,7 @@ export function DocumentWizard({
         />
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {t("documents", "wizGenWait", lang)}
-      </p>
+      <p className="text-sm text-muted-foreground">{t("documents", "wizGenWait", lang)}</p>
 
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
@@ -187,15 +184,7 @@ export function DocumentWizard({
   );
 }
 
-function StepHeader({
-  current,
-  total,
-  title,
-}: {
-  current: number;
-  total: number;
-  title: string;
-}) {
+function StepHeader({ current, total, title }: { current: number; total: number; title: string }) {
   const { lang } = useLang();
   const stepLabel = t("documents", "wizStepOf", lang)
     .replace("{n}", String(current))

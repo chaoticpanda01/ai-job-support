@@ -47,6 +47,7 @@ _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB (matches DB constraint)
 # Upload
 # ---------------------------------------------------------------------------
 
+
 @router.post("", response_model=ResumeResponse, status_code=status.HTTP_201_CREATED)
 async def upload_resume(
     file: UploadFile,
@@ -111,6 +112,7 @@ async def upload_resume(
 # List
 # ---------------------------------------------------------------------------
 
+
 @router.get("", response_model=ResumeListResponse)
 async def list_resumes(
     current_user: AuthUser,
@@ -128,6 +130,7 @@ async def list_resumes(
 # ---------------------------------------------------------------------------
 # Get (with presigned URL)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{resume_id}", response_model=ResumeDetailResponse)
 async def get_resume(
@@ -154,6 +157,7 @@ async def get_resume(
 # ---------------------------------------------------------------------------
 # Delete
 # ---------------------------------------------------------------------------
+
 
 @router.delete("/{resume_id}", status_code=status.HTTP_200_OK)
 async def delete_resume(
@@ -182,6 +186,7 @@ async def delete_resume(
 # Set primary
 # ---------------------------------------------------------------------------
 
+
 @router.put("/{resume_id}/primary", response_model=ResumeResponse)
 async def set_primary(
     resume_id: UUID,
@@ -199,7 +204,10 @@ async def set_primary(
 # Trigger analysis
 # ---------------------------------------------------------------------------
 
-@router.post("/{resume_id}/analyze", response_model=AnalyzeResponse, status_code=status.HTTP_202_ACCEPTED)
+
+@router.post(
+    "/{resume_id}/analyze", response_model=AnalyzeResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def analyze_resume(
     resume_id: UUID,
     body: AnalyzeRequest,
@@ -232,6 +240,7 @@ async def analyze_resume(
 # ---------------------------------------------------------------------------
 # Get latest analysis
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{resume_id}/analysis", response_model=ResumeAnalysisResponse)
 async def get_analysis(

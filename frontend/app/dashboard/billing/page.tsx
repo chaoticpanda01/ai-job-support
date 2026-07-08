@@ -2,7 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useSubscription, useBillingEvents, useCreateCheckout, useCustomerPortal } from "@/hooks/useBilling";
+import {
+  useSubscription,
+  useBillingEvents,
+  useCreateCheckout,
+  useCustomerPortal,
+} from "@/hooks/useBilling";
 import type { BillingEvent, Subscription, SubscriptionTier } from "@/types/api";
 
 const PLANS: {
@@ -85,12 +90,12 @@ function BillingPageInner() {
 
       {/* Stripe redirect banners */}
       {sessionResult === "success" && (
-        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Your subscription is now active. Welcome aboard!
         </div>
       )}
       {sessionResult === "cancel" && (
-        <div className="rounded-md bg-muted border px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-md border bg-muted px-4 py-3 text-sm text-muted-foreground">
           Checkout was cancelled. Your plan has not changed.
         </div>
       )}
@@ -166,7 +171,7 @@ function CurrentPlanCard({
     : null;
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4">
+    <div className="space-y-4 rounded-lg border bg-card p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -175,7 +180,7 @@ function CurrentPlanCard({
           <p className="mt-1 text-xl font-bold capitalize">{tier}</p>
           {statusLabel && (
             <span
-              className={`inline-block mt-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(subscription?.status ?? "active")}`}
+              className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(subscription?.status ?? "active")}`}
             >
               {statusLabel}
             </span>
@@ -198,9 +203,7 @@ function CurrentPlanCard({
         )}
       </div>
 
-      {portalError && (
-        <p className="text-sm text-destructive">{portalError}</p>
-      )}
+      {portalError && <p className="text-sm text-destructive">{portalError}</p>}
     </div>
   );
 }
@@ -274,9 +277,7 @@ function PlanCard({
             {isLoading ? "Redirecting…" : isDowngrade ? "Switch plan" : `Upgrade to ${plan.name}`}
           </button>
         )}
-        {checkoutError && (
-          <p className="mt-2 text-xs text-destructive">{checkoutError}</p>
-        )}
+        {checkoutError && <p className="mt-2 text-xs text-destructive">{checkoutError}</p>}
       </div>
     </div>
   );
@@ -288,12 +289,12 @@ function PlanCard({
 
 function EventsTable({ events }: { events: BillingEvent[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="overflow-hidden rounded-lg border">
       <table className="w-full text-sm">
         <thead className="border-b bg-muted/50">
           <tr>
             <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Event</th>
-            <th className="px-4 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">
+            <th className="hidden px-4 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
               Plan change
             </th>
             <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Date</th>
@@ -305,7 +306,7 @@ function EventsTable({ events }: { events: BillingEvent[] }) {
               <td className="px-4 py-3 font-medium capitalize">
                 {e.event_type.replace(/_/g, " ")}
               </td>
-              <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+              <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                 {e.tier_from && e.tier_to
                   ? `${e.tier_from} → ${e.tier_to}`
                   : e.tier_to
@@ -336,17 +337,18 @@ function tierRank(tier: SubscriptionTier): number {
 }
 
 function formatStatus(status: string): string {
-  return { active: "Active", trialing: "Trial", past_due: "Past due", cancelled: "Cancelled" }[
+  return (
+    { active: "Active", trialing: "Trial", past_due: "Past due", cancelled: "Cancelled" }[status] ??
     status
-  ] ?? status;
+  );
 }
 
 function statusColor(status: string): string {
   return (
     {
-      active:    "bg-green-100 text-green-800",
-      trialing:  "bg-blue-100 text-blue-800",
-      past_due:  "bg-red-100 text-red-800",
+      active: "bg-green-100 text-green-800",
+      trialing: "bg-blue-100 text-blue-800",
+      past_due: "bg-red-100 text-red-800",
       cancelled: "bg-muted text-muted-foreground",
     }[status] ?? "bg-muted text-muted-foreground"
   );

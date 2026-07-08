@@ -13,12 +13,11 @@ models must be imported (via app.models) before autogenerate runs.
 import os
 from logging.config import fileConfig
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-
 # Import all models so their tables are registered with Base.metadata
 import app.models  # noqa: F401
+from alembic import context
 from app.models.base import Base
+from sqlalchemy import engine_from_config, pool
 
 # ---------------------------------------------------------------------------
 # Alembic config
@@ -48,6 +47,7 @@ elif os.getenv("DATABASE_SYNC_URL"):
 
 EXCLUDED_TABLES = {"ai_usage_logs"}  # parent of partitioned set
 
+
 # Partition tables follow the pattern ai_usage_logs_YYYY_MM
 def include_object(
     object,  # noqa: A002
@@ -69,6 +69,7 @@ def include_object(
 # ---------------------------------------------------------------------------
 # Migration runners
 # ---------------------------------------------------------------------------
+
 
 def run_migrations_offline() -> None:
     """

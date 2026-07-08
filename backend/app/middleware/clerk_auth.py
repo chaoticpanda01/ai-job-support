@@ -18,9 +18,6 @@ boundaries without a Redis round-trip.
 import logging
 import time
 from typing import Any
-from uuid import UUID
-
-logger = logging.getLogger(__name__)
 
 import httpx
 from jose import JWTError, jwt
@@ -33,8 +30,9 @@ from starlette.types import ASGIApp
 
 from app.config import settings
 from app.database import AsyncSessionFactory
-from app.models.enums import UserRole
 from app.repositories.user import UserRepository
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # JWKS cache — module-level, shared across all requests

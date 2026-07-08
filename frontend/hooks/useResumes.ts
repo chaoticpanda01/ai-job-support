@@ -53,8 +53,7 @@ export function useAnalyzeResume() {
 export function useSetPrimaryResume() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (resumeId: string) =>
-      apiClient.put(`/resumes/${resumeId}/primary`),
+    mutationFn: (resumeId: string) => apiClient.put(`/resumes/${resumeId}/primary`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["resumes"] });
     },

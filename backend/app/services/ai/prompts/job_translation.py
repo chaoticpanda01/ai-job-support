@@ -29,14 +29,12 @@ Output schema (stored in job_postings columns):
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Response schema
 # ---------------------------------------------------------------------------
+
 
 class JobStructuredData(BaseModel):
     company_name: str
@@ -61,6 +59,7 @@ class JobTranslationResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\
@@ -132,12 +131,8 @@ def build_user_prompt(
     if source_url:
         parts.append(f"Source URL (for reference only): {source_url}\n")
 
-    parts.append(
-        "Please translate and analyse the following Japanese job posting.\n"
-    )
+    parts.append("Please translate and analyse the following Japanese job posting.\n")
     parts.append(f"JOB POSTING:\n{job_text}")
-    parts.append(
-        "\nReturn the JSON object only. Do not include any explanation outside the JSON."
-    )
+    parts.append("\nReturn the JSON object only. Do not include any explanation outside the JSON.")
 
     return "\n".join(parts)

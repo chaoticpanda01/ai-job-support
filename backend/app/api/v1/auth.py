@@ -38,6 +38,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Clerk webhook
 # ---------------------------------------------------------------------------
 
+
 @router.post("/webhook", status_code=status.HTTP_200_OK)
 async def clerk_webhook(request: Request, db: DbSession) -> dict:
     """
@@ -56,11 +57,11 @@ async def clerk_webhook(request: Request, db: DbSession) -> dict:
     try:
         wh = Webhook(settings.clerk_webhook_secret)
         wh.verify(payload, headers)
-    except WebhookVerificationError:
+    except WebhookVerificationError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook signature",
-        )
+        ) from exc
 
     event = ClerkWebhookEvent.model_validate_json(payload)
     data = event.data
@@ -103,6 +104,7 @@ async def clerk_webhook(request: Request, db: DbSession) -> dict:
 # /me
 # ---------------------------------------------------------------------------
 
+
 @router.get("/me", response_model=MeResponse)
 async def get_me(current_user: AuthUser, db: DbSession) -> MeResponse:
     """Return the authenticated user with their profile."""
@@ -137,9 +139,12 @@ async def update_me(
     if update_data:
         # onboarding_step can only advance, never go backward
         if "onboarding_step" in update_data:
-            profile = await profile_repo.advance_onboarding_step(
-                current_user.user_id, update_data.pop("onboarding_step")
-            ) or profile
+            profile = (
+                await profile_repo.advance_onboarding_step(
+                    current_user.user_id, update_data.pop("onboarding_step")
+                )
+                or profile
+            )
         if update_data:
             profile = await profile_repo.update(profile, **update_data)
 
@@ -157,6 +162,7 @@ async def update_me(
 # ---------------------------------------------------------------------------
 # Consent
 # ---------------------------------------------------------------------------
+
 
 @router.post("/consent", response_model=MeResponse)
 async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
@@ -186,6 +192,7 @@ async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
 # ---------------------------------------------------------------------------
 # Admin — user listing
 # ---------------------------------------------------------------------------
+
 
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
@@ -230,6 +237,7 @@ async def get_user(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_primary_email(data: ClerkWebhookUserData) -> str | None:
     if not data.email_addresses:

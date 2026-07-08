@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import BaseModel
-
 from app.services.ai.response_parser import ResponseParseError, extract_json, parse_response
+from pydantic import BaseModel
 
 
 class _Schema(BaseModel):
@@ -16,6 +15,7 @@ class _Schema(BaseModel):
 # ---------------------------------------------------------------------------
 # extract_json
 # ---------------------------------------------------------------------------
+
 
 def test_extract_json_from_plain_json() -> None:
     text = '{"score": 80, "tags": ["python"]}'
@@ -30,7 +30,7 @@ def test_extract_json_from_fenced_block() -> None:
 
 
 def test_extract_json_from_fenced_block_no_language() -> None:
-    text = "```\n{\"score\": 60, \"tags\": [\"a\"]}\n```"
+    text = '```\n{"score": 60, "tags": ["a"]}\n```'
     result = extract_json(text)
     assert result["score"] == 60
 
@@ -54,6 +54,7 @@ def test_extract_json_raises_on_invalid_json() -> None:
 # ---------------------------------------------------------------------------
 # parse_response
 # ---------------------------------------------------------------------------
+
 
 def test_parse_response_validates_against_schema() -> None:
     text = '{"score": 90, "tags": ["leadership", "java"]}'

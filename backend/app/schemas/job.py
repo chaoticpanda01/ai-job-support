@@ -17,6 +17,7 @@ class _Base(BaseModel):
 # Job posting
 # ---------------------------------------------------------------------------
 
+
 class JobPostingResponse(_Base):
     id: UUID
     source_url: str | None
@@ -35,6 +36,7 @@ class JobPostingResponse(_Base):
 
 class JobPostingDetailResponse(JobPostingResponse):
     """Includes full translated description — omitted from list views for size."""
+
     original_description: str | None
     translated_description: str | None
 
@@ -48,6 +50,7 @@ class JobPostingListResponse(_Base):
 # Translate request
 # ---------------------------------------------------------------------------
 
+
 class TranslateJobRequest(_Base):
     # At least one of source_url or raw_text is required (validated in route)
     source_url: str | None = None
@@ -57,6 +60,7 @@ class TranslateJobRequest(_Base):
 # ---------------------------------------------------------------------------
 # Match
 # ---------------------------------------------------------------------------
+
 
 class MatchScoreResponse(_Base):
     id: UUID
@@ -76,6 +80,7 @@ class MatchRequest(_Base):
 # ---------------------------------------------------------------------------
 # Application tracker
 # ---------------------------------------------------------------------------
+
 
 class JobApplicationResponse(_Base):
     id: UUID

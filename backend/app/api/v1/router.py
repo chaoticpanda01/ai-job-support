@@ -6,7 +6,18 @@ Add new routers here as phases are implemented.
 
 from fastapi import APIRouter
 
-from app.api.v1 import account, admin, auth, chat, culture, documents, interview, jobs, resumes, visa
+from app.api.v1 import (
+    account,
+    admin,
+    auth,
+    chat,
+    culture,
+    documents,
+    interview,
+    jobs,
+    resumes,
+    visa,
+)
 
 # Billing is intentionally excluded — platform is fully free.
 # To restore: import billing and add router.include_router(billing.router)

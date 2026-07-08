@@ -35,12 +35,12 @@ Output schema (stored in generated_documents.content):
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, Field
-
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Response schema
 # ---------------------------------------------------------------------------
+
 
 class RirekishoEntry(BaseModel):
     year: int = Field(ge=1950, le=2100)
@@ -71,6 +71,7 @@ class RirekishoResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\

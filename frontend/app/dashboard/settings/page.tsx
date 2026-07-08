@@ -60,9 +60,9 @@ function ProfileSection() {
   const { lang } = useLang();
 
   const VISA_STATUSES: { value: VisaStatus; label: string }[] = [
-    { value: "none",    label: t("settings", "visaNone", lang) },
+    { value: "none", label: t("settings", "visaNone", lang) },
     { value: "pending", label: t("settings", "visaPending", lang) },
-    { value: "held",    label: t("settings", "visaHeld", lang) },
+    { value: "held", label: t("settings", "visaHeld", lang) },
   ];
 
   const [form, setForm] = useState<ProfileUpdateRequest>({});
@@ -73,13 +73,13 @@ function ProfileSection() {
     if (!me?.profile) return;
     const p = me.profile;
     setForm({
-      nationality:        p.nationality ?? undefined,
-      japanese_level:     p.japanese_level,
-      visa_status:        p.visa_status,
+      nationality: p.nationality ?? undefined,
+      japanese_level: p.japanese_level,
+      visa_status: p.visa_status,
       preferred_language: p.preferred_language,
-      years_experience:   p.years_experience ?? undefined,
-      target_role:        p.target_role ?? [],
-      target_industry:    p.target_industry ?? [],
+      years_experience: p.years_experience ?? undefined,
+      target_role: p.target_role ?? [],
+      target_industry: p.target_industry ?? [],
     });
   }, [me]);
 
@@ -180,7 +180,10 @@ function ProfileSection() {
             onChange={(e) =>
               handleChange(
                 "target_role",
-                e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
               )
             }
             placeholder="e.g. Software Engineer, Backend Developer"
@@ -198,7 +201,10 @@ function ProfileSection() {
             onChange={(e) =>
               handleChange(
                 "target_industry",
-                e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
               )
             }
             placeholder="e.g. Technology, Finance"
@@ -224,8 +230,7 @@ function ProfileSection() {
 
         {updateProfile.error && (
           <p className="text-sm text-destructive">
-            {(updateProfile.error as { detail?: string }).detail ??
-              t("settings", "saveFail", lang)}
+            {(updateProfile.error as { detail?: string }).detail ?? t("settings", "saveFail", lang)}
           </p>
         )}
 
@@ -276,12 +281,10 @@ function DangerZone() {
         {t("settings", "dangerZone", lang)}
       </h2>
 
-      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5 space-y-4">
+      <div className="space-y-4 rounded-lg border border-destructive/40 bg-destructive/5 p-5">
         <div>
           <p className="text-sm font-medium">{t("settings", "deleteAccount", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("settings", "deleteDesc", lang)}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("settings", "deleteDesc", lang)}</p>
         </div>
 
         {!showConfirm ? (
@@ -362,7 +365,9 @@ function Field({
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
       {hint && (
         <p id={hintId} className="text-xs text-muted-foreground">
           {hint}

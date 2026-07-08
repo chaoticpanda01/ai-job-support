@@ -323,11 +323,11 @@ export interface CreateSessionRequest {
 
 // SSE events received from the stream
 export type SseEvent =
-  | { type: "token";   content: string }
-  | { type: "eval";    content: InterviewEvaluation }
+  | { type: "token"; content: string }
+  | { type: "eval"; content: InterviewEvaluation }
   | { type: "summary"; content: InterviewSummary }
   | { type: "done" }
-  | { type: "error";   content: string };
+  | { type: "error"; content: string };
 
 // ---------------------------------------------------------------------------
 // Visa

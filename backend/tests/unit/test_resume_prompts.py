@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import pytest
-
 from app.services.ai.prompts.resume_analysis import (
     ResumeAnalysisResult,
     build_system_prompt,
     build_user_prompt,
 )
+from pydantic import ValidationError
 
 
 def test_system_prompt_contains_json_schema_hint() -> None:
@@ -47,7 +47,7 @@ def test_resume_analysis_result_schema_valid() -> None:
 
 
 def test_resume_analysis_result_rejects_out_of_range_score() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ResumeAnalysisResult(
             japan_market_score=150,  # invalid
             strengths=[],

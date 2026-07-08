@@ -55,11 +55,12 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
 # Extractors
 # ---------------------------------------------------------------------------
 
+
 def _extract_pdf(file_bytes: bytes) -> str:
     try:
         import PyPDF2  # type: ignore[import-untyped]
-    except ImportError:
-        raise ParseError("PyPDF2 is not installed")
+    except ImportError as exc:
+        raise ParseError("PyPDF2 is not installed") from exc
 
     try:
         reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
@@ -76,8 +77,8 @@ def _extract_pdf(file_bytes: bytes) -> str:
 def _extract_docx(file_bytes: bytes) -> str:
     try:
         from docx import Document  # type: ignore[import-untyped]
-    except ImportError:
-        raise ParseError("python-docx is not installed")
+    except ImportError as exc:
+        raise ParseError("python-docx is not installed") from exc
 
     try:
         doc = Document(io.BytesIO(file_bytes))
@@ -96,6 +97,7 @@ def _extract_docx(file_bytes: bytes) -> str:
 # ---------------------------------------------------------------------------
 # Cleaner
 # ---------------------------------------------------------------------------
+
 
 def _clean(text: str) -> str:
     """Normalize whitespace and remove non-printable characters."""

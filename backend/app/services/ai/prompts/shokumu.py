@@ -38,10 +38,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Response schema
 # ---------------------------------------------------------------------------
+
 
 class ShokumuCompany(BaseModel):
     company_name: str
@@ -71,6 +71,7 @@ class ShokumuResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\

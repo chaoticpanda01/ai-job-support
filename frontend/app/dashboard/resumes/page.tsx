@@ -27,9 +27,7 @@ export default function ResumesPage() {
 
         {isLoading && <ResumesSkeleton />}
 
-        {error && (
-          <p className="text-sm text-destructive">{t("resumes", "loadError", lang)}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{t("resumes", "loadError", lang)}</p>}
 
         {data && data.items.length === 0 && !isLoading && (
           <div className="rounded-lg border border-dashed p-10 text-center">
@@ -88,7 +86,7 @@ function ResumeCard({ resume }: { resume: Resume }) {
 
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex min-w-0 items-center gap-3">
         <FileIcon mime={resume.mime_type} />
         <div className="min-w-0">
           <Link

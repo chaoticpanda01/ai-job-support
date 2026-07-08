@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
@@ -15,8 +16,8 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.resume import Resume
+    from app.models.user import User
 
 
 class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):

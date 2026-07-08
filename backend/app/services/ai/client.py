@@ -59,16 +59,30 @@ class AIClient:
                 )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 text = response.text or ""
-                input_tokens = response.usage_metadata.prompt_token_count or 0 if response.usage_metadata else 0
-                output_tokens = response.usage_metadata.candidates_token_count or 0 if response.usage_metadata else 0
+                input_tokens = (
+                    response.usage_metadata.prompt_token_count or 0
+                    if response.usage_metadata
+                    else 0
+                )
+                output_tokens = (
+                    response.usage_metadata.candidates_token_count or 0
+                    if response.usage_metadata
+                    else 0
+                )
                 logger.debug(
                     "AI generate: feature=%s attempt=%d latency=%dms tokens=%d+%d",
-                    feature, attempt, latency_ms, input_tokens, output_tokens,
+                    feature,
+                    attempt,
+                    latency_ms,
+                    input_tokens,
+                    output_tokens,
                 )
                 return text, input_tokens, output_tokens
             except Exception as exc:
                 last_exc = exc
-                logger.warning("Gemini error on attempt %d for feature=%s: %s", attempt, feature, exc)
+                logger.warning(
+                    "Gemini error on attempt %d for feature=%s: %s", attempt, feature, exc
+                )
                 if delay is not None:
                     await asyncio.sleep(delay)
 

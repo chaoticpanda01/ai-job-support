@@ -43,13 +43,8 @@ export function useCreateApplication() {
 
 export function useUpdateApplication() {
   const queryClient = useQueryClient();
-  return useMutation<
-    JobApplication,
-    Error,
-    { id: string; data: UpdateApplicationRequest }
-  >({
-    mutationFn: ({ id, data }) =>
-      apiClient.patch<JobApplication>(`/jobs/applications/${id}`, data),
+  return useMutation<JobApplication, Error, { id: string; data: UpdateApplicationRequest }>({
+    mutationFn: ({ id, data }) => apiClient.patch<JobApplication>(`/jobs/applications/${id}`, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QK });
     },

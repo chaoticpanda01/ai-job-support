@@ -14,12 +14,11 @@ import time
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import AuthUser, DbSession
-from app.repositories.visa import VisaConsultationRepository
 from app.repositories.user import ProfileRepository
+from app.repositories.visa import VisaConsultationRepository
 from app.schemas.visa import VisaConsultationListItem, VisaConsultationResponse
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,7 @@ _VISA_MAX_TOKENS = 4096
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _profile_snapshot(profile) -> dict:  # type: ignore[no-untyped-def]
     """Extract the fields that inform visa guidance from a Profile ORM object."""
@@ -54,6 +54,7 @@ def _profile_snapshot(profile) -> dict:  # type: ignore[no-untyped-def]
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/consultations",
     response_model=VisaConsultationResponse,
@@ -73,7 +74,7 @@ async def create_consultation(
         build_system_prompt,
         build_user_prompt,
     )
-    from app.services.ai.response_parser import ResponseParseError, parse_response
+    from app.services.ai.response_parser import parse_response
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 
     profile_repo = ProfileRepository(db)

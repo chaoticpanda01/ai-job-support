@@ -14,8 +14,7 @@ export function useMe() {
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ProfileUpdateRequest) =>
-      apiClient.put<MeResponse>("/auth/me", data),
+    mutationFn: (data: ProfileUpdateRequest) => apiClient.put<MeResponse>("/auth/me", data),
     onSuccess: (updated) => {
       queryClient.setQueryData(["me"], updated);
     },

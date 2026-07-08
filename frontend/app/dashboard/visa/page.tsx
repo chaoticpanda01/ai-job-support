@@ -54,9 +54,7 @@ export default function VisaPage() {
 
       {latest && <RoadmapView consultation={latest} />}
 
-      {list && list.length > 1 && (
-        <PastConsultations list={list} currentId={latest?.id} />
-      )}
+      {list && list.length > 1 && <PastConsultations list={list} currentId={latest?.id} />}
     </div>
   );
 }
@@ -129,7 +127,7 @@ function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
         const totalCount = phase.steps.length;
 
         return (
-          <div key={idx} className="rounded-lg border bg-card overflow-hidden">
+          <div key={idx} className="overflow-hidden rounded-lg border bg-card">
             <button
               onClick={() => setOpenPhase(isOpen ? -1 : idx)}
               className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent"
@@ -142,7 +140,7 @@ function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
                 </div>
               </div>
               <div className="ml-4 flex shrink-0 items-center gap-3">
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   {doneCount}/{totalCount}
                 </span>
                 <span className="text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
@@ -201,7 +199,7 @@ function StepRow({
           onChange={onToggle}
           className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
         />
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className={`font-medium ${checked ? "line-through" : ""}`}>{step.title}</p>
             {!step.required && (
@@ -218,7 +216,7 @@ function StepRow({
 
           {!checked && (
             <>
-              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{step.detail}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{step.detail}</p>
               {(step.resources.length > 0 || step.detail.length > 120) && (
                 <button
                   onClick={() => setExpanded((v) => !v)}
@@ -237,7 +235,9 @@ function StepRow({
                       </p>
                       <ul className="mt-0.5 space-y-0.5">
                         {step.resources.map((r, i) => (
-                          <li key={i} className="text-xs text-muted-foreground">• {r}</li>
+                          <li key={i} className="text-xs text-muted-foreground">
+                            • {r}
+                          </li>
                         ))}
                       </ul>
                     </div>

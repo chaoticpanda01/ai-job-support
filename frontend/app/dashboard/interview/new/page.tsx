@@ -19,10 +19,10 @@ export default function NewInterviewPage() {
   const [targetCompany, setTargetCompany] = useState("");
 
   const SESSION_TYPES: { value: InterviewType; labelKey: string; descKey: string }[] = [
-    { value: "general",     labelKey: "typeGeneral",     descKey: "typeGeneralDesc" },
-    { value: "behavioral",  labelKey: "typeBehavioral",  descKey: "typeBehavioralDesc" },
-    { value: "technical",   labelKey: "typeTechnical",   descKey: "typeTechnicalDesc" },
-    { value: "culture_fit", labelKey: "typeCulture",     descKey: "typeCultureDesc" },
+    { value: "general", labelKey: "typeGeneral", descKey: "typeGeneralDesc" },
+    { value: "behavioral", labelKey: "typeBehavioral", descKey: "typeBehavioralDesc" },
+    { value: "technical", labelKey: "typeTechnical", descKey: "typeTechnicalDesc" },
+    { value: "culture_fit", labelKey: "typeCulture", descKey: "typeCultureDesc" },
   ];
 
   const LANGUAGES: { value: InterviewLanguage; label: string }[] = [
@@ -76,7 +76,9 @@ export default function NewInterviewPage() {
                   />
                   <div>
                     <p className="text-sm font-medium">{t("interview", tp.labelKey, lang)}</p>
-                    <p className="text-xs text-muted-foreground">{t("interview", tp.descKey, lang)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("interview", tp.descKey, lang)}
+                    </p>
                   </div>
                 </label>
               </li>

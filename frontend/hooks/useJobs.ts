@@ -83,8 +83,7 @@ export function useDeleteJob() {
 export function useMatchJob(jobId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: MatchRequest) =>
-      apiClient.post<JobMatch>(`/jobs/${jobId}/match`, body),
+    mutationFn: (body: MatchRequest) => apiClient.post<JobMatch>(`/jobs/${jobId}/match`, body),
     onSuccess: (data) => {
       queryClient.setQueryData(["jobs", jobId, "match", data.resume_id], data);
     },

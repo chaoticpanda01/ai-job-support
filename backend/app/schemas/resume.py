@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import AnalysisType, PreferredLanguage
 
@@ -18,6 +18,7 @@ class _Base(BaseModel):
 # ---------------------------------------------------------------------------
 # Resume
 # ---------------------------------------------------------------------------
+
 
 class ResumeResponse(_Base):
     id: UUID
@@ -34,6 +35,7 @@ class ResumeResponse(_Base):
 
 class ResumeDetailResponse(ResumeResponse):
     """Extended response including a fresh presigned download URL."""
+
     download_url: str
 
 
@@ -45,6 +47,7 @@ class ResumeListResponse(_Base):
 # ---------------------------------------------------------------------------
 # Analysis
 # ---------------------------------------------------------------------------
+
 
 class ResumeAnalysisResponse(_Base):
     id: UUID
@@ -65,6 +68,7 @@ class AnalyzeRequest(_Base):
 
 class AnalyzeResponse(_Base):
     """Returned immediately after triggering analysis. Client polls for result."""
+
     task_id: str
     resume_id: UUID
     status: str = "queued"

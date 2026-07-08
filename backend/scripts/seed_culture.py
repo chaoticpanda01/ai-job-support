@@ -12,17 +12,18 @@ All topics are published immediately (published_at = NOW()).
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+import pathlib
+
+# Ensure app modules resolve correctly when run as a script
+import sys
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
-# Ensure app modules resolve correctly when run as a script
-import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 from app.database import AsyncSessionFactory
 from app.models.culture import CultureGlossary, CultureTopic
-
 
 # ---------------------------------------------------------------------------
 # Culture topics — 12 articles covering core workplace topics
@@ -392,41 +393,85 @@ IT、エンジニア、マーケティング、人事など**専門職**に最�
 # ---------------------------------------------------------------------------
 
 GLOSSARY = [
-    ("報連相",     "horenso",          "Laporan, kontak, konsultasi — tiga pilar komunikasi bisnis Jepang"),
-    ("敬語",       "keigo",            "Bahasa hormat Jepang yang digunakan kepada atasan dan tamu"),
-    ("根回し",     "nemawashi",        "Lobi atau konsultasi informal sebelum keputusan resmi diambil"),
-    ("稟議",       "ringi",            "Proses persetujuan dokumen dengan cap (hanko) dari semua pihak terkait"),
-    ("名刺",       "meishi",           "Kartu nama; pertukaran meishi adalah ritual penting saat perkenalan"),
-    ("先輩",       "senpai",           "Orang yang lebih dulu bergabung di organisasi; mentor atau senior"),
-    ("後輩",       "kohai",            "Orang yang bergabung belakangan; junior dalam hubungan senpai-kohai"),
-    ("飲み会",     "nomikai",          "Acara minum bersama rekan kerja; penting untuk membangun hubungan"),
-    ("お疲れ様",   "otsukare-sama",    "Salam kepada rekan kerja yang berarti 'terima kasih atas kerja kerasmu'"),
-    ("承知しました","shochi shimashita","'Saya mengerti / siap' — ungkapan formal untuk menyatakan persetujuan"),
-    ("よろしくお願いします", "yoroshiku onegai shimasu", "Ungkapan serbaguna: 'tolong' / 'terima kasih sebelumnya' / 'senang berkenalan'"),
-    ("お世話になっております", "osewa ni natte orimasu", "Salam formal di email/telepon bisnis: 'Terima kasih atas dukungan Anda'"),
-    ("失礼します",  "shitsurei shimasu", "Permisi — diucapkan saat masuk/keluar ruangan atau mengakhiri telepon"),
-    ("いただきます","itadakimasu",      "Ucapan sebelum makan; juga digunakan saat menerima sesuatu dengan hormat"),
-    ("ごちそうさま","gochisosama",      "Ucapan setelah makan; sering diucapkan kepada yang mentraktir"),
-    ("朝礼",       "chorei",           "Briefing pagi harian; umum di banyak perusahaan Jepang"),
-    ("有給休暇",   "yukyu kyuka",      "Cuti tahunan berbayar; wajib diambil minimal 5 hari per tahun"),
-    ("残業",       "zangyo",           "Lembur; budaya lembur masih ada di banyak perusahaan"),
-    ("年功序列",   "nenko joretsu",    "Sistem senioritas berdasarkan masa kerja; mempengaruhi promosi dan gaji"),
-    ("職場",       "shokuba",          "Tempat kerja; lingkungan kantor"),
-    ("上司",       "joshi",            "Atasan langsung"),
-    ("部下",       "buka",             "Bawahan langsung"),
-    ("同僚",       "doryo",            "Rekan kerja setingkat"),
-    ("出張",       "shuccho",          "Perjalanan dinas"),
-    ("転勤",       "tenkin",           "Mutasi atau perpindahan kantor; umum di perusahaan besar Jepang"),
-    ("履歴書",     "rirekisho",        "CV standar Jepang dengan format baku; berbeda dari CV internasional"),
-    ("職務経歴書", "shokumukeirekisho","Dokumen riwayat karier detail; melengkapi履歴書 untuk posisi berpengalaman"),
-    ("面接",       "mensetsu",         "Wawancara kerja"),
-    ("内定",       "naitei",           "Tawaran pekerjaan resmi sebelum bergabung; sangat mengikat secara moral"),
-    ("試用期間",   "shiyo kikan",      "Masa percobaan (biasanya 3 bulan)"),
-    ("正社員",     "seishain",         "Karyawan tetap penuh waktu; memiliki keamanan kerja tertinggi"),
-    ("派遣社員",   "haken shain",      "Karyawan kontrak melalui agen; berbeda hak dibanding正社員"),
-    ("在宅勤務",   "zaitaku kinmu",    "Bekerja dari rumah / remote work"),
-    ("フレックスタイム", "flekkusu taimu", "Jam kerja fleksibel; jam masuk/pulang bisa disesuaikan"),
-    ("ワークライフバランス", "waku raifu baransu", "Keseimbangan kerja dan kehidupan pribadi; semakin diperhatikan pasca働き方改革"),
+    ("報連相", "horenso", "Laporan, kontak, konsultasi — tiga pilar komunikasi bisnis Jepang"),
+    ("敬語", "keigo", "Bahasa hormat Jepang yang digunakan kepada atasan dan tamu"),
+    ("根回し", "nemawashi", "Lobi atau konsultasi informal sebelum keputusan resmi diambil"),
+    ("稟議", "ringi", "Proses persetujuan dokumen dengan cap (hanko) dari semua pihak terkait"),
+    ("名刺", "meishi", "Kartu nama; pertukaran meishi adalah ritual penting saat perkenalan"),
+    ("先輩", "senpai", "Orang yang lebih dulu bergabung di organisasi; mentor atau senior"),
+    ("後輩", "kohai", "Orang yang bergabung belakangan; junior dalam hubungan senpai-kohai"),
+    ("飲み会", "nomikai", "Acara minum bersama rekan kerja; penting untuk membangun hubungan"),
+    (
+        "お疲れ様",
+        "otsukare-sama",
+        "Salam kepada rekan kerja yang berarti 'terima kasih atas kerja kerasmu'",
+    ),
+    (
+        "承知しました",
+        "shochi shimashita",
+        "'Saya mengerti / siap' — ungkapan formal untuk menyatakan persetujuan",
+    ),
+    (
+        "よろしくお願いします",
+        "yoroshiku onegai shimasu",
+        "Ungkapan serbaguna: 'tolong' / 'terima kasih sebelumnya' / 'senang berkenalan'",
+    ),
+    (
+        "お世話になっております",
+        "osewa ni natte orimasu",
+        "Salam formal di email/telepon bisnis: 'Terima kasih atas dukungan Anda'",
+    ),
+    (
+        "失礼します",
+        "shitsurei shimasu",
+        "Permisi — diucapkan saat masuk/keluar ruangan atau mengakhiri telepon",
+    ),
+    (
+        "いただきます",
+        "itadakimasu",
+        "Ucapan sebelum makan; juga digunakan saat menerima sesuatu dengan hormat",
+    ),
+    (
+        "ごちそうさま",
+        "gochisosama",
+        "Ucapan setelah makan; sering diucapkan kepada yang mentraktir",
+    ),
+    ("朝礼", "chorei", "Briefing pagi harian; umum di banyak perusahaan Jepang"),
+    ("有給休暇", "yukyu kyuka", "Cuti tahunan berbayar; wajib diambil minimal 5 hari per tahun"),
+    ("残業", "zangyo", "Lembur; budaya lembur masih ada di banyak perusahaan"),
+    (
+        "年功序列",
+        "nenko joretsu",
+        "Sistem senioritas berdasarkan masa kerja; mempengaruhi promosi dan gaji",
+    ),
+    ("職場", "shokuba", "Tempat kerja; lingkungan kantor"),
+    ("上司", "joshi", "Atasan langsung"),
+    ("部下", "buka", "Bawahan langsung"),
+    ("同僚", "doryo", "Rekan kerja setingkat"),
+    ("出張", "shuccho", "Perjalanan dinas"),
+    ("転勤", "tenkin", "Mutasi atau perpindahan kantor; umum di perusahaan besar Jepang"),
+    ("履歴書", "rirekisho", "CV standar Jepang dengan format baku; berbeda dari CV internasional"),
+    (
+        "職務経歴書",
+        "shokumukeirekisho",
+        "Dokumen riwayat karier detail; melengkapi履歴書 untuk posisi berpengalaman",
+    ),
+    ("面接", "mensetsu", "Wawancara kerja"),
+    ("内定", "naitei", "Tawaran pekerjaan resmi sebelum bergabung; sangat mengikat secara moral"),
+    ("試用期間", "shiyo kikan", "Masa percobaan (biasanya 3 bulan)"),
+    ("正社員", "seishain", "Karyawan tetap penuh waktu; memiliki keamanan kerja tertinggi"),
+    ("派遣社員", "haken shain", "Karyawan kontrak melalui agen; berbeda hak dibanding正社員"),
+    ("在宅勤務", "zaitaku kinmu", "Bekerja dari rumah / remote work"),
+    (
+        "フレックスタイム",
+        "flekkusu taimu",
+        "Jam kerja fleksibel; jam masuk/pulang bisa disesuaikan",
+    ),
+    (
+        "ワークライフバランス",
+        "waku raifu baransu",
+        "Keseimbangan kerja dan kehidupan pribadi; semakin diperhatikan pasca働き方改革",
+    ),
 ]
 
 
@@ -434,14 +479,13 @@ GLOSSARY = [
 # Seed runner
 # ---------------------------------------------------------------------------
 
+
 async def seed() -> None:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     async with AsyncSessionFactory() as session:
         # --- Culture topics ---
-        existing_slugs = set(
-            await session.scalars(select(CultureTopic.slug))
-        )
+        existing_slugs = set(await session.scalars(select(CultureTopic.slug)))
         topics_added = 0
         for t in TOPICS:
             if t["slug"] in existing_slugs:
@@ -458,9 +502,7 @@ async def seed() -> None:
             topics_added += 1
 
         # --- Glossary ---
-        existing_terms = set(
-            await session.scalars(select(CultureGlossary.term_ja))
-        )
+        existing_terms = set(await session.scalars(select(CultureGlossary.term_ja)))
         glossary_added = 0
         for term_ja, reading, definition in GLOSSARY:
             if term_ja in existing_terms:

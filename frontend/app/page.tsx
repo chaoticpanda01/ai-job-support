@@ -10,12 +10,12 @@ import { t } from "@/lib/i18n";
 const DASHBOARD_ROUTE = "/dashboard/resumes";
 
 const FEATURES = [
-  { icon: "📄", titleKey: "resume",    descKey: "resumeDesc" },
-  { icon: "🗂️", titleKey: "docs",      descKey: "docsDesc" },
-  { icon: "🌐", titleKey: "jobs",      descKey: "jobsDesc" },
+  { icon: "📄", titleKey: "resume", descKey: "resumeDesc" },
+  { icon: "🗂️", titleKey: "docs", descKey: "docsDesc" },
+  { icon: "🌐", titleKey: "jobs", descKey: "jobsDesc" },
   { icon: "🎤", titleKey: "interview", descKey: "interviewDesc" },
-  { icon: "🛂", titleKey: "visa",      descKey: "visaDesc" },
-  { icon: "🏯", titleKey: "culture",   descKey: "cultureDesc" },
+  { icon: "🛂", titleKey: "visa", descKey: "visaDesc" },
+  { icon: "🏯", titleKey: "culture", descKey: "cultureDesc" },
 ];
 
 const STEPS = [
@@ -29,9 +29,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       {/* Navbar */}
-      <header className="border-b bg-background sticky top-0 z-40">
+      <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
           <span className="text-sm font-semibold">Japan Job Support</span>
           <div className="flex items-center gap-3">
@@ -39,13 +38,13 @@ export default function LandingPage() {
             <SignedOut>
               <Link
                 href={SIGN_IN_ROUTE}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 {t("nav", "signIn", lang)}
               </Link>
               <Link
                 href={SIGN_UP_ROUTE}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {t("nav", "getStarted", lang)}
               </Link>
@@ -53,7 +52,7 @@ export default function LandingPage() {
             <SignedIn>
               <Link
                 href={DASHBOARD_ROUTE}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {t("nav", "goToDashboard", lang)}
               </Link>
@@ -73,14 +72,12 @@ export default function LandingPage() {
             {t("landing", "heroTitle1", lang)}{" "}
             <span className="text-primary">{t("landing", "heroTitle2", lang)}</span>
           </h1>
-          <p className="mt-6 text-lg text-muted-foreground">
-            {t("landing", "heroSub", lang)}
-          </p>
+          <p className="mt-6 text-lg text-muted-foreground">{t("landing", "heroSub", lang)}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <SignedOut>
               <Link
                 href={SIGN_UP_ROUTE}
-                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {t("landing", "ctaPrimary", lang)}
               </Link>
@@ -88,14 +85,14 @@ export default function LandingPage() {
             <SignedIn>
               <Link
                 href={DASHBOARD_ROUTE}
-                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+                className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {t("nav", "goToDashboard", lang)}
               </Link>
             </SignedIn>
             <Link
               href="/dashboard/culture"
-              className="rounded-md border px-6 py-3 text-sm font-medium hover:bg-accent transition-colors"
+              className="rounded-md border px-6 py-3 text-sm font-medium transition-colors hover:bg-accent"
             >
               {t("landing", "ctaSecondary", lang)}
             </Link>
@@ -114,7 +111,9 @@ export default function LandingPage() {
               <div key={feature.titleKey} className="rounded-xl border bg-card p-6 shadow-sm">
                 <div className="mb-3 text-3xl">{feature.icon}</div>
                 <h3 className="mb-2 font-semibold">{t("features", feature.titleKey, lang)}</h3>
-                <p className="text-sm text-muted-foreground">{t("features", feature.descKey, lang)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("features", feature.descKey, lang)}
+                </p>
               </div>
             ))}
           </div>
@@ -124,9 +123,7 @@ export default function LandingPage() {
       {/* How it works */}
       <section className="py-20">
         <div className="container">
-          <h2 className="mb-12 text-center text-2xl font-bold">
-            {t("landing", "howTitle", lang)}
-          </h2>
+          <h2 className="mb-12 text-center text-2xl font-bold">{t("landing", "howTitle", lang)}</h2>
           <div className="mx-auto max-w-2xl space-y-8">
             {STEPS.map((s) => (
               <div key={s.step} className="flex items-start gap-4">
@@ -135,7 +132,9 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{t("landing", s.titleKey, lang)}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{t("landing", s.descKey, lang)}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("landing", s.descKey, lang)}
+                  </p>
                 </div>
               </div>
             ))}
@@ -151,7 +150,7 @@ export default function LandingPage() {
             <p className="mt-3 text-muted-foreground">{t("landing", "ctaSub", lang)}</p>
             <Link
               href={SIGN_UP_ROUTE}
-              className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
               {t("landing", "ctaBtn", lang)}
             </Link>

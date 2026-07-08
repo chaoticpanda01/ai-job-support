@@ -2,13 +2,14 @@
 FastAPI application entry point.
 
 Middleware order (outermost → innermost):
-  TrustedHostMiddleware → CORSMiddleware → RateLimiterMiddleware → ClerkJWTMiddleware → route handler
+  TrustedHostMiddleware → CORSMiddleware → RateLimiterMiddleware →
+  ClerkJWTMiddleware → route handler
 
 Sentry is initialized before the app starts if SENTRY_DSN is configured.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import sentry_sdk
 from fastapi import FastAPI
@@ -21,7 +22,6 @@ from app.config import settings
 from app.database import close_db, ping_db
 from app.middleware.clerk_auth import ClerkJWTMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
-
 
 # ---------------------------------------------------------------------------
 # Sentry — initialize before creating the app
@@ -43,6 +43,7 @@ if settings.sentry_dsn:
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -79,6 +80,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, object]:

@@ -19,6 +19,7 @@ class _Base(BaseModel):
 # Document
 # ---------------------------------------------------------------------------
 
+
 class DocumentResponse(_Base):
     id: UUID
     user_id: UUID
@@ -37,6 +38,7 @@ class DocumentResponse(_Base):
 
 class DocumentDetailResponse(DocumentResponse):
     """Extended response that includes the AI-generated content and download URL."""
+
     content: dict[str, Any] | None
     download_url: str | None
 
@@ -49,6 +51,7 @@ class DocumentListResponse(_Base):
 # ---------------------------------------------------------------------------
 # Create requests
 # ---------------------------------------------------------------------------
+
 
 class CreateRirekishoRequest(_Base):
     resume_id: UUID
@@ -64,6 +67,7 @@ class CreateShokumuRequest(_Base):
 # ---------------------------------------------------------------------------
 # Status poll response (lightweight — used by client polling loop)
 # ---------------------------------------------------------------------------
+
 
 class DocumentStatusResponse(_Base):
     id: UUID

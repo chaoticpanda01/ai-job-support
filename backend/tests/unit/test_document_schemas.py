@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from app.models.enums import DocumentStatus, DocumentType
 from app.schemas.document import (
     CreateRirekishoRequest,
@@ -16,6 +14,7 @@ from app.schemas.document import (
     DocumentResponse,
     DocumentStatusResponse,
 )
+from pydantic import ValidationError
 
 
 def _doc_data(**overrides: object) -> dict:
@@ -31,7 +30,7 @@ def _doc_data(**overrides: object) -> dict:
         "output_tokens": None,
         "error_message": None,
         "completed_at": None,
-        "created_at": datetime.now(tz=timezone.utc),
+        "created_at": datetime.now(tz=UTC),
     }
     base.update(overrides)
     return base
@@ -40,6 +39,7 @@ def _doc_data(**overrides: object) -> dict:
 # ---------------------------------------------------------------------------
 # DocumentResponse
 # ---------------------------------------------------------------------------
+
 
 def test_document_response_from_dict() -> None:
     data = _doc_data()
@@ -54,7 +54,7 @@ def test_document_response_completed_fields() -> None:
         ai_model="claude-sonnet-4-6",
         input_tokens=1200,
         output_tokens=800,
-        completed_at=datetime.now(tz=timezone.utc),
+        completed_at=datetime.now(tz=UTC),
     )
     resp = DocumentResponse.model_validate(data)
     assert resp.ai_model == "claude-sonnet-4-6"
@@ -64,6 +64,7 @@ def test_document_response_completed_fields() -> None:
 # ---------------------------------------------------------------------------
 # DocumentDetailResponse
 # ---------------------------------------------------------------------------
+
 
 def test_document_detail_response_includes_content_and_url() -> None:
     data = {
@@ -87,6 +88,7 @@ def test_document_detail_response_allows_null_content() -> None:
 # Create requests
 # ---------------------------------------------------------------------------
 
+
 def test_create_rirekisho_request_requires_resume_id() -> None:
     with pytest.raises(ValidationError):
         CreateRirekishoRequest.model_validate({})
@@ -108,6 +110,7 @@ def test_create_shokumu_request_with_job_posting() -> None:
 # DocumentStatusResponse
 # ---------------------------------------------------------------------------
 
+
 def test_document_status_response_pending() -> None:
     resp = DocumentStatusResponse(
         id=uuid.uuid4(),
@@ -123,6 +126,6 @@ def test_document_status_response_failed_has_error() -> None:
         id=uuid.uuid4(),
         status=DocumentStatus.failed,
         error_message="AI budget exceeded",
-        completed_at=datetime.now(tz=timezone.utc),
+        completed_at=datetime.now(tz=UTC),
     )
     assert resp.error_message == "AI budget exceeded"

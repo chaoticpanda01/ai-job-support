@@ -26,8 +26,7 @@ export function useCultureTopics(params: ListTopicsParams = {}) {
 
   return useQuery<CultureTopicSummary[]>({
     queryKey: ["culture", "topics", params],
-    queryFn: () =>
-      apiClient.get<CultureTopicSummary[]>(`/culture/topics${qs ? `?${qs}` : ""}`),
+    queryFn: () => apiClient.get<CultureTopicSummary[]>(`/culture/topics${qs ? `?${qs}` : ""}`),
     staleTime: STALE_TIME_MS,
   });
 }

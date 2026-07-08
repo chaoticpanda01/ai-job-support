@@ -7,11 +7,9 @@ All external I/O (DB, S3, Claude, WeasyPrint) is mocked.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.models.enums import DocumentStatus, DocumentType
 from app.services.document_generator import (
     DocumentGenerationError,
@@ -24,10 +22,10 @@ from app.services.document_generator import (
     _render_shokumu,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_document(
     document_type: DocumentType = DocumentType.rirekisho,
@@ -112,8 +110,12 @@ def _shokumu_content() -> dict:
 # _esc
 # ---------------------------------------------------------------------------
 
+
 def test_esc_escapes_html_chars() -> None:
-    assert _esc("<script>alert('xss')</script>") == "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+    assert (
+        _esc("<script>alert('xss')</script>")
+        == "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+    )
 
 
 def test_esc_handles_none() -> None:
@@ -128,6 +130,7 @@ def test_esc_handles_integer() -> None:
 # _feature_name
 # ---------------------------------------------------------------------------
 
+
 def test_feature_name_rirekisho() -> None:
     assert _feature_name(DocumentType.rirekisho) == "rirekisho"
 
@@ -139,6 +142,7 @@ def test_feature_name_shokumu() -> None:
 # ---------------------------------------------------------------------------
 # HTML renderers
 # ---------------------------------------------------------------------------
+
 
 def test_render_rirekisho_contains_key_fields() -> None:
     html = _render_rirekisho(_rirekisho_content())
@@ -187,6 +191,7 @@ def test_render_shokumu_handles_empty_achievements() -> None:
 # DocumentGenerator.generate — success path (rirekisho)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_generate_rirekisho_returns_output() -> None:
     doc = _mock_document(DocumentType.rirekisho)
@@ -202,15 +207,20 @@ async def test_generate_rirekisho_returns_output() -> None:
         patch.object(generator, "_fetch_and_extract", new=AsyncMock(return_value="resume text")),
         patch("app.services.document_generator.usage_tracker.check_budget", new=AsyncMock()),
         patch.object(
-            generator, "_call_ai",
+            generator,
+            "_call_ai",
             new=AsyncMock(return_value=('{"ok": true}', 1200, 800)),
         ),
         patch.object(
-            generator, "_parse_response",
+            generator,
+            "_parse_response",
             return_value=_rirekisho_content(),
         ),
         patch("app.services.document_generator.html_to_pdf", return_value=b"%PDF"),
-        patch("app.services.document_generator.file_storage.upload_document", return_value="documents/u/rirekisho/abc.pdf"),
+        patch(
+            "app.services.document_generator.file_storage.upload_document",
+            return_value="documents/u/rirekisho/abc.pdf",
+        ),
         patch("app.services.document_generator.usage_tracker.record", new=AsyncMock()),
     ):
         MockDocRepo.return_value.get = AsyncMock(return_value=doc)
@@ -228,6 +238,7 @@ async def test_generate_rirekisho_returns_output() -> None:
 # ---------------------------------------------------------------------------
 # DocumentGenerator.generate — failure cases
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_generate_raises_when_document_not_found() -> None:

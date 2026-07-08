@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -41,9 +40,7 @@ class CultureGlossary(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Japanese workplace term with Indonesian definition and romaji reading."""
 
     __tablename__ = "culture_glossary"
-    __table_args__ = (
-        UniqueConstraint("term_ja", name="culture_glossary_term_uk"),
-    )
+    __table_args__ = (UniqueConstraint("term_ja", name="culture_glossary_term_uk"),)
 
     term_ja: Mapped[str] = mapped_column(String(255), nullable=False)
     reading_romaji: Mapped[str | None] = mapped_column(String(255))

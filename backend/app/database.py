@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -19,6 +19,7 @@ from app.config import settings
 # connection and connection pooling interferes with transaction isolation.
 # Production uses the default AsyncAdaptedQueuePool via pool_size/max_overflow.
 
+
 def _create_engine(url: str, *, testing: bool = False) -> AsyncEngine:
     kwargs: dict = {
         "echo": settings.debug,
@@ -29,12 +30,12 @@ def _create_engine(url: str, *, testing: bool = False) -> AsyncEngine:
     else:
         kwargs["pool_size"] = settings.database_pool_size
         kwargs["max_overflow"] = settings.database_max_overflow
-        kwargs["pool_pre_ping"] = True          # Detect and discard stale connections
-        kwargs["pool_recycle"] = 3600           # Recycle connections after 1 hour
+        kwargs["pool_pre_ping"] = True  # Detect and discard stale connections
+        kwargs["pool_recycle"] = 3600  # Recycle connections after 1 hour
         kwargs["connect_args"] = {
             "server_settings": {
                 "application_name": settings.app_name,
-                "jit": "off",                   # Disable JIT for OLTP workloads
+                "jit": "off",  # Disable JIT for OLTP workloads
             }
         }
     return create_async_engine(url, **kwargs)
@@ -49,14 +50,15 @@ engine: AsyncEngine = _create_engine(settings.database_url, testing=settings.is_
 AsyncSessionFactory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,     # Objects remain usable after commit (avoids lazy-load on closed session)
-    autoflush=False,            # Explicit flush control; services call session.flush() when needed
+    expire_on_commit=False,  # Objects stay usable after commit (avoids lazy-load on closed session)
+    autoflush=False,  # Explicit flush control; services call session.flush() when needed
     autocommit=False,
 )
 
 # ---------------------------------------------------------------------------
 # Session dependency (used with FastAPI Depends)
 # ---------------------------------------------------------------------------
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -80,6 +82,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 # Health check
 # ---------------------------------------------------------------------------
 
+
 async def ping_db() -> bool:
     """Returns True if the database is reachable. Used by /health endpoint."""
     try:
@@ -93,6 +96,7 @@ async def ping_db() -> bool:
 # ---------------------------------------------------------------------------
 # Lifecycle helpers
 # ---------------------------------------------------------------------------
+
 
 async def close_db() -> None:
     """Dispose all connections. Call on application shutdown."""

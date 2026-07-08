@@ -19,11 +19,15 @@ select = [
 ignore = [
   "S101",  # assert in tests is fine
   "B008",  # FastAPI Depends() in function defaults
+  "N811",  # sqlalchemy.dialects.postgresql.UUID as PgUUID — pep8-naming misreads
+           # the class name UUID as a constant; the alias avoids clashing with
+           # Python's own uuid.UUID and is the idiomatic pattern for this import.
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "N"]
 "migrations/**" = ["E501", "N999"]
+"scripts/seed_culture.py" = ["E501"]  # long-form Japanese Markdown seed content
 
 [tool.ruff.format]
 quote-style = "double"

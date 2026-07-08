@@ -7,20 +7,20 @@ DB calls and middleware are mocked so these run without a live database.
 from __future__ import annotations
 
 import json
-import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from app.main import app
+from app.models.enums import UserRole
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
-from app.models.enums import SubscriptionTier, UserRole
 from tests.conftest import make_profile, make_user
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer valid_token"}
@@ -28,6 +28,7 @@ def _auth_headers() -> dict[str, str]:
 
 def _bypass_middleware(user: Any) -> Any:
     """Patch ClerkJWTMiddleware.dispatch to inject a user directly."""
+
     async def _fake_dispatch(self: Any, request: Any, call_next: Any) -> Any:
         request.state.user_id = user.id
         request.state.clerk_id = user.clerk_id
@@ -41,6 +42,7 @@ def _bypass_middleware(user: Any) -> Any:
 # ---------------------------------------------------------------------------
 # GET /auth/me
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_me_returns_user_and_profile() -> None:
@@ -79,6 +81,7 @@ async def test_get_me_returns_404_when_user_missing() -> None:
 # PUT /auth/me
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_update_me_returns_updated_profile() -> None:
     user = make_user()
@@ -114,6 +117,7 @@ async def test_update_me_returns_updated_profile() -> None:
 # POST /auth/webhook
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_webhook_invalid_signature_returns_400() -> None:
     payload = json.dumps({"type": "user.created", "data": {}}).encode()
@@ -129,8 +133,6 @@ async def test_webhook_invalid_signature_returns_400() -> None:
 
 @pytest.mark.asyncio
 async def test_webhook_user_created_calls_upsert() -> None:
-    from svix.webhooks import Webhook
-
     user = make_user()
     profile = make_profile(user_id=user.id)
 
@@ -170,7 +172,12 @@ async def test_webhook_user_created_calls_upsert() -> None:
             resp = await client.post(
                 "/api/v1/auth/webhook",
                 content=payload,
-                headers={"content-type": "application/json", "svix-id": "x", "svix-signature": "x", "svix-timestamp": "x"},
+                headers={
+                    "content-type": "application/json",
+                    "svix-id": "x",
+                    "svix-signature": "x",
+                    "svix-timestamp": "x",
+                },
             )
 
     assert resp.status_code == 204
@@ -179,6 +186,7 @@ async def test_webhook_user_created_calls_upsert() -> None:
 # ---------------------------------------------------------------------------
 # GET /auth/users — admin only
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_list_users_forbidden_for_regular_user() -> None:
@@ -197,7 +205,10 @@ async def test_list_users_allowed_for_admin() -> None:
         _bypass_middleware(admin),
         patch("app.api.v1.auth.db", create=True),
         patch("sqlalchemy.ext.asyncio.AsyncSession.scalar", new=AsyncMock(return_value=0)),
-        patch("sqlalchemy.ext.asyncio.AsyncSession.scalars", new=AsyncMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+        patch(
+            "sqlalchemy.ext.asyncio.AsyncSession.scalars",
+            new=AsyncMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+        ),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/v1/auth/users", headers=_auth_headers())

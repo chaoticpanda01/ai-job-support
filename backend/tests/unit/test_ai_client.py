@@ -5,14 +5,13 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from anthropic import APIConnectionError, APIStatusError, RateLimitError
-
+from anthropic import APIStatusError, RateLimitError
 from app.services.ai.client import AIClient, AIError, _extract_text
-
 
 # ---------------------------------------------------------------------------
 # _extract_text helper
 # ---------------------------------------------------------------------------
+
 
 def test_extract_text_returns_first_text_block() -> None:
     block = MagicMock()
@@ -34,6 +33,7 @@ def test_extract_text_returns_empty_for_no_text_block() -> None:
 # ---------------------------------------------------------------------------
 # generate — success
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_generate_returns_text_and_tokens() -> None:
@@ -61,6 +61,7 @@ async def test_generate_returns_text_and_tokens() -> None:
 # ---------------------------------------------------------------------------
 # generate — wraps user content in XML tags
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_generate_wraps_user_prompt_in_xml() -> None:
@@ -93,6 +94,7 @@ async def test_generate_wraps_user_prompt_in_xml() -> None:
 # generate — retries on rate limit then raises AIError
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_generate_raises_ai_error_after_retries() -> None:
     client = AIClient.__new__(AIClient)
@@ -106,14 +108,15 @@ async def test_generate_raises_ai_error_after_retries() -> None:
         patch("app.services.ai.client._RETRY_DELAYS", (0.0, 0.0, 0.0)),
         patch("app.services.ai.client.asyncio.sleep", new=AsyncMock()),
         patch("app.config.settings.ai_fallback_enabled", False),
+        pytest.raises(AIError),
     ):
-        with pytest.raises(AIError):
-            await client.generate("sys", "user", max_tokens=100)
+        await client.generate("sys", "user", max_tokens=100)
 
 
 # ---------------------------------------------------------------------------
 # generate — non-retryable 4xx raises immediately
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_generate_raises_immediately_on_4xx() -> None:

@@ -8,16 +8,14 @@ run without a live database or Clerk account.
 from __future__ import annotations
 
 import time
-import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
-from app.models.enums import UserRole
+from httpx import ASGITransport, AsyncClient
+
 from tests.conftest import make_user
 
 FAKE_JWKS = {"keys": []}
@@ -44,6 +42,7 @@ def _patch_resolve(user: Any) -> Any:
 # Bypass paths
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_health_bypasses_auth() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -55,6 +54,7 @@ async def test_health_bypasses_auth() -> None:
 # ---------------------------------------------------------------------------
 # Missing / malformed token
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_missing_auth_header_returns_401() -> None:
@@ -75,12 +75,16 @@ async def test_malformed_bearer_returns_401() -> None:
 # Invalid / expired token
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_invalid_token_returns_401() -> None:
     from jose import JWTError
+
     with _patch_jwks(), patch("app.middleware.clerk_auth.jwt.decode", side_effect=JWTError("bad")):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer bad.token"})
+            resp = await client.get(
+                "/api/v1/auth/me", headers={"Authorization": "Bearer bad.token"}
+            )
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid token"
 
@@ -88,8 +92,10 @@ async def test_invalid_token_returns_401() -> None:
 @pytest.mark.asyncio
 async def test_expired_token_returns_401() -> None:
     from jose.exceptions import ExpiredSignatureError
-    with _patch_jwks(), patch(
-        "app.middleware.clerk_auth.jwt.decode", side_effect=ExpiredSignatureError("expired")
+
+    with (
+        _patch_jwks(),
+        patch("app.middleware.clerk_auth.jwt.decode", side_effect=ExpiredSignatureError("expired")),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer expired"})
@@ -100,6 +106,7 @@ async def test_expired_token_returns_401() -> None:
 # ---------------------------------------------------------------------------
 # User not in DB
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_user_not_in_db_returns_401() -> None:
@@ -114,6 +121,7 @@ async def test_user_not_in_db_returns_401() -> None:
 # Deactivated user
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_inactive_user_returns_401() -> None:
     inactive_user = make_user(is_active=False)
@@ -127,6 +135,7 @@ async def test_inactive_user_returns_401() -> None:
 # ---------------------------------------------------------------------------
 # Successful auth sets request.state
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_valid_token_passes_through() -> None:
@@ -150,6 +159,7 @@ async def test_valid_token_passes_through() -> None:
 # ---------------------------------------------------------------------------
 # JWKS cache
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_jwks_cache_is_used_on_second_call() -> None:

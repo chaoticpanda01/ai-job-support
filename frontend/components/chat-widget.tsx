@@ -12,7 +12,8 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips! 🇯🇵",
+      content:
+        "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips! 🇯🇵",
     },
   ]);
   const [input, setInput] = useState("");
@@ -76,7 +77,7 @@ export function ChatWidget() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat window */}
       {open && (
-        <div className="flex flex-col w-80 sm:w-96 h-[500px] rounded-2xl border bg-background shadow-xl overflow-hidden">
+        <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border bg-background shadow-xl sm:w-96">
           {/* Header */}
           <div className="flex items-center justify-between bg-primary px-4 py-3">
             <div className="flex items-center gap-2">
@@ -89,24 +90,24 @@ export function ChatWidget() {
             <button
               onClick={() => setOpen(false)}
               aria-label="Close chat"
-              className="text-primary-foreground/70 hover:text-primary-foreground text-lg leading-none"
+              className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground"
             >
               ✕
             </button>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-muted text-foreground rounded-bl-sm"
+                      ? "rounded-br-sm bg-primary text-primary-foreground"
+                      : "rounded-bl-sm bg-muted text-foreground"
                   }`}
                 >
                   {msg.content}
@@ -115,7 +116,7 @@ export function ChatWidget() {
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl rounded-bl-sm px-3 py-2 text-sm text-muted-foreground">
+                <div className="rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
                   Thinking…
                 </div>
               </div>
@@ -124,7 +125,7 @@ export function ChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="border-t p-3 flex gap-2">
+          <div className="flex gap-2 border-t p-3">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -136,7 +137,7 @@ export function ChatWidget() {
             <button
               onClick={sendMessage}
               disabled={loading || !input.trim()}
-              className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               Send
             </button>
@@ -147,7 +148,7 @@ export function ChatWidget() {
       {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg hover:opacity-90 transition-opacity"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg transition-opacity hover:opacity-90"
         aria-label="Open chat"
       >
         {open ? "✕" : "💬"}

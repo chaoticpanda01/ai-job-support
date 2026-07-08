@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -49,6 +50,7 @@ _MATCH_MAX_TOKENS = 2048
 # ---------------------------------------------------------------------------
 # Translate
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/translate",
@@ -139,7 +141,7 @@ async def translate_job(
         source_platform="manual",
         original_description=body.raw_text,
         original_language="ja",
-        original_title=None,              # raw text paste — no parsed Japanese title
+        original_title=None,  # raw text paste — no parsed Japanese title
         original_company=sd.company_name,
         translated_title=parsed.translated_title,
         translated_description=parsed.translated_description,
@@ -179,13 +181,16 @@ async def translate_job(
 # List
 # ---------------------------------------------------------------------------
 
+
 @router.get("", response_model=JobPostingListResponse)
 async def list_jobs(
     current_user: AuthUser,
     db: DbSession,
     pagination: PaginationDep,
     q: str | None = Query(None, description="Full-text search on title and summary"),
-    min_score: float | None = Query(None, ge=0, le=100, description="Minimum foreigner-friendliness score"),
+    min_score: float | None = Query(
+        None, ge=0, le=100, description="Minimum foreigner-friendliness score"
+    ),
 ) -> JobPostingListResponse:
     """List active (non-deleted) job postings. Supports search and score filtering."""
     job_repo = JobPostingRepository(db)
@@ -213,6 +218,7 @@ async def list_jobs(
 # Get detail
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{job_id}", response_model=JobPostingDetailResponse)
 async def get_job(
     job_id: UUID,
@@ -230,6 +236,7 @@ async def get_job(
 # ---------------------------------------------------------------------------
 # Soft-delete (submitter only)
 # ---------------------------------------------------------------------------
+
 
 @router.delete("/{job_id}", status_code=status.HTTP_200_OK)
 async def delete_job(
@@ -252,6 +259,7 @@ async def delete_job(
 # ---------------------------------------------------------------------------
 # Match score
 # ---------------------------------------------------------------------------
+
 
 @router.post("/{job_id}/match", response_model=MatchScoreResponse, status_code=status.HTTP_200_OK)
 async def match_job(
@@ -403,6 +411,7 @@ async def match_job(
 # Application tracker
 # ---------------------------------------------------------------------------
 
+
 def _application_response(app) -> JobApplicationResponse:  # type: ignore[no-untyped-def]
     """Build response with denormalised posting title/company."""
     posting = getattr(app, "job_posting", None)
@@ -434,9 +443,10 @@ async def create_application(
     Add a job to the application tracker at 'planning' status.
     If an application for this job already exists, returns the existing one.
     """
-    from app.models.enums import ApplicationStatus
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models.enums import ApplicationStatus
     from app.models.job import JobApplication
 
     job_repo = JobPostingRepository(db)
@@ -482,10 +492,11 @@ async def list_applications(
     Optional ?status= filter (planning|applied|interviewing|offered|rejected|withdrawn).
     Results are ordered by updated_at desc within each status.
     """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models.enums import ApplicationStatus
     from app.models.job import JobApplication
-    from sqlalchemy.orm import selectinload
-    from sqlalchemy import select
 
     stmt = (
         select(JobApplication)
@@ -497,11 +508,11 @@ async def list_applications(
     if status_filter:
         try:
             s = ApplicationStatus(status_filter)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid status '{status_filter}'.",
-            )
+            ) from exc
         stmt = stmt.where(JobApplication.status == s)
 
     result = await db.scalars(stmt)
@@ -517,11 +528,13 @@ async def update_application(
     db: DbSession,
 ) -> JobApplicationResponse:
     """Update the status and/or notes of a tracked application."""
+    from datetime import datetime
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models.enums import ApplicationStatus
     from app.models.job import JobApplication
-    from sqlalchemy.orm import selectinload
-    from sqlalchemy import select
-    from datetime import datetime, timezone
 
     app = await db.scalar(
         select(JobApplication)
@@ -538,20 +551,21 @@ async def update_application(
     if body.status is not None:
         try:
             new_status = ApplicationStatus(body.status)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid status '{body.status}'.",
-            )
+            ) from exc
         kwargs["status"] = new_status
         if new_status == ApplicationStatus.applied and app.applied_at is None:
-            kwargs["applied_at"] = datetime.now(tz=timezone.utc)
+            kwargs["applied_at"] = datetime.now(tz=UTC)
 
     if body.notes is not None:
         kwargs["notes"] = body.notes
 
     if kwargs:
         from app.repositories.job import JobApplicationRepository as _Repo
+
         app_repo = _Repo(db)
         app = await app_repo.update(app, **kwargs)
         await db.flush()
@@ -572,8 +586,9 @@ async def delete_application(
     db: DbSession,
 ) -> dict:
     """Remove a job from the application tracker."""
-    from app.models.job import JobApplication
     from sqlalchemy import select
+
+    from app.models.job import JobApplication
 
     app = await db.scalar(
         select(JobApplication).where(

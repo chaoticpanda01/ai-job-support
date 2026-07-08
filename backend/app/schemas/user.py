@@ -17,10 +17,10 @@ from app.models.enums import (
     VisaStatus,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared config
 # ---------------------------------------------------------------------------
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -29,6 +29,7 @@ class _Base(BaseModel):
 # ---------------------------------------------------------------------------
 # Profile
 # ---------------------------------------------------------------------------
+
 
 class ProfileResponse(_Base):
     id: UUID
@@ -66,6 +67,7 @@ class ProfileUpdateRequest(_Base):
 # User
 # ---------------------------------------------------------------------------
 
+
 class UserResponse(_Base):
     id: UUID
     clerk_id: str
@@ -83,6 +85,7 @@ class UserResponse(_Base):
 
 class MeResponse(_Base):
     """Combined user + profile returned by GET /auth/me."""
+
     user: UserResponse
     profile: ProfileResponse | None
 
@@ -90,6 +93,7 @@ class MeResponse(_Base):
 # ---------------------------------------------------------------------------
 # Clerk webhook payloads
 # ---------------------------------------------------------------------------
+
 
 class ClerkEmailAddress(BaseModel):
     email_address: str
@@ -112,6 +116,7 @@ class ClerkWebhookEvent(BaseModel):
 # ---------------------------------------------------------------------------
 # Admin — user list
 # ---------------------------------------------------------------------------
+
 
 class UserListResponse(_Base):
     items: list[UserResponse]

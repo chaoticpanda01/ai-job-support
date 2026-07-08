@@ -6,13 +6,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from app.utils.pdf_generator import PDFGenerationError, html_to_pdf, verify_fonts
-
 
 # ---------------------------------------------------------------------------
 # html_to_pdf
 # ---------------------------------------------------------------------------
+
 
 def test_html_to_pdf_returns_bytes() -> None:
     mock_html_cls = MagicMock()
@@ -46,15 +45,17 @@ def test_html_to_pdf_raises_on_weasyprint_error() -> None:
         patch("app.utils.pdf_generator.CSS", MagicMock()),
         patch("app.utils.pdf_generator.FontConfiguration", MagicMock()),
         patch("app.utils.pdf_generator._resolve_font_path", return_value="/fonts"),
+        pytest.raises(PDFGenerationError, match="PDF rendering failed"),
     ):
-        with pytest.raises(PDFGenerationError, match="PDF rendering failed"):
-            html_to_pdf("<p>bad</p>")
+        html_to_pdf("<p>bad</p>")
 
 
 def test_html_to_pdf_raises_when_weasyprint_not_installed() -> None:
-    with patch.dict("sys.modules", {"weasyprint": None}):
-        with pytest.raises(PDFGenerationError, match="weasyprint is not installed"):
-            html_to_pdf("<p>test</p>")
+    with (
+        patch.dict("sys.modules", {"weasyprint": None}),
+        pytest.raises(PDFGenerationError, match="weasyprint is not installed"),
+    ):
+        html_to_pdf("<p>test</p>")
 
 
 def test_html_wraps_body_fragment() -> None:
@@ -89,6 +90,7 @@ def test_html_wraps_body_fragment() -> None:
 # ---------------------------------------------------------------------------
 # verify_fonts
 # ---------------------------------------------------------------------------
+
 
 def test_verify_fonts_returns_true_when_files_exist(tmp_path: Path) -> None:
     (tmp_path / "NotoSansJP-Regular.otf").touch()

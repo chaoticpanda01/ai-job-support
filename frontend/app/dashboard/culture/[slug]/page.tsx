@@ -22,9 +22,7 @@ export default function CultureTopicPage({ params }: Props) {
   if (error || !topic) {
     return (
       <div className="space-y-4">
-        <Breadcrumbs
-          items={[{ label: t("culture", "title", lang), href: "/dashboard/culture" }]}
-        />
+        <Breadcrumbs items={[{ label: t("culture", "title", lang), href: "/dashboard/culture" }]} />
         <p className="text-sm text-destructive">{t("culture", "notFound", lang)}</p>
       </div>
     );
@@ -61,7 +59,7 @@ export default function CultureTopicPage({ params }: Props) {
       </div>
 
       <div className="rounded-lg border bg-card p-6">
-        <div className="prose prose-sm max-w-none dark:prose-invert">
+        <div className="prose prose-sm dark:prose-invert max-w-none">
           <ReactMarkdown>{topic.body}</ReactMarkdown>
         </div>
       </div>

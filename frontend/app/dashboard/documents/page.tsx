@@ -59,20 +59,24 @@ export default function DocumentsPage() {
 
       {isLoading && <DocumentsSkeleton />}
 
-      {error && (
-        <p className="text-sm text-destructive">{t("documents", "loadError", lang)}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{t("documents", "loadError", lang)}</p>}
 
       {data && data.items.length === 0 && !isLoading && (
         <div className="rounded-lg border border-dashed p-10 text-center">
           <p className="text-sm text-muted-foreground">{t("documents", "noDocuments", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {t("documents", "generateA", lang)}{" "}
-            <Link href="/dashboard/documents/rirekisho/new" className="underline hover:text-foreground">
+            <Link
+              href="/dashboard/documents/rirekisho/new"
+              className="underline hover:text-foreground"
+            >
               履歴書
             </Link>{" "}
             {t("documents", "orLabel", lang)}{" "}
-            <Link href="/dashboard/documents/shokumu/new" className="underline hover:text-foreground">
+            <Link
+              href="/dashboard/documents/shokumu/new"
+              className="underline hover:text-foreground"
+            >
               職務経歴書
             </Link>{" "}
             {t("documents", "toGetStarted", lang)}
@@ -98,7 +102,7 @@ function DocumentCard({ doc }: { doc: Document }) {
 
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
           PDF
         </div>
@@ -126,16 +130,16 @@ function DocumentCard({ doc }: { doc: Document }) {
 function StatusBadge({ status }: { status: DocumentStatus }) {
   const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
-    pending:    "bg-warning/10 text-warning",
+    pending: "bg-warning/10 text-warning",
     processing: "bg-primary/10 text-primary",
-    completed:  "bg-success/10 text-success",
-    failed:     "bg-destructive/10 text-destructive",
+    completed: "bg-success/10 text-success",
+    failed: "bg-destructive/10 text-destructive",
   };
   const labels: Record<DocumentStatus, string> = {
-    pending:    t("documents", "statusPending", lang),
+    pending: t("documents", "statusPending", lang),
     processing: t("documents", "statusProcessing", lang),
-    completed:  t("documents", "statusCompleted", lang),
-    failed:     t("documents", "statusFailed", lang),
+    completed: t("documents", "statusCompleted", lang),
+    failed: t("documents", "statusFailed", lang),
   };
   return (
     <span

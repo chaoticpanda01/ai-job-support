@@ -3,7 +3,8 @@ Document endpoints.
 
 POST   /documents/rirekisho          — create & enqueue 履歴書 generation
 POST   /documents/shokumu            — create & enqueue 職務経歴書 generation
-GET    /documents                    — list user's generated documents (?type=rirekisho|shokumukeirekisho)
+GET    /documents                    — list user's generated documents
+                                        (?type=rirekisho|shokumukeirekisho)
 GET    /documents/{id}               — poll status (lightweight)
 GET    /documents/{id}/download      — get detail with presigned download URL
 """
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _require_doc(doc: GeneratedDocument | None) -> GeneratedDocument:
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -53,6 +55,7 @@ async def _owned_doc(doc_id: UUID, user_id: UUID, db: AsyncSession) -> Generated
 # ---------------------------------------------------------------------------
 # Create — 履歴書
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/rirekisho",
@@ -99,6 +102,7 @@ async def create_rirekisho(
 # Create — 職務経歴書
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/shokumu",
     response_model=DocumentStatusResponse,
@@ -144,6 +148,7 @@ async def create_shokumu(
 # List
 # ---------------------------------------------------------------------------
 
+
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
     current_user: AuthUser,
@@ -175,6 +180,7 @@ async def list_documents(
 # Status poll
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{document_id}", response_model=DocumentStatusResponse)
 async def get_document_status(
     document_id: UUID,
@@ -194,6 +200,7 @@ async def get_document_status(
 # ---------------------------------------------------------------------------
 # Download
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{document_id}/download", response_model=DocumentDetailResponse)
 async def download_document(

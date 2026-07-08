@@ -1,18 +1,18 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.job import JobApplication, JobMatch, JobPosting, SavedJob
 from app.models.enums import ApplicationStatus
+from app.models.job import JobApplication, JobMatch, JobPosting, SavedJob
 from app.repositories.base import BaseRepository
-
 
 # ---------------------------------------------------------------------------
 # Active job postings filter (applied everywhere)
 # ---------------------------------------------------------------------------
+
 
 def _active(stmt):  # type: ignore[no-untyped-def]
     """Append WHERE deleted_at IS NULL to any job_postings statement."""
@@ -26,9 +26,7 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         super().__init__(session)
 
     async def get_active(self, job_id: UUID) -> JobPosting | None:
-        return await self.session.scalar(
-            _active(select(JobPosting).where(JobPosting.id == job_id))
-        )
+        return await self.session.scalar(_active(select(JobPosting).where(JobPosting.id == job_id)))
 
     async def get_by_url(self, source_url: str) -> JobPosting | None:
         """Returns the active (non-deleted, non-expired) posting for a URL."""
@@ -50,9 +48,7 @@ class JobPostingRepository(BaseRepository[JobPosting]):
     ) -> list[JobPosting]:
         stmt = _active(select(JobPosting))
         if min_friendliness is not None:
-            stmt = stmt.where(
-                JobPosting.foreigner_friendliness_score >= min_friendliness
-            )
+            stmt = stmt.where(JobPosting.foreigner_friendliness_score >= min_friendliness)
         stmt = stmt.order_by(JobPosting.created_at.desc()).offset(offset).limit(limit)
         return await self._scalars(stmt)
 
@@ -99,14 +95,10 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         await self.session.flush()
         return result.scalar() is not None
 
-    async def set_cache_expiry(
-        self, job_id: UUID, days: int
-    ) -> None:
-        expiry = datetime.now(tz=timezone.utc) + timedelta(days=days)
+    async def set_cache_expiry(self, job_id: UUID, days: int) -> None:
+        expiry = datetime.now(tz=UTC) + timedelta(days=days)
         await self.session.execute(
-            update(JobPosting)
-            .where(JobPosting.id == job_id)
-            .values(cached_until=expiry)
+            update(JobPosting).where(JobPosting.id == job_id).values(cached_until=expiry)
         )
         await self.session.flush()
 
@@ -128,9 +120,7 @@ class JobMatchRepository(BaseRepository[JobMatch]):
             )
         )
 
-    async def list_top_matches(
-        self, user_id: UUID, *, limit: int = 10
-    ) -> list[JobMatch]:
+    async def list_top_matches(self, user_id: UUID, *, limit: int = 10) -> list[JobMatch]:
         return await self._scalars(
             select(JobMatch)
             .where(JobMatch.user_id == user_id)
@@ -171,9 +161,7 @@ class SavedJobRepository(BaseRepository[SavedJob]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
 
-    async def get_for_user_and_job(
-        self, user_id: UUID, job_posting_id: UUID
-    ) -> SavedJob | None:
+    async def get_for_user_and_job(self, user_id: UUID, job_posting_id: UUID) -> SavedJob | None:
         return await self.session.scalar(
             select(SavedJob).where(
                 SavedJob.user_id == user_id,
@@ -220,7 +208,7 @@ class JobApplicationRepository(BaseRepository[JobApplication]):
         else:
             kwargs: dict[str, Any] = {"status": status}
             if status == ApplicationStatus.applied and app.applied_at is None:
-                kwargs["applied_at"] = datetime.now(tz=timezone.utc)
+                kwargs["applied_at"] = datetime.now(tz=UTC)
             app = await self.update(app, **kwargs)
         return app
 

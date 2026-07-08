@@ -1,10 +1,8 @@
-from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -12,7 +10,8 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -24,8 +23,8 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.job import JobPosting
+    from app.models.user import User
 
 
 class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -72,9 +71,7 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     language: Mapped[PreferredLanguage] = mapped_column(
         sa_preferred_language, nullable=False, server_default=text("'id'")
     )
-    is_primary: Mapped[bool] = mapped_column(
-        nullable=False, server_default=text("false")
-    )
+    is_primary: Mapped[bool] = mapped_column(nullable=False, server_default=text("false"))
     parsed_content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     # --- Relationships ---

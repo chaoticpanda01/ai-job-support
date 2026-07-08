@@ -32,9 +32,7 @@ export default function NewRirekishoPage() {
           {t("documents", "backToDocuments", lang)}
         </Link>
         <h1 className="mt-4 text-2xl font-semibold">{t("documents", "generateRirekisho", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("documents", "rirekishoSub", lang)}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("documents", "rirekishoSub", lang)}</p>
       </div>
 
       <DocumentWizard

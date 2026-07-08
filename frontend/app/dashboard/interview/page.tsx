@@ -27,18 +27,13 @@ export default function InterviewPage() {
 
       {isLoading && <SessionsSkeleton />}
 
-      {error && (
-        <p className="text-sm text-destructive">{t("interview", "loadError", lang)}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{t("interview", "loadError", lang)}</p>}
 
       {sessions && sessions.length === 0 && !isLoading && (
         <div className="rounded-lg border border-dashed p-10 text-center">
           <p className="text-sm text-muted-foreground">{t("interview", "noSessions", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            <Link
-              href="/dashboard/interview/new"
-              className="underline hover:text-foreground"
-            >
+            <Link href="/dashboard/interview/new" className="underline hover:text-foreground">
               {t("interview", "startFirst", lang)}
             </Link>
           </p>

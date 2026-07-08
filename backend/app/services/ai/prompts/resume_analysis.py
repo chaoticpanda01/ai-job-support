@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Response schema — used by ResponseParser to validate Claude's output
 # ---------------------------------------------------------------------------
+
 
 class ResumeAnalysisResult(BaseModel):
     japan_market_score: int = Field(ge=0, le=100)
@@ -38,6 +38,7 @@ class ResumeAnalysisResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\

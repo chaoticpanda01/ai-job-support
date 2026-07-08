@@ -59,9 +59,7 @@ export default function JobsPage() {
         />
         <select
           value={minScore ?? ""}
-          onChange={(e) =>
-            setMinScore(e.target.value ? Number(e.target.value) : undefined)
-          }
+          onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : undefined)}
           className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">{t("jobs", "allScores", lang)}</option>
@@ -69,10 +67,7 @@ export default function JobsPage() {
           <option value="70">Score ≥ 70</option>
           <option value="80">Score ≥ 80</option>
         </select>
-        <button
-          type="submit"
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-        >
+        <button type="submit" className="rounded-md border px-4 py-2 text-sm hover:bg-accent">
           {t("common", "search", lang)}
         </button>
         {(search || minScore !== undefined) && (
@@ -92,18 +87,13 @@ export default function JobsPage() {
 
       {isLoading && <JobsSkeleton />}
 
-      {error && (
-        <p className="text-sm text-destructive">{t("jobs", "loadError", lang)}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{t("jobs", "loadError", lang)}</p>}
 
       {data && data.items.length === 0 && !isLoading && (
         <div className="rounded-lg border border-dashed p-10 text-center">
           <p className="text-sm text-muted-foreground">{t("jobs", "noPostings", lang)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            <Link
-              href="/dashboard/jobs/translate"
-              className="underline hover:text-foreground"
-            >
+            <Link href="/dashboard/jobs/translate" className="underline hover:text-foreground">
               {t("jobs", "translateLink", lang)}
             </Link>{" "}
             {t("jobs", "toGetStarted", lang)}
@@ -175,9 +165,7 @@ function JobCard({ job }: { job: JobPosting }) {
             </p>
           )}
           {job.translation_summary && (
-            <p className="line-clamp-2 text-xs text-muted-foreground">
-              {job.translation_summary}
-            </p>
+            <p className="line-clamp-2 text-xs text-muted-foreground">{job.translation_summary}</p>
           )}
           <div className="flex flex-wrap gap-2 pt-1">
             {sd?.required_japanese && sd.required_japanese !== "none" && (
@@ -230,9 +218,7 @@ function Tag({
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-        variant === "positive"
-          ? "bg-success/10 text-success"
-          : "bg-muted text-muted-foreground"
+        variant === "positive" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
       }`}
     >
       {children}

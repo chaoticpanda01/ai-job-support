@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 class _BaseTask(Task):  # type: ignore[type-arg]
     abstract = True
 
-    def on_failure(self, exc: Exception, task_id: str, args: list, kwargs: dict, einfo: object) -> None:
+    def on_failure(
+        self, exc: Exception, task_id: str, args: list, kwargs: dict, einfo: object
+    ) -> None:
         logger.error("Task %s failed: %s", task_id, exc)
 
 
@@ -70,8 +72,7 @@ async def _run_analysis(
     analysis_type: str,
     job_posting_id: UUID | None,
 ) -> dict:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
+    from app.config import settings
     from app.database import AsyncSessionFactory
     from app.models.enums import AnalysisType
     from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
@@ -85,7 +86,6 @@ async def _run_analysis(
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
     from app.services.file_storage import file_storage
     from app.services.resume_parser import ParseError, extract_text
-    from app.config import settings
 
     async with AsyncSessionFactory() as db:
         # -- Load resume

@@ -130,7 +130,7 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
     score >= 81 ? "text-green-600" : score >= 61 ? "text-yellow-600" : "text-red-600";
 
   return (
-    <div className="space-y-6 rounded-lg border bg-card p-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 rounded-lg border bg-card p-6">
       {/* Score */}
       <div className="flex items-center gap-4">
         <div className={`text-5xl font-bold tabular-nums ${scoreColor}`}>{score}</div>
@@ -143,13 +143,21 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
       <hr />
 
       {r.strengths.length > 0 && (
-        <AnalysisSection title={t("resumes", "strengths", lang)} items={r.strengths} variant="positive" />
+        <AnalysisSection
+          title={t("resumes", "strengths", lang)}
+          items={r.strengths}
+          variant="positive"
+        />
       )}
       {r.gaps.length > 0 && (
         <AnalysisSection title={t("resumes", "gaps", lang)} items={r.gaps} variant="negative" />
       )}
       {r.recommendations.length > 0 && (
-        <AnalysisSection title={t("resumes", "recommendations", lang)} items={r.recommendations} variant="neutral" />
+        <AnalysisSection
+          title={t("resumes", "recommendations", lang)}
+          items={r.recommendations}
+          variant="neutral"
+        />
       )}
 
       <div>
@@ -166,9 +174,8 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {t("resumes", "analysedAt", lang)}{" "}
-        {new Date(analysis.created_at).toLocaleString()} · {analysis.ai_model} ·{" "}
-        {analysis.input_tokens + analysis.output_tokens} tokens
+        {t("resumes", "analysedAt", lang)} {new Date(analysis.created_at).toLocaleString()} ·{" "}
+        {analysis.ai_model} · {analysis.input_tokens + analysis.output_tokens} tokens
       </p>
     </div>
   );
@@ -184,11 +191,7 @@ function AnalysisSection({
   variant: "positive" | "negative" | "neutral";
 }) {
   const dot =
-    variant === "positive"
-      ? "bg-green-500"
-      : variant === "negative"
-        ? "bg-red-500"
-        : "bg-blue-500";
+    variant === "positive" ? "bg-green-500" : variant === "negative" ? "bg-red-500" : "bg-blue-500";
 
   return (
     <div>

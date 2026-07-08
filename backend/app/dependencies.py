@@ -20,6 +20,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 # request.state.user_id/clerk_id/email/role. This dependency just reads it.
 # ---------------------------------------------------------------------------
 
+
 class CurrentUser:
     """Lightweight holder for the authenticated user's identity."""
 
@@ -74,6 +75,7 @@ AdminUser = Annotated[CurrentUser, Depends(get_admin_user)]
 # ---------------------------------------------------------------------------
 # Pagination dependency
 # ---------------------------------------------------------------------------
+
 
 class Pagination:
     DEFAULT_LIMIT = 20

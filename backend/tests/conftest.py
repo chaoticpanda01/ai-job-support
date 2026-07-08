@@ -9,21 +9,14 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
-
-from app.database import get_db
 from app.main import app
-from app.models.base import Base
 from app.models.enums import SubscriptionTier, UserRole
 from app.models.user import Profile, User
+from httpx import ASGITransport, AsyncClient
 
 # ---------------------------------------------------------------------------
 # Test database — use a separate SQLite-compatible or real PG test DB.

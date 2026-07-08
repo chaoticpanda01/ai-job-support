@@ -17,6 +17,7 @@ class _Base(BaseModel):
 # Session
 # ---------------------------------------------------------------------------
 
+
 class InterviewSessionResponse(_Base):
     id: UUID
     user_id: UUID
@@ -49,8 +50,11 @@ class InterviewSessionDetailResponse(InterviewSessionResponse):
 # Requests
 # ---------------------------------------------------------------------------
 
+
 class CreateSessionRequest(_Base):
-    session_type: str = Field(default="general", pattern="^(general|behavioral|technical|culture_fit)$")
+    session_type: str = Field(
+        default="general", pattern="^(general|behavioral|technical|culture_fit)$"
+    )
     target_role: str | None = None
     target_company: str | None = None
     language: str = Field(default="ja", pattern="^(ja|en|id)$")

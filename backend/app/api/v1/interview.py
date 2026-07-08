@@ -51,6 +51,7 @@ _HISTORY_WINDOW = 20
 # Create session + stream first question
 # ---------------------------------------------------------------------------
 
+
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: CreateSessionRequest,
@@ -123,6 +124,7 @@ async def create_session(
 # Send user answer + stream eval + next question
 # ---------------------------------------------------------------------------
 
+
 @router.post("/sessions/{session_id}/message")
 async def send_message(
     session_id: UUID,
@@ -158,8 +160,7 @@ async def send_message(
     msg_repo = InterviewMessageRepository(db)
     history_rows = await msg_repo.get_last_n(session_id, _HISTORY_WINDOW)
     conversation_history = [
-        {"role": row.role.value, "content": row.content}
-        for row in history_rows
+        {"role": row.role.value, "content": row.content} for row in history_rows
     ]
 
     # The last interviewer message is the question being answered
@@ -195,6 +196,7 @@ async def send_message(
 # End session + stream summary
 # ---------------------------------------------------------------------------
 
+
 @router.put("/sessions/{session_id}/end")
 async def end_session(
     session_id: UUID,
@@ -226,11 +228,10 @@ async def end_session(
     msg_repo = InterviewMessageRepository(db)
     all_messages = await msg_repo.list_for_session(session_id)
 
-    conversation_history = [
-        {"role": m.role.value, "content": m.content} for m in all_messages
-    ]
+    conversation_history = [{"role": m.role.value, "content": m.content} for m in all_messages]
     per_answer_scores = [
-        m.ai_evaluation for m in all_messages
+        m.ai_evaluation
+        for m in all_messages
         if m.role.value == "user" and m.ai_evaluation is not None
     ]
 
@@ -255,6 +256,7 @@ async def end_session(
 # Get session with messages
 # ---------------------------------------------------------------------------
 
+
 @router.get("/sessions/{session_id}", response_model=InterviewSessionDetailResponse)
 async def get_session(
     session_id: UUID,
@@ -271,6 +273,7 @@ async def get_session(
 # ---------------------------------------------------------------------------
 # List completed sessions
 # ---------------------------------------------------------------------------
+
 
 @router.get("/sessions", response_model=list[InterviewSessionResponse])
 async def list_sessions(
@@ -290,6 +293,7 @@ async def list_sessions(
 # ---------------------------------------------------------------------------
 # SSE generator: first question
 # ---------------------------------------------------------------------------
+
 
 async def _stream_question(
     *,
@@ -327,7 +331,9 @@ async def _stream_question(
     t0 = time.monotonic()
 
     try:
-        async for chunk in ai_client.stream(system, user_prompt, max_tokens=_QUESTION_MAX_TOKENS, feature="interview_message"):
+        async for chunk in ai_client.stream(
+            system, user_prompt, max_tokens=_QUESTION_MAX_TOKENS, feature="interview_message"
+        ):
             full_text += chunk
             yield _sse("token", chunk)
     except AIError as exc:
@@ -358,6 +364,7 @@ async def _stream_question(
 # SSE generator: evaluate answer + next question
 # ---------------------------------------------------------------------------
 
+
 async def _stream_eval_and_question(
     *,
     session_id: UUID,
@@ -382,7 +389,7 @@ async def _stream_eval_and_question(
         build_question_system_prompt,
         build_question_user_prompt,
     )
-    from app.services.ai.response_parser import ResponseParseError, parse_response
+    from app.services.ai.response_parser import parse_response
     from app.services.ai.usage_tracker import usage_tracker
 
     t0 = time.monotonic()
@@ -394,7 +401,11 @@ async def _stream_eval_and_question(
     eval_result: dict | None = None
     try:
         eval_text, eval_in, eval_out = await ai_client.generate(
-            eval_system, eval_user, max_tokens=_EVAL_MAX_TOKENS, feature="interview_message", json_mode=True
+            eval_system,
+            eval_user,
+            max_tokens=_EVAL_MAX_TOKENS,
+            feature="interview_message",
+            json_mode=True,
         )
         parsed_eval = parse_response(eval_text, InterviewEvalResult)
         eval_result = parsed_eval.model_dump()
@@ -427,7 +438,9 @@ async def _stream_eval_and_question(
 
     full_question = ""
     try:
-        async for chunk in ai_client.stream(q_system, q_user, max_tokens=_QUESTION_MAX_TOKENS, feature="interview_message"):
+        async for chunk in ai_client.stream(
+            q_system, q_user, max_tokens=_QUESTION_MAX_TOKENS, feature="interview_message"
+        ):
             full_question += chunk
             yield _sse("token", chunk)
     except AIError as exc:
@@ -458,6 +471,7 @@ async def _stream_eval_and_question(
 # SSE generator: end-of-session summary
 # ---------------------------------------------------------------------------
 
+
 async def _stream_summary(
     *,
     session_id: UUID,
@@ -470,13 +484,13 @@ async def _stream_summary(
     from app.config import settings
     from app.database import AsyncSessionFactory
     from app.repositories.interview import InterviewSessionRepository
-    from app.services.ai.client import AIError, ai_client
+    from app.services.ai.client import ai_client
     from app.services.ai.prompts.interview import (
         InterviewSummaryResult,
         build_summary_system_prompt,
         build_summary_user_prompt,
     )
-    from app.services.ai.response_parser import ResponseParseError, parse_response
+    from app.services.ai.response_parser import parse_response
     from app.services.ai.usage_tracker import usage_tracker
 
     t0 = time.monotonic()
@@ -490,7 +504,11 @@ async def _stream_summary(
 
     try:
         summary_text, in_tok, out_tok = await ai_client.generate(
-            system, user_prompt, max_tokens=_SUMMARY_MAX_TOKENS, feature="interview_message", json_mode=True
+            system,
+            user_prompt,
+            max_tokens=_SUMMARY_MAX_TOKENS,
+            feature="interview_message",
+            json_mode=True,
         )
         parsed_summary = parse_response(summary_text, InterviewSummaryResult)
     except Exception as exc:
@@ -525,6 +543,7 @@ async def _stream_summary(
 # ---------------------------------------------------------------------------
 # SSE formatting helpers
 # ---------------------------------------------------------------------------
+
 
 def _sse(event_type: str, content: str | dict) -> str:
     payload = json.dumps({"type": event_type, "content": content}, ensure_ascii=False)

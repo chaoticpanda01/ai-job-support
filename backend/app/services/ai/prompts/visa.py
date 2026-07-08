@@ -41,10 +41,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------
+
 
 class VisaChecklistStep(BaseModel):
     id: str = Field(min_length=1)
@@ -74,6 +74,7 @@ class VisaRoadmapResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt builders
 # ---------------------------------------------------------------------------
+
 
 def build_system_prompt() -> str:
     return """\
@@ -168,12 +169,12 @@ def build_user_prompt(profile_snapshot: dict) -> str:
     ]
 
     field_map = [
-        ("nationality",        "Nationality"),
-        ("japanese_level",     "Japanese language level (JLPT)"),
-        ("visa_status",        "Current visa status"),
-        ("years_experience",   "Years of work experience"),
-        ("current_location",   "Current location"),
-        ("target_location",    "Target location in Japan"),
+        ("nationality", "Nationality"),
+        ("japanese_level", "Japanese language level (JLPT)"),
+        ("visa_status", "Current visa status"),
+        ("years_experience", "Years of work experience"),
+        ("current_location", "Current location"),
+        ("target_location", "Target location in Japan"),
         ("preferred_language", "Preferred language"),
     ]
 

@@ -69,11 +69,13 @@ export default function TranslateJobPage() {
             onChange={(e) => setRawText(e.target.value)}
             rows={16}
             placeholder={t("jobs", "jobTextPlaceholder", lang)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+            className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">{t("jobs", "minChars", lang)}</p>
-            <p className={`text-xs tabular-nums ${rawText.trim().length < 50 ? "text-muted-foreground" : "text-green-600"}`}>
+            <p
+              className={`text-xs tabular-nums ${rawText.trim().length < 50 ? "text-muted-foreground" : "text-green-600"}`}
+            >
               {rawText.trim().length} chars
             </p>
           </div>

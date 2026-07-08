@@ -184,13 +184,7 @@ export default function OnboardingPage() {
 // Step 1 — AI processing consent
 // ---------------------------------------------------------------------------
 
-function Step1Consent({
-  onNext,
-  loading,
-}: {
-  onNext: () => Promise<void>;
-  loading: boolean;
-}) {
+function Step1Consent({ onNext, loading }: { onNext: () => Promise<void>; loading: boolean }) {
   const { lang } = useLang();
   const [checked, setChecked] = useState(false);
 
@@ -198,12 +192,10 @@ function Step1Consent({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{t("onboarding", "s1Title", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("onboarding", "s1Sub", lang)}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("onboarding", "s1Sub", lang)}</p>
       </div>
 
-      <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground space-y-2">
+      <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
         <p>{t("onboarding", "s1Agree", lang)}</p>
         <ul className="ml-4 list-disc space-y-1">
           <li>{t("onboarding", "s1P1", lang)}</li>

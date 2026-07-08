@@ -95,7 +95,9 @@ export function ResumeUploader({ onUploaded }: Props) {
           className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           disabled={uploadMutation.isPending}
         >
-          {uploadMutation.isPending ? t("resumes", "uploading", lang) : t("resumes", "chooseFile", lang)}
+          {uploadMutation.isPending
+            ? t("resumes", "uploading", lang)
+            : t("resumes", "chooseFile", lang)}
         </button>
       </div>
 

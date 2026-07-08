@@ -51,7 +51,7 @@ export default function DocumentDetailPage({ params }: Props) {
         ]}
       />
 
-      <div className="rounded-lg border bg-card p-6 space-y-6">
+      <div className="space-y-6 rounded-lg border bg-card p-6">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold">{t("documents", "statusHeading", lang)}</h1>
           <StatusBadge status={statusData.status} />
@@ -97,9 +97,7 @@ function StatusBody({
               ? t("documents", "queued", lang)
               : t("documents", "generating", lang)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t("documents", "genWait", lang)}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("documents", "genWait", lang)}</p>
         </div>
       </div>
     );
@@ -112,13 +110,9 @@ function StatusBody({
           <p className="text-sm font-medium text-destructive">
             {t("documents", "genFailed", lang)}
           </p>
-          {errorMessage && (
-            <p className="mt-1 text-xs text-destructive/80">{errorMessage}</p>
-          )}
+          {errorMessage && <p className="mt-1 text-xs text-destructive/80">{errorMessage}</p>}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {t("documents", "genFailHint", lang)}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("documents", "genFailHint", lang)}</p>
         <Link
           href="/dashboard/documents"
           className="inline-flex items-center rounded-md border px-3 py-2 text-sm hover:bg-accent"
@@ -136,8 +130,7 @@ function StatusBody({
         {t("documents", "genSuccess", lang)}
         {completedAt && (
           <span className="ml-1 text-green-700">
-            {t("documents", "on", lang)}{" "}
-            {new Date(completedAt).toLocaleString()}
+            {t("documents", "on", lang)} {new Date(completedAt).toLocaleString()}
           </span>
         )}
       </div>
@@ -157,9 +150,7 @@ function StatusBody({
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        {t("documents", "linkExpiry", lang)}
-      </p>
+      <p className="text-xs text-muted-foreground">{t("documents", "linkExpiry", lang)}</p>
     </div>
   );
 }
@@ -171,16 +162,16 @@ function StatusBody({
 function StatusBadge({ status }: { status: DocumentStatus }) {
   const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
-    pending:    "bg-yellow-100 text-yellow-800",
+    pending: "bg-yellow-100 text-yellow-800",
     processing: "bg-blue-100 text-blue-800",
-    completed:  "bg-green-100 text-green-800",
-    failed:     "bg-red-100 text-red-800",
+    completed: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
   };
   const labels: Record<DocumentStatus, string> = {
-    pending:    t("documents", "statusPending", lang),
+    pending: t("documents", "statusPending", lang),
     processing: t("documents", "statusProcessing", lang),
-    completed:  t("documents", "statusCompleted", lang),
-    failed:     t("documents", "statusFailed", lang),
+    completed: t("documents", "statusCompleted", lang),
+    failed: t("documents", "statusFailed", lang),
   };
   return (
     <span
@@ -193,7 +184,6 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
     </span>
   );
 }
-
 
 function PageSkeleton() {
   return (

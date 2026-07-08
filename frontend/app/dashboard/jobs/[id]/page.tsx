@@ -70,8 +70,7 @@ function JobHeader({ job }: { job: JobPostingDetail }) {
       )}
       {job.source_url && (
         <p className="text-xs text-muted-foreground">
-          {t("jobs", "source", lang)}{" "}
-          <span className="font-mono">{job.source_url}</span>
+          {t("jobs", "source", lang)} <span className="font-mono">{job.source_url}</span>
         </p>
       )}
     </div>
@@ -94,9 +93,7 @@ function StructuredInfo({ job }: { job: JobPostingDetail }) {
         <InfoRow
           label={t("jobs", "japaneseRequired", lang)}
           value={
-            sd.required_japanese === "none"
-              ? t("jobs", "notRequired", lang)
-              : sd.required_japanese
+            sd.required_japanese === "none" ? t("jobs", "notRequired", lang) : sd.required_japanese
           }
         />
         <InfoRow
@@ -121,7 +118,7 @@ function StructuredInfo({ job }: { job: JobPostingDetail }) {
 
       {sd.key_requirements.length > 0 && (
         <div className="mt-4">
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("jobs", "keyRequirements", lang)}
           </p>
           <ul className="space-y-1">
@@ -137,7 +134,7 @@ function StructuredInfo({ job }: { job: JobPostingDetail }) {
 
       {sd.benefits.length > 0 && (
         <div className="mt-4">
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("jobs", "benefits", lang)}
           </p>
           <ul className="space-y-1">
@@ -171,7 +168,7 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
   if (!job.translated_description && !job.translation_summary) return null;
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="space-y-3 rounded-lg border bg-card p-4">
       <h2 className="text-sm font-medium">{t("jobs", "translatedDesc", lang)}</h2>
 
       {job.translation_summary && (
@@ -184,7 +181,7 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
       {job.translated_description && (
         <>
           <div
-            className={`text-sm leading-relaxed whitespace-pre-wrap overflow-hidden transition-all ${
+            className={`overflow-hidden whitespace-pre-wrap text-sm leading-relaxed transition-all ${
               expanded ? "" : "max-h-48"
             }`}
           >
@@ -220,7 +217,7 @@ function ScoreCard({ score }: { score: number | null }) {
 
   return (
     <div className="rounded-lg border bg-card p-4 text-center">
-      <p className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t("jobs", "foreignerFriendly", lang)}
       </p>
       <p className={`text-5xl font-bold tabular-nums ${color}`}>{rounded}</p>
@@ -240,12 +237,10 @@ function MatchSection({ jobId }: { jobId: string }) {
   const resumes = resumeList?.items ?? [];
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="space-y-4 rounded-lg border bg-card p-4">
       <h2 className="text-sm font-medium">{t("jobs", "matchScore", lang)}</h2>
 
-      {resumesLoading && (
-        <div className="h-8 animate-pulse rounded bg-muted" />
-      )}
+      {resumesLoading && <div className="h-8 animate-pulse rounded bg-muted" />}
 
       {!resumesLoading && resumes.length === 0 && (
         <p className="text-xs text-muted-foreground">
@@ -330,13 +325,21 @@ function MatchResult({ match }: { match: JobMatch }) {
       {rec && (
         <div className="space-y-3">
           {rec.strengths.length > 0 && (
-            <BulletList title={t("jobs", "strengths", lang)} items={rec.strengths} color="bg-green-500" />
+            <BulletList
+              title={t("jobs", "strengths", lang)}
+              items={rec.strengths}
+              color="bg-green-500"
+            />
           )}
           {rec.gaps.length > 0 && (
             <BulletList title={t("jobs", "gaps", lang)} items={rec.gaps} color="bg-red-500" />
           )}
           {rec.actions.length > 0 && (
-            <BulletList title={t("jobs", "actions", lang)} items={rec.actions} color="bg-blue-500" />
+            <BulletList
+              title={t("jobs", "actions", lang)}
+              items={rec.actions}
+              color="bg-blue-500"
+            />
           )}
         </div>
       )}
@@ -346,14 +349,13 @@ function MatchResult({ match }: { match: JobMatch }) {
 
 function SubScore({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value);
-  const barColor =
-    pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
+  const barColor = pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
 
   return (
     <div className="space-y-0.5">
       <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums font-medium">{pct}</span>
+        <span className="font-medium tabular-nums">{pct}</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-muted">
         <div
@@ -365,15 +367,7 @@ function SubScore({ label, value }: { label: string; value: number }) {
   );
 }
 
-function BulletList({
-  title,
-  items,
-  color,
-}: {
-  title: string;
-  items: string[];
-  color: string;
-}) {
+function BulletList({ title, items, color }: { title: string; items: string[]; color: string }) {
   return (
     <div>
       <p className="mb-1 text-xs font-medium">{title}</p>

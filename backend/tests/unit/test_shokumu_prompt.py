@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from app.services.ai.prompts.shokumu import (
     ShokumuCompany,
     ShokumuResult,
@@ -12,11 +10,12 @@ from app.services.ai.prompts.shokumu import (
     build_system_prompt,
     build_user_prompt,
 )
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
+
 
 def test_system_prompt_mentions_shokumukeirekisho() -> None:
     prompt = build_system_prompt()
@@ -26,8 +25,17 @@ def test_system_prompt_mentions_shokumukeirekisho() -> None:
 
 def test_system_prompt_includes_all_schema_fields() -> None:
     prompt = build_system_prompt()
-    for field in ["summary", "companies", "skills", "self_pr", "motivation",
-                  "responsibilities", "achievements", "period_start", "period_end"]:
+    for field in [
+        "summary",
+        "companies",
+        "skills",
+        "self_pr",
+        "motivation",
+        "responsibilities",
+        "achievements",
+        "period_start",
+        "period_end",
+    ]:
         assert field in prompt
 
 
@@ -39,6 +47,7 @@ def test_system_prompt_instructs_reverse_chronological() -> None:
 # ---------------------------------------------------------------------------
 # User prompt
 # ---------------------------------------------------------------------------
+
 
 def test_user_prompt_includes_resume_text() -> None:
     prompt = build_user_prompt("10 years backend engineering")
@@ -73,6 +82,7 @@ def test_user_prompt_no_job_posting_fallback() -> None:
 # ---------------------------------------------------------------------------
 # ShokumuCompany schema
 # ---------------------------------------------------------------------------
+
 
 def _valid_company() -> dict:
     return {
@@ -117,6 +127,7 @@ def test_shokumu_company_current_job_uses_genzai() -> None:
 # ---------------------------------------------------------------------------
 # ShokumuResult schema
 # ---------------------------------------------------------------------------
+
 
 def _valid_result() -> dict:
     return {

@@ -51,15 +51,8 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
   const isWebhook = NO_AUTH_PATHS.has(pathname);
 
-  if (
-    !isWebhook &&
-    STATE_CHANGING_METHODS.has(request.method) &&
-    !isSameOriginRequest(request)
-  ) {
-    return NextResponse.json(
-      { detail: "Cross-site request rejected" },
-      { status: 403 },
-    );
+  if (!isWebhook && STATE_CHANGING_METHODS.has(request.method) && !isSameOriginRequest(request)) {
+    return NextResponse.json({ detail: "Cross-site request rejected" }, { status: 403 });
   }
 
   // Strip the /api prefix — FastAPI already has /api/v1 in its router
@@ -83,9 +76,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
   }
 
   const body =
-    request.method !== "GET" && request.method !== "HEAD"
-      ? await request.arrayBuffer()
-      : undefined;
+    request.method !== "GET" && request.method !== "HEAD" ? await request.arrayBuffer() : undefined;
 
   const upstream = await fetch(targetUrl, {
     method: request.method,
@@ -97,8 +88,8 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.delete("transfer-encoding"); // avoid chunked encoding issues
-  responseHeaders.delete("content-encoding");  // body already decoded by Node fetch; don't re-decode
-  responseHeaders.delete("content-length");    // compressed length no longer valid after decoding
+  responseHeaders.delete("content-encoding"); // body already decoded by Node fetch; don't re-decode
+  responseHeaders.delete("content-length"); // compressed length no longer valid after decoding
 
   // SSE endpoints must stream; everything else should be buffered to avoid
   // issues with gzip-decoded streams being re-encoded or truncated.

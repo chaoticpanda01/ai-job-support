@@ -71,12 +71,8 @@ class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[SubscriptionStatus] = mapped_column(
         sa_subscription_status, nullable=False, server_default=text("'active'")
     )
-    current_period_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    current_period_end: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # --- Relationships ---
@@ -90,9 +86,7 @@ class BillingEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """
 
     __tablename__ = "billing_events"
-    __table_args__ = (
-        UniqueConstraint("stripe_event_id", name="billing_events_stripe_ev_uk"),
-    )
+    __table_args__ = (UniqueConstraint("stripe_event_id", name="billing_events_stripe_ev_uk"),)
 
     user_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
@@ -132,9 +126,7 @@ class NotificationLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL", name="notification_log_user_fk"),
     )
-    channel: Mapped[NotificationChannel] = mapped_column(
-        sa_notification_channel, nullable=False
-    )
+    channel: Mapped[NotificationChannel] = mapped_column(sa_notification_channel, nullable=False)
     template_id: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[NotificationStatus] = mapped_column(
         sa_notification_status, nullable=False, server_default=text("'sent'")
@@ -153,9 +145,7 @@ class SubscriptionLimit(Base):
 
     __tablename__ = "subscription_limits"
 
-    tier: Mapped[SubscriptionTier] = mapped_column(
-        sa_subscription_tier, primary_key=True
-    )
+    tier: Mapped[SubscriptionTier] = mapped_column(sa_subscription_tier, primary_key=True)
     monthly_resume_uploads: Mapped[int] = mapped_column(Integer, nullable=False)
     monthly_analyses: Mapped[int] = mapped_column(Integer, nullable=False)
     monthly_rirekisho: Mapped[int] = mapped_column(Integer, nullable=False)

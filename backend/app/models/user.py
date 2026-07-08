@@ -8,18 +8,17 @@ from sqlalchemy import (
     Computed,
     DateTime,
     ForeignKey,
-    Integer,
     SmallInteger,
     String,
     Text,
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
     JapaneseLevel,
     PreferredLanguage,
@@ -34,7 +33,7 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
-    from app.models.billing import Subscription, BillingEvent, NotificationLog
+    from app.models.billing import BillingEvent, NotificationLog, Subscription
     from app.models.document import GeneratedDocument
     from app.models.interview import InterviewSession
     from app.models.job import JobApplication, JobMatch, SavedJob
@@ -65,9 +64,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     role: Mapped[UserRole] = mapped_column(
         sa_user_role, nullable=False, server_default=text("'user'")
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # --- Relationships ---

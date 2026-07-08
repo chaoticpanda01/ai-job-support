@@ -84,32 +84,29 @@ export function useInterview() {
   }
 
   /** Process a parsed SSE event and update state accordingly. */
-  const _handleEvent = useCallback(
-    (event: SseEvent, onDone?: () => void) => {
-      if (event.type === "token") {
-        textBuffer.current += event.content;
-        setState((s) => ({ ...s, streamingText: textBuffer.current }));
-        return;
-      }
-      if (event.type === "eval") {
-        setState((s) => ({ ...s, lastEval: event.content }));
-        return;
-      }
-      if (event.type === "summary") {
-        setState((s) => ({ ...s, summary: event.content, isStreaming: false }));
-        return;
-      }
-      if (event.type === "done") {
-        setState((s) => ({ ...s, isStreaming: false }));
-        onDone?.();
-        return;
-      }
-      if (event.type === "error") {
-        setState((s) => ({ ...s, isStreaming: false, error: event.content }));
-      }
-    },
-    [],
-  );
+  const _handleEvent = useCallback((event: SseEvent, onDone?: () => void) => {
+    if (event.type === "token") {
+      textBuffer.current += event.content;
+      setState((s) => ({ ...s, streamingText: textBuffer.current }));
+      return;
+    }
+    if (event.type === "eval") {
+      setState((s) => ({ ...s, lastEval: event.content }));
+      return;
+    }
+    if (event.type === "summary") {
+      setState((s) => ({ ...s, summary: event.content, isStreaming: false }));
+      return;
+    }
+    if (event.type === "done") {
+      setState((s) => ({ ...s, isStreaming: false }));
+      onDone?.();
+      return;
+    }
+    if (event.type === "error") {
+      setState((s) => ({ ...s, isStreaming: false, error: event.content }));
+    }
+  }, []);
 
   /** Open an SSE stream to the given path (POST or PUT). */
   const _openStream = useCallback(
@@ -136,7 +133,9 @@ export function useInterview() {
             let detail = `HTTP ${response.status}`;
             try {
               detail = (JSON.parse(text) as { detail: string }).detail ?? detail;
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
             setState((s) => ({ ...s, isStreaming: false, error: detail }));
             ctrl.abort();
             return;
@@ -201,18 +200,13 @@ export function useInterview() {
     (content: string) => {
       if (!sessionId) return;
       setState((s) => ({ ...s, lastEval: null }));
-      _openStream(
-        `/interview/sessions/${sessionId}/message`,
-        "POST",
-        { content },
-        () => {
-          if (sessionId) {
-            void queryClient.invalidateQueries({
-              queryKey: ["interview", "sessions", sessionId],
-            });
-          }
-        },
-      );
+      _openStream(`/interview/sessions/${sessionId}/message`, "POST", { content }, () => {
+        if (sessionId) {
+          void queryClient.invalidateQueries({
+            queryKey: ["interview", "sessions", sessionId],
+          });
+        }
+      });
     },
     [sessionId, _openStream, queryClient],
   );
@@ -220,19 +214,14 @@ export function useInterview() {
   /** End the session and stream the summary. */
   const endSession = useCallback(() => {
     if (!sessionId) return;
-    _openStream(
-      `/interview/sessions/${sessionId}/end`,
-      "PUT",
-      null,
-      () => {
-        void queryClient.invalidateQueries({ queryKey: ["interview", "sessions"] });
-        if (sessionId) {
-          void queryClient.invalidateQueries({
-            queryKey: ["interview", "sessions", sessionId],
-          });
-        }
-      },
-    );
+    _openStream(`/interview/sessions/${sessionId}/end`, "PUT", null, () => {
+      void queryClient.invalidateQueries({ queryKey: ["interview", "sessions"] });
+      if (sessionId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["interview", "sessions", sessionId],
+        });
+      }
+    });
   }, [sessionId, _openStream, queryClient]);
 
   /** Abort any in-flight stream. */

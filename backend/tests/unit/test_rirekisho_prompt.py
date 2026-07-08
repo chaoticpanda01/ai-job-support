@@ -3,20 +3,18 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from app.services.ai.prompts.rirekisho import (
     RirekishoEntry,
-    RirekishoPersonal,
     RirekishoResult,
     build_system_prompt,
     build_user_prompt,
 )
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
+
 
 def test_system_prompt_is_japanese_instruction() -> None:
     prompt = build_system_prompt()
@@ -31,13 +29,21 @@ def test_system_prompt_is_japanese_instruction() -> None:
 
 def test_system_prompt_includes_all_schema_fields() -> None:
     prompt = build_system_prompt()
-    for field in ["personal", "education", "work_history", "qualifications", "self_pr", "motivation"]:
+    for field in [
+        "personal",
+        "education",
+        "work_history",
+        "qualifications",
+        "self_pr",
+        "motivation",
+    ]:
         assert field in prompt
 
 
 # ---------------------------------------------------------------------------
 # User prompt
 # ---------------------------------------------------------------------------
+
 
 def test_user_prompt_includes_resume_text() -> None:
     prompt = build_user_prompt("5 years Java developer at PT. ABC")
@@ -81,6 +87,7 @@ def test_user_prompt_skips_missing_profile_fields() -> None:
 # RirekishoEntry schema
 # ---------------------------------------------------------------------------
 
+
 def test_rirekisho_entry_valid() -> None:
     entry = RirekishoEntry(year=2020, month=4, entry="株式会社ABC 入社")
     assert entry.year == 2020
@@ -100,6 +107,7 @@ def test_rirekisho_entry_empty_entry_rejected() -> None:
 # ---------------------------------------------------------------------------
 # RirekishoResult schema
 # ---------------------------------------------------------------------------
+
 
 def _valid_result() -> dict:
     return {

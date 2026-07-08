@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import stripe
 from stripe import InvalidRequestError, SignatureVerificationError, StripeError
@@ -39,6 +39,7 @@ class StripeWebhookError(Exception):
 # Data transfer objects — avoid leaking stripe SDK types into callers
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class CheckoutSessionResult:
     session_id: str
@@ -53,12 +54,13 @@ class PortalSessionResult:
 @dataclass(frozen=True)
 class ParsedSubscriptionEvent:
     """Normalised data extracted from a subscription-related Stripe event."""
+
     stripe_event_id: str
-    event_type: str                   # raw Stripe event type string
+    event_type: str  # raw Stripe event type string
     stripe_subscription_id: str
     stripe_customer_id: str
-    price_id: str                     # determines tier
-    status: str                       # Stripe subscription status string
+    price_id: str  # determines tier
+    status: str  # Stripe subscription status string
     current_period_start: datetime
     current_period_end: datetime
     cancelled_at: datetime | None
@@ -67,6 +69,7 @@ class ParsedSubscriptionEvent:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
+
 
 class StripeClient:
     """Thin async-friendly wrapper around the Stripe SDK (which is sync)."""
@@ -88,7 +91,7 @@ class StripeClient:
         self,
         customer_email: str,
         price_id: str,
-        client_reference_id: str,   # our internal user UUID
+        client_reference_id: str,  # our internal user UUID
         stripe_customer_id: str | None = None,
     ) -> CheckoutSessionResult:
         """
@@ -160,9 +163,7 @@ class StripeClient:
         except Exception as exc:
             raise StripeWebhookError(f"Webhook parsing failed: {exc}") from exc
 
-    def parse_subscription_event(
-        self, event: stripe.Event
-    ) -> ParsedSubscriptionEvent | None:
+    def parse_subscription_event(self, event: stripe.Event) -> ParsedSubscriptionEvent | None:
         """
         Extract normalised subscription data from a Stripe event.
         Returns None for event types we don't handle.
@@ -195,11 +196,7 @@ class StripeClient:
         price_id = items[0]["price"]["id"] if items else ""
 
         cancelled_at_ts = sub.get("canceled_at")
-        cancelled_at = (
-            datetime.fromtimestamp(cancelled_at_ts, tz=timezone.utc)
-            if cancelled_at_ts
-            else None
-        )
+        cancelled_at = datetime.fromtimestamp(cancelled_at_ts, tz=UTC) if cancelled_at_ts else None
 
         return ParsedSubscriptionEvent(
             stripe_event_id=event.id,
@@ -208,12 +205,8 @@ class StripeClient:
             stripe_customer_id=sub["customer"],
             price_id=price_id,
             status=sub["status"],
-            current_period_start=datetime.fromtimestamp(
-                sub["current_period_start"], tz=timezone.utc
-            ),
-            current_period_end=datetime.fromtimestamp(
-                sub["current_period_end"], tz=timezone.utc
-            ),
+            current_period_start=datetime.fromtimestamp(sub["current_period_start"], tz=UTC),
+            current_period_end=datetime.fromtimestamp(sub["current_period_end"], tz=UTC),
             cancelled_at=cancelled_at,
         )
 

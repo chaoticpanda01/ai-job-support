@@ -27,9 +27,7 @@ export const metadata: Metadata = {
     "AI-powered career enablement platform for Indonesian professionals seeking employment in Japan.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider>
       <html lang="id" className={`${notoSans.variable} ${notoSansJP.variable}`}>

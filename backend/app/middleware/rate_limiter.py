@@ -43,11 +43,13 @@ logger = logging.getLogger(__name__)
 # Paths that skip rate limiting entirely
 # ---------------------------------------------------------------------------
 
-_BYPASS_PATHS: frozenset[tuple[str, str]] = frozenset([
-    ("GET",  "/health"),
-    ("POST", "/api/v1/auth/webhook"),
-    ("POST", "/api/v1/billing/webhook"),
-])
+_BYPASS_PATHS: frozenset[tuple[str, str]] = frozenset(
+    [
+        ("GET", "/health"),
+        ("POST", "/api/v1/auth/webhook"),
+        ("POST", "/api/v1/billing/webhook"),
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # Per-route limits: (method, path_prefix) → (max_requests, window_seconds, scope_name)
@@ -56,31 +58,34 @@ _BYPASS_PATHS: frozenset[tuple[str, str]] = frozenset([
 
 _ROUTE_LIMITS: list[tuple[str, str, int, int, str]] = [
     # method, path_prefix,             max_req, window_sec, scope
-    ("POST", "/api/v1/resumes/upload",   5,  3600, "resume_upload"),
-    ("POST", "/api/v1/jobs/translate",  10,  3600, "job_translate"),
+    ("POST", "/api/v1/resumes/upload", 5, 3600, "resume_upload"),
+    ("POST", "/api/v1/jobs/translate", 10, 3600, "job_translate"),
 ]
 
 # Global per-IP limit applied to every non-bypassed request
-_GLOBAL_IP_LIMIT   = 60
-_GLOBAL_IP_WINDOW  = 60   # seconds
+_GLOBAL_IP_LIMIT = 60
+_GLOBAL_IP_WINDOW = 60  # seconds
 
 # Free-tier AI feature limit — POST requests to known AI endpoints
-_AI_PATHS: frozenset[str] = frozenset([
-    "/api/v1/resumes/",           # analysis triggers
-    "/api/v1/documents/rirekisho",
-    "/api/v1/documents/shokumu",
-    "/api/v1/jobs/translate",
-    "/api/v1/jobs/",              # match scoring
-    "/api/v1/interview/sessions",
-    "/api/v1/visa/consultations",
-])
-_AI_FREE_LIMIT  = 20
+_AI_PATHS: frozenset[str] = frozenset(
+    [
+        "/api/v1/resumes/",  # analysis triggers
+        "/api/v1/documents/rirekisho",
+        "/api/v1/documents/shokumu",
+        "/api/v1/jobs/translate",
+        "/api/v1/jobs/",  # match scoring
+        "/api/v1/interview/sessions",
+        "/api/v1/visa/consultations",
+    ]
+)
+_AI_FREE_LIMIT = 20
 _AI_FREE_WINDOW = 3600
 
 
 # ---------------------------------------------------------------------------
 # Middleware
 # ---------------------------------------------------------------------------
+
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     """
@@ -97,6 +102,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     def _get_redis(self) -> Any:
         if self._redis is None:
             import redis.asyncio as aioredis  # type: ignore[import-untyped]
+
             self._redis = aioredis.from_url(
                 settings.redis_url,
                 encoding="utf-8",
@@ -108,7 +114,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
         method = request.method
-        path   = request.url.path
+        path = request.url.path
 
         # --- Bypass ---
         if (method, path) in _BYPASS_PATHS:
@@ -126,7 +132,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             # 2. Per-route limits (resume upload, job translate)
             for r_method, r_prefix, r_max, r_window, r_scope in _ROUTE_LIMITS:
                 if method == r_method and path.startswith(r_prefix):
-                    user_id = getattr(getattr(request.state, "user_id", None), "__str__", lambda: None)()
+                    user_id = getattr(
+                        getattr(request.state, "user_id", None), "__str__", lambda: None
+                    )()
                     ident = f"{r_scope}:{user_id or client_ip}"
                     if not await _check(redis, ident, r_max, r_window):
                         return _too_many(
@@ -158,6 +166,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _check(redis: Any, key: str, limit: int, window_seconds: int) -> bool:
     """

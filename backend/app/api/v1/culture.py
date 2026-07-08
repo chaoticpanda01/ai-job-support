@@ -9,11 +9,9 @@ GET /culture/glossary            — all glossary entries
 from __future__ import annotations
 
 import logging
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import DbSession
 from app.models.culture import CultureGlossary, CultureTopic
@@ -27,6 +25,7 @@ router = APIRouter(prefix="/culture", tags=["culture"])
 # ---------------------------------------------------------------------------
 # Topics
 # ---------------------------------------------------------------------------
+
 
 @router.get("/topics", response_model=list[CultureTopicSummary])
 async def list_topics(
@@ -69,6 +68,7 @@ async def get_topic(slug: str, db: DbSession) -> CultureTopicDetail:
 # Glossary
 # ---------------------------------------------------------------------------
 
+
 @router.get("/glossary", response_model=list[GlossaryEntry])
 async def list_glossary(
     db: DbSession,
@@ -77,10 +77,7 @@ async def list_glossary(
 ) -> list[GlossaryEntry]:
     """Return Japanese workplace glossary terms with Indonesian definitions."""
     result = await db.scalars(
-        select(CultureGlossary)
-        .order_by(CultureGlossary.term_ja)
-        .offset(offset)
-        .limit(limit)
+        select(CultureGlossary).order_by(CultureGlossary.term_ja).offset(offset).limit(limit)
     )
     entries = list(result.all())
     return [GlossaryEntry.model_validate(e) for e in entries]

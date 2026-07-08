@@ -91,8 +91,8 @@ function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
     <div className="space-y-3">
       <p className="text-sm font-medium">{t("visa", "roadmapPhases", lang)}</p>
       {checklist.phases.map((phase, idx) => (
-        <div key={idx} className="rounded-lg border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/30">
+        <div key={idx} className="overflow-hidden rounded-lg border bg-card">
+          <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
               {idx + 1}
             </span>
@@ -130,7 +130,9 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
           {step.resources.length > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {step.resources.map((r, i) => (
-                <li key={i} className="text-xs text-muted-foreground">• {r}</li>
+                <li key={i} className="text-xs text-muted-foreground">
+                  • {r}
+                </li>
               ))}
             </ul>
           )}
@@ -142,4 +144,3 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
     </li>
   );
 }
-

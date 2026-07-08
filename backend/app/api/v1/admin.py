@@ -18,18 +18,18 @@ DELETE /admin/culture/glossary/{id} — delete glossary entry
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.dependencies import AdminUser, DbSession, PaginationDep
 from app.models.culture import CultureGlossary, CultureTopic
+from app.models.document import GeneratedDocument
 from app.models.enums import UserRole
 from app.models.resume import Resume
-from app.models.document import GeneratedDocument
 from app.models.user import User
 from app.repositories.user import UserRepository
 
@@ -41,6 +41,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
+
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -116,12 +117,16 @@ class GlossaryResponse(BaseModel):
 # Stats
 # ---------------------------------------------------------------------------
 
+
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(db: DbSession, _admin: AdminUser) -> StatsResponse:
     total_users = await db.scalar(select(func.count()).select_from(User)) or 0
-    active_users = await db.scalar(
-        select(func.count()).select_from(User).where(User.is_active == True)  # noqa: E712
-    ) or 0
+    active_users = (
+        await db.scalar(
+            select(func.count()).select_from(User).where(User.is_active == True)  # noqa: E712
+        )
+        or 0
+    )
     total_resumes = await db.scalar(select(func.count()).select_from(Resume)) or 0
     total_documents = await db.scalar(select(func.count()).select_from(GeneratedDocument)) or 0
     total_topics = await db.scalar(select(func.count()).select_from(CultureTopic)) or 0
@@ -141,6 +146,7 @@ async def get_stats(db: DbSession, _admin: AdminUser) -> StatsResponse:
 # Users
 # ---------------------------------------------------------------------------
 
+
 @router.get("/users", response_model=AdminUserListResponse)
 async def list_users(
     db: DbSession,
@@ -149,8 +155,10 @@ async def list_users(
 ) -> AdminUserListResponse:
     total = await db.scalar(select(func.count()).select_from(User)) or 0
     result = await db.scalars(
-        select(User).order_by(User.created_at.desc())
-        .offset(pagination.offset).limit(pagination.limit)
+        select(User)
+        .order_by(User.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.limit)
     )
     users = list(result)
     return AdminUserListResponse(
@@ -171,8 +179,8 @@ async def update_user_role(
 
     try:
         role = UserRole(body.role)
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid role: {body.role}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid role: {body.role}") from exc
 
     repo = UserRepository(db)
     user = await repo.get(user_id)
@@ -187,6 +195,7 @@ async def update_user_role(
 # ---------------------------------------------------------------------------
 # Culture topics
 # ---------------------------------------------------------------------------
+
 
 @router.get("/culture/topics", response_model=list[TopicResponse])
 async def list_all_topics(db: DbSession, _admin: AdminUser) -> list[TopicResponse]:
@@ -218,7 +227,7 @@ async def create_topic(
         title=body.title,
         body=body.body,
         tags=body.tags,
-        published_at=datetime.now(tz=timezone.utc) if body.published else None,
+        published_at=datetime.now(tz=UTC) if body.published else None,
     )
     db.add(topic)
     await db.flush()
@@ -249,7 +258,7 @@ async def update_topic(
     if body.tags is not None:
         topic.tags = body.tags
     if body.published is not None:
-        topic.published_at = datetime.now(tz=timezone.utc) if body.published else None
+        topic.published_at = datetime.now(tz=UTC) if body.published else None
 
     await db.flush()
     return TopicResponse(
@@ -274,6 +283,7 @@ async def delete_topic(slug: str, db: DbSession, _admin: AdminUser) -> dict:
 # ---------------------------------------------------------------------------
 # Glossary
 # ---------------------------------------------------------------------------
+
 
 @router.get("/culture/glossary", response_model=list[GlossaryResponse])
 async def list_glossary(db: DbSession, _admin: AdminUser) -> list[GlossaryResponse]:
