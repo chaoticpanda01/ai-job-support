@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useState, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { useMe, useUpdateProfile } from "@/hooks/useMe";
@@ -329,11 +329,22 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      {children}
+      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      {hint && (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
+      {isValidElement(children)
+        ? cloneElement(children as ReactElement<{ id?: string; "aria-describedby"?: string }>, {
+            id,
+            ...(hintId ? { "aria-describedby": hintId } : {}),
+          })
+        : children}
     </div>
   );
 }

@@ -21,6 +21,8 @@ export const translations = {
     settings:   { en: "Settings",  id: "Pengaturan",  ja: "設定" },
     signIn:     { en: "Sign in",   id: "Masuk",       ja: "ログイン" },
     getStarted: { en: "Get started free", id: "Mulai gratis", ja: "無料で始める" },
+    openMenu:   { en: "Open menu",  id: "Buka menu",   ja: "メニューを開く" },
+    closeMenu:  { en: "Close menu", id: "Tutup menu",  ja: "メニューを閉じる" },
   },
 
   // ---------------------------------------------------------------------------

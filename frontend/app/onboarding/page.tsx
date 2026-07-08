@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { cloneElement, isValidElement, useState, useEffect, useId, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -435,11 +435,32 @@ function Field({
   error?: string | undefined;
   children: React.ReactNode;
 }) {
+  const id = useId();
+  const errorId = error ? `${id}-error` : undefined;
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
+      </label>
+      {isValidElement(children)
+        ? cloneElement(
+            children as ReactElement<{
+              id?: string;
+              "aria-describedby"?: string;
+              "aria-invalid"?: boolean;
+            }>,
+            {
+              id,
+              "aria-invalid": Boolean(error),
+              ...(errorId ? { "aria-describedby": errorId } : {}),
+            },
+          )
+        : children}
+      {error && (
+        <p id={errorId} className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -288,8 +288,14 @@ function CultureTab() {
           <h3 className="font-medium">New culture topic</h3>
           {(["slug", "title"] as const).map((field) => (
             <div key={field}>
-              <label className="text-xs font-medium capitalize text-muted-foreground">{field}</label>
+              <label
+                htmlFor={`topic-${field}`}
+                className="text-xs font-medium capitalize text-muted-foreground"
+              >
+                {field}
+              </label>
               <input
+                id={`topic-${field}`}
                 value={form[field]}
                 onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -297,16 +303,22 @@ function CultureTab() {
             </div>
           ))}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Tags (comma-separated)</label>
+            <label htmlFor="topic-tags" className="text-xs font-medium text-muted-foreground">
+              Tags (comma-separated)
+            </label>
             <input
+              id="topic-tags"
               value={form.tags}
               onChange={(e) => setForm({ ...form, tags: e.target.value })}
               className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Body (Markdown)</label>
+            <label htmlFor="topic-body" className="text-xs font-medium text-muted-foreground">
+              Body (Markdown)
+            </label>
             <textarea
+              id="topic-body"
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               rows={6}
@@ -438,8 +450,11 @@ function GlossaryTab() {
             { key: "definition_id", label: "Definition (Indonesian)" },
           ].map(({ key, label }) => (
             <div key={key}>
-              <label className="text-xs font-medium text-muted-foreground">{label}</label>
+              <label htmlFor={`glossary-${key}`} className="text-xs font-medium text-muted-foreground">
+                {label}
+              </label>
               <input
+                id={`glossary-${key}`}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
