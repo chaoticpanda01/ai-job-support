@@ -153,12 +153,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: placeholder
           S3_BUCKET_NAME: test-bucket
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v4
-        with:
-          directory: backend/htmlcov
-          fail_ci_if_error: false
-
   # ---------------------------------------------------------------------------
   # Docker build smoke test
   # ---------------------------------------------------------------------------
