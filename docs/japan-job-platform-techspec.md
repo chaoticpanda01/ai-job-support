@@ -214,23 +214,65 @@ Response:
 }
 ```
 
-### 4.4 Job Posting Translation
+### 4.4 Job Posting Translation & Application Tracker
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/jobs/translate` | Submit job URL or text for translation |
-| GET | `/jobs/{id}` | Get translated job posting |
-| POST | `/jobs/{id}/match` | Analyze match against user resume |
-| GET | `/jobs/saved` | List saved jobs |
-| POST | `/jobs/{id}/save` | Save a job posting |
+| POST | `/jobs/translate` | Submit job URL or raw text for translation. Cache hit on `source_url` returns the existing posting without calling Gemini. |
+| GET | `/jobs` | List active (non-deleted) postings. Supports `?q=` full-text search and `?min_score=` friendliness filter. |
+| GET | `/jobs/{id}` | Get full translated job posting detail |
+| DELETE | `/jobs/{id}` | Soft-delete a posting (submitter only) |
+| POST | `/jobs/{id}/match` | Score a resume against this posting via Gemini. Upserts — calling again refreshes the score. |
+| POST | `/jobs/applications` | Add a job to the application tracker at `planning` status. Idempotent — returns the existing row if one is already tracked for this job. |
+| GET | `/jobs/applications` | List the current user's tracked applications (Kanban board). Supports `?status=` filter. |
+| PATCH | `/jobs/applications/{id}` | Update an application's `status` and/or `notes` |
+| DELETE | `/jobs/applications/{id}` | Remove a job from the application tracker |
+
+There is no "saved jobs" feature — every posting a user has translated is listed via `GET /jobs`; tracking interest/progress happens through the application tracker above.
+
+⚠️ **Route order matters**: `/jobs/applications` and `/jobs/applications/{id}` must be registered *before* `/jobs/{job_id}` in `jobs.py`. FastAPI/Starlette matches routes by registration order, not specificity — `/{job_id}` is a single dynamic path segment that will otherwise swallow literal `/applications` requests first (`job_id="applications"` fails UUID parsing → 422). This was a real, previously-shipped bug; see `HANDOFF.md` Section 0/8.
 
 **POST /jobs/translate** — Request:
 ```json
 {
-  "source_url": "https://job.example.co.jp/12345",
-  "raw_text": "...",          // alternative to URL
-  "target_language": "id",   // id | en
-  "resume_id": "uuid"        // optional, for match scoring
+  "source_url": "https://job.example.co.jp/12345",  // optional
+  "raw_text": "..."   // required, min 50 chars — the pasted posting text
+}
+```
+
+**POST /jobs/{id}/match** — Request:
+```json
+{
+  "resume_id": "uuid"
+}
+```
+Response (`MatchScoreResponse`):
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "resume_id": "uuid",
+  "job_posting_id": "uuid",
+  "match_score": 82.5,
+  "match_breakdown": { "skills_match": 80, "experience_match": 85, "language_match": 80, "culture_fit": 85, "summary": "..." },
+  "recommendations": { "strengths": ["..."], "gaps": ["..."], "actions": ["..."] },
+  "created_at": "2026-07-09T12:00:00Z"
+}
+```
+
+**POST /jobs/applications** — Request:
+```json
+{
+  "job_posting_id": "uuid",
+  "notes": "Applied via referral"   // optional
+}
+```
+
+**PATCH /jobs/applications/{id}** — Request (both fields optional):
+```json
+{
+  "status": "applied",   // planning | applied | interviewing | offered | rejected | withdrawn
+  "notes": "Phone screen scheduled for next week"
 }
 ```
 
