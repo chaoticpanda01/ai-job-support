@@ -5,6 +5,7 @@ Pydantic request/response schemas for user and profile endpoints.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -97,7 +98,7 @@ class MeResponse(_Base):
 
 class ClerkEmailAddress(BaseModel):
     email_address: str
-    verification: dict | None = None
+    verification: dict[str, Any] | None = None
 
 
 class ClerkWebhookUserData(BaseModel):

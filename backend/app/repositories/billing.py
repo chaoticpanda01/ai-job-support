@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -26,7 +26,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
 
     async def get_active_for_user(self, user_id: UUID) -> Subscription | None:
         """Returns the single active or trialing subscription for a user."""
-        return await self.session.scalar(
+        return await self._scalar(
             select(Subscription).where(
                 Subscription.user_id == user_id,
                 Subscription.status.in_([SubscriptionStatus.active, SubscriptionStatus.trialing]),
@@ -34,7 +34,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         )
 
     async def get_by_stripe_id(self, stripe_subscription_id: str) -> Subscription | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(Subscription).where(
                 Subscription.stripe_subscription_id == stripe_subscription_id
             )
@@ -135,9 +135,7 @@ class NotificationLogRepository(BaseRepository[NotificationLog]):
         Deduplication check. Returns True if the same template was sent
         to this user within the cooldown window.
         """
-        from sqlalchemy import func, text
-
-        cutoff = func.now() - func.cast(f"{within_seconds} seconds", type_=text("interval"))
+        cutoff = datetime.now(tz=UTC) - timedelta(seconds=within_seconds)
         result = await self.session.scalar(
             select(NotificationLog.id)
             .where(

@@ -36,6 +36,8 @@ Output schema (stored in generated_documents.content):
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
@@ -130,7 +132,7 @@ Return ONLY a JSON object matching this exact schema — no prose before or afte
 
 def build_user_prompt(
     resume_text: str,
-    profile_data: dict | None = None,
+    profile_data: dict[str, Any] | None = None,
     job_posting_text: str | None = None,
 ) -> str:
     """

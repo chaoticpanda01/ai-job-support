@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -51,7 +52,7 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         )
         return row.scalar_one()
 
-    async def get_all_features_this_month(self, user_id: UUID) -> list[dict]:
+    async def get_all_features_this_month(self, user_id: UUID) -> list[dict[str, Any]]:
         """
         Returns per-feature usage for the current month.
         Used by GET /users/usage to populate the frontend usage meters.
@@ -103,7 +104,7 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
             latency_ms=latency_ms,
         )
 
-    async def get_top_users_this_month(self, *, limit: int = 20) -> list[dict]:
+    async def get_top_users_this_month(self, *, limit: int = 20) -> list[dict[str, Any]]:
         """Admin/monitoring: identify potential abusers by token spend."""
         rows = await self.session.execute(
             select(

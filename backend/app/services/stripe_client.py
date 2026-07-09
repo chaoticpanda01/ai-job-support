@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import stripe
 from stripe import InvalidRequestError, SignatureVerificationError, StripeError
@@ -99,7 +100,7 @@ class StripeClient:
         Returns the session ID and redirect URL.
         """
         try:
-            params: dict = {
+            params: dict[str, Any] = {
                 "mode": "subscription",
                 "line_items": [{"price": price_id, "quantity": 1}],
                 "success_url": settings.stripe_success_url,
@@ -153,10 +154,13 @@ class StripeClient:
         Raises StripeWebhookError if the signature is invalid.
         """
         try:
-            return stripe.Webhook.construct_event(
-                payload=payload,
-                sig_header=stripe_signature,
-                secret=settings.stripe_webhook_secret,
+            return cast(
+                "stripe.Event",
+                stripe.Webhook.construct_event(  # type: ignore[no-untyped-call]
+                    payload=payload,
+                    sig_header=stripe_signature,
+                    secret=settings.stripe_webhook_secret,
+                ),
             )
         except SignatureVerificationError as exc:
             raise StripeWebhookError("Invalid Stripe webhook signature.") from exc

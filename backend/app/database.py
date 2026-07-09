@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -21,7 +22,7 @@ from app.config import settings
 
 
 def _create_engine(url: str, *, testing: bool = False) -> AsyncEngine:
-    kwargs: dict = {
+    kwargs: dict[str, Any] = {
         "echo": settings.debug,
         "future": True,
     }

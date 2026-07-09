@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,7 +30,7 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
         self,
         document_id: UUID,
         *,
-        content: dict,
+        content: dict[str, Any],
         file_url: str,
         ai_model: str,
         input_tokens: int,

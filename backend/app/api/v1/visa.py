@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
 from app.config import settings
 from app.dependencies import AuthUser, DbSession
+from app.models.user import Profile
 from app.repositories.user import ProfileRepository
 from app.repositories.visa import VisaConsultationRepository
 from app.schemas.visa import VisaConsultationListItem, VisaConsultationResponse
@@ -33,7 +35,7 @@ _VISA_MAX_TOKENS = 4096
 # ---------------------------------------------------------------------------
 
 
-def _profile_snapshot(profile) -> dict:  # type: ignore[no-untyped-def]
+def _profile_snapshot(profile: Profile) -> dict[str, Any]:
     """Extract the fields that inform visa guidance from a Profile ORM object."""
     return {
         "nationality": getattr(profile, "nationality", None),

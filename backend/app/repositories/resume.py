@@ -17,7 +17,7 @@ class ResumeRepository(BaseRepository[Resume]):
         super().__init__(session)
 
     async def get_primary(self, user_id: UUID) -> Resume | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(Resume).where(
                 Resume.user_id == user_id,
                 Resume.is_primary.is_(True),
@@ -25,7 +25,7 @@ class ResumeRepository(BaseRepository[Resume]):
         )
 
     async def get_with_analyses(self, resume_id: UUID, user_id: UUID) -> Resume | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(Resume)
             .where(Resume.id == resume_id, Resume.user_id == user_id)
             .options(selectinload(Resume.analyses))
@@ -77,7 +77,7 @@ class ResumeAnalysisRepository(BaseRepository[ResumeAnalysis]):
         resume_id: UUID,
         analysis_type: AnalysisType = AnalysisType.general,
     ) -> ResumeAnalysis | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(ResumeAnalysis)
             .where(
                 ResumeAnalysis.resume_id == resume_id,

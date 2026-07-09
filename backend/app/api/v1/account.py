@@ -30,7 +30,7 @@ _CLERK_API_BASE = "https://api.clerk.com/v1"
 
 
 @router.delete("", status_code=status.HTTP_200_OK)
-async def delete_account(current_user: AuthUser, db: DbSession) -> dict:
+async def delete_account(current_user: AuthUser, db: DbSession) -> dict[str, str]:
     """
     Permanently delete the authenticated user's account.
 

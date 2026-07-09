@@ -30,7 +30,7 @@ import logging
 import time
 from typing import Any
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
@@ -101,9 +101,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
     def _get_redis(self) -> Any:
         if self._redis is None:
-            import redis.asyncio as aioredis  # type: ignore[import-untyped]
+            import redis.asyncio as aioredis
 
-            self._redis = aioredis.from_url(
+            self._redis = aioredis.from_url(  # type: ignore[no-untyped-call]
                 settings.redis_url,
                 encoding="utf-8",
                 decode_responses=True,
@@ -112,7 +112,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             )
         return self._redis
 
-    async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         method = request.method
         path = request.url.path
 
@@ -176,7 +176,7 @@ async def _check(redis: Any, key: str, limit: int, window_seconds: int) -> bool:
     window_start = int(time.time()) // window_seconds
     full_key = f"rl:{key}:{window_start}"
 
-    count = await redis.incr(full_key)
+    count = int(await redis.incr(full_key))
     if count == 1:
         # First request in this window — set TTL so the key self-evicts
         await redis.expire(full_key, window_seconds * 2)

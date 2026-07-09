@@ -71,7 +71,7 @@ async def create_rirekisho(
     """Enqueue 履歴書 (rirekisho) generation. Poll GET /documents/{id} for status."""
     from app.workers.document_tasks import _run_generation
 
-    job_context: dict | None = None
+    job_context: dict[str, str] | None = None
     if body.job_posting_id is not None:
         job_context = {"job_posting_id": str(body.job_posting_id)}
 
@@ -117,7 +117,7 @@ async def create_shokumu(
     """Enqueue 職務経歴書 (shokumukeirekisho) generation. Poll GET /documents/{id} for status."""
     from app.workers.document_tasks import _run_generation
 
-    job_context: dict | None = None
+    job_context: dict[str, str] | None = None
     if body.job_posting_id is not None:
         job_context = {"job_posting_id": str(body.job_posting_id)}
 

@@ -10,6 +10,7 @@ GET  /auth/users    — list all users (admin only)
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -40,7 +41,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)
-async def clerk_webhook(request: Request, db: DbSession) -> dict:
+async def clerk_webhook(request: Request, db: DbSession) -> dict[str, Any]:
     """
     Receives Clerk user lifecycle events and keeps the local users table
     in sync. Verifies the Svix signature before processing.
@@ -92,10 +93,10 @@ async def clerk_webhook(request: Request, db: DbSession) -> dict:
             logger.info("Updated user id=%s clerk_id=%s", user.id, data.id)
 
     elif event.type == "user.deleted":
-        user = await user_repo.get_by_clerk_id(data.id)
-        if user is not None:
-            await user_repo.update(user, is_active=False)
-            logger.info("Deactivated user id=%s clerk_id=%s", user.id, data.id)
+        deleted_user = await user_repo.get_by_clerk_id(data.id)
+        if deleted_user is not None:
+            await user_repo.update(deleted_user, is_active=False)
+            logger.info("Deactivated user id=%s clerk_id=%s", deleted_user.id, data.id)
 
     return {"detail": "ok"}
 
@@ -115,7 +116,7 @@ async def get_me(current_user: AuthUser, db: DbSession) -> MeResponse:
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=user.profile,  # type: ignore[arg-type]
+        profile=user.profile,
     )
 
 
@@ -155,7 +156,7 @@ async def update_me(
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=profile,  # type: ignore[arg-type]
+        profile=profile,
     )
 
 
@@ -185,7 +186,7 @@ async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=user.profile,  # type: ignore[arg-type]
+        profile=user.profile,
     )
 
 

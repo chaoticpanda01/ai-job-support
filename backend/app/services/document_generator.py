@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,10 @@ from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 from app.services.file_storage import StorageError, file_storage
 from app.services.resume_parser import ParseError, extract_text
 from app.utils.pdf_generator import PDFGenerationError, html_to_pdf
+
+if TYPE_CHECKING:
+    from app.services.ai.prompts.rirekisho import RirekishoResult
+    from app.services.ai.prompts.shokumu import ShokumuResult
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +209,7 @@ class DocumentGenerator:
 
             max_tokens = 2500
         else:
-            from app.services.ai.prompts.shokumu import (  # type: ignore[assignment]
+            from app.services.ai.prompts.shokumu import (
                 build_system_prompt,
                 build_user_prompt,
             )
@@ -226,6 +230,7 @@ class DocumentGenerator:
         )
 
     def _parse_response(self, document_type: DocumentType, response_text: str) -> dict[str, Any]:
+        result: RirekishoResult | ShokumuResult
         try:
             if document_type == DocumentType.rirekisho:
                 from app.services.ai.prompts.rirekisho import RirekishoResult

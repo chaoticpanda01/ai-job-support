@@ -10,7 +10,7 @@ Design decisions:
   managed by the get_db() dependency in database.py.
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -40,7 +40,7 @@ class BaseRepository(Generic[ModelT]):
         Fetch by primary key with ownership enforcement.
         Returns None for both "not found" and "wrong owner" — callers raise 404.
         """
-        return await self.session.scalar(
+        return await self._scalar(
             select(self.model).where(
                 self.model.id == id,  # type: ignore[attr-defined]
                 self.model.user_id == user_id,  # type: ignore[attr-defined]
@@ -101,7 +101,7 @@ class BaseRepository(Generic[ModelT]):
     # ------------------------------------------------------------------
 
     async def _scalar(self, stmt: Select) -> ModelT | None:  # type: ignore[type-arg]
-        return await self.session.scalar(stmt)
+        return cast("ModelT | None", await self.session.scalar(stmt))
 
     async def _scalars(self, stmt: Select) -> list[ModelT]:  # type: ignore[type-arg]
         result = await self.session.scalars(stmt)

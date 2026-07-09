@@ -15,7 +15,7 @@ class VisaConsultationRepository(BaseRepository[VisaConsultation]):
         super().__init__(session)
 
     async def get_latest_for_user(self, user_id: UUID) -> VisaConsultation | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(VisaConsultation)
             .where(VisaConsultation.user_id == user_id)
             .order_by(VisaConsultation.created_at.desc())

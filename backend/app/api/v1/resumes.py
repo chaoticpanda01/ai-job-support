@@ -13,6 +13,7 @@ GET    /resumes/{id}/analysis       — get latest analysis result
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 import magic
@@ -164,7 +165,7 @@ async def delete_resume(
     resume_id: UUID,
     current_user: AuthUser,
     db: DbSession,
-) -> dict:
+) -> dict[str, Any]:
     repo = ResumeRepository(db)
     resume = await repo.get_owned(resume_id, current_user.user_id)
     if resume is None:

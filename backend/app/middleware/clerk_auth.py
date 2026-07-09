@@ -23,13 +23,14 @@ import httpx
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
 
 from app.config import settings
 from app.database import AsyncSessionFactory
+from app.models.user import User
 from app.repositories.user import UserRepository
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class ClerkJWTMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
 
-    async def dispatch(self, request: Request, call_next: Any) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         method = request.method
         path = request.url.path
 
@@ -161,7 +162,7 @@ class ClerkJWTMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-async def _resolve_user(session: AsyncSession, clerk_id: str, email: str) -> Any:
+async def _resolve_user(session: AsyncSession, clerk_id: str, email: str) -> User | None:
     repo = UserRepository(session)
     user = await repo.get_by_clerk_id(clerk_id)
     if user is not None:

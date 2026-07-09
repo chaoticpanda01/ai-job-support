@@ -39,6 +39,8 @@ Each function returns a plain string. AIClient wraps user_prompt in
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
@@ -154,7 +156,7 @@ Return ONLY a JSON object matching this exact schema — no prose before or afte
 }"""
 
 
-def build_user_prompt(profile_snapshot: dict) -> str:
+def build_user_prompt(profile_snapshot: dict[str, Any]) -> str:
     """
     Build the user-turn prompt from the profile snapshot stored at generation time.
 

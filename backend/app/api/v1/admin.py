@@ -271,7 +271,7 @@ async def update_topic(
 
 
 @router.delete("/culture/topics/{slug}", status_code=200)
-async def delete_topic(slug: str, db: DbSession, _admin: AdminUser) -> dict:
+async def delete_topic(slug: str, db: DbSession, _admin: AdminUser) -> dict[str, str]:
     topic = await db.scalar(select(CultureTopic).where(CultureTopic.slug == slug))
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -318,7 +318,7 @@ async def delete_glossary_entry(
     entry_id: UUID,
     db: DbSession,
     _admin: AdminUser,
-) -> dict:
+) -> dict[str, str]:
     entry = await db.scalar(select(CultureGlossary).where(CultureGlossary.id == entry_id))
     if entry is None:
         raise HTTPException(status_code=404, detail="Entry not found")

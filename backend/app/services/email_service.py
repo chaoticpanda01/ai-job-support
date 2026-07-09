@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 from uuid import UUID
 
 import resend
@@ -73,7 +74,7 @@ class EmailService:
         *,
         to: str,
         template_id: str,
-        variables: dict,
+        variables: dict[str, Any],
         user_id: UUID | None,
         db: AsyncSession,
         cooldown_seconds: int = _DEFAULT_COOLDOWN_SECONDS,
@@ -227,7 +228,7 @@ def _subject_for(template_id: str) -> str:
     return _SUBJECTS.get(template_id, "Japan Job Support")
 
 
-def _render_template(template_id: str, variables: dict) -> str:
+def _render_template(template_id: str, variables: dict[str, Any]) -> str:
     """
     Minimal inline HTML for each template. In production, swap these out for
     Resend's template API (set `template` key instead of `html` in the payload).

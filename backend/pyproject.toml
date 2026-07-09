@@ -41,6 +41,13 @@ warn_unused_configs = true
 ignore_missing_imports = false
 plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 
+[[tool.mypy.overrides]]
+# celery has no py.typed marker / published stubs; the app doesn't use it at
+# runtime (FastAPI BackgroundTasks replaced it — see workers/*.py), so treat
+# it as untyped rather than pulling in a stub package for dead code.
+module = "celery.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

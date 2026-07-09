@@ -11,6 +11,7 @@ GET  /billing/events            — billing event history for the authenticated 
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -145,7 +146,7 @@ async def create_portal_session(
 
 
 @router.post("/webhook", status_code=status.HTTP_200_OK)
-async def stripe_webhook(request: Request, db: DbSession) -> dict:
+async def stripe_webhook(request: Request, db: DbSession) -> dict[str, Any]:
     """
     Stripe webhook handler.
 

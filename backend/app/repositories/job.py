@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ApplicationStatus
@@ -14,7 +14,7 @@ from app.repositories.base import BaseRepository
 # ---------------------------------------------------------------------------
 
 
-def _active(stmt):  # type: ignore[no-untyped-def]
+def _active(stmt: Select[tuple[JobPosting]]) -> Select[tuple[JobPosting]]:
     """Append WHERE deleted_at IS NULL to any job_postings statement."""
     return stmt.where(JobPosting.deleted_at.is_(None))
 
@@ -26,11 +26,11 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         super().__init__(session)
 
     async def get_active(self, job_id: UUID) -> JobPosting | None:
-        return await self.session.scalar(_active(select(JobPosting).where(JobPosting.id == job_id)))
+        return await self._scalar(_active(select(JobPosting).where(JobPosting.id == job_id)))
 
     async def get_by_url(self, source_url: str) -> JobPosting | None:
         """Returns the active (non-deleted, non-expired) posting for a URL."""
-        return await self.session.scalar(
+        return await self._scalar(
             _active(
                 select(JobPosting).where(
                     JobPosting.source_url == source_url,
@@ -112,7 +112,7 @@ class JobMatchRepository(BaseRepository[JobMatch]):
     async def get_for_resume_and_job(
         self, user_id: UUID, resume_id: UUID, job_posting_id: UUID
     ) -> JobMatch | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(JobMatch).where(
                 JobMatch.user_id == user_id,
                 JobMatch.resume_id == resume_id,
@@ -162,7 +162,7 @@ class SavedJobRepository(BaseRepository[SavedJob]):
         super().__init__(session)
 
     async def get_for_user_and_job(self, user_id: UUID, job_posting_id: UUID) -> SavedJob | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(SavedJob).where(
                 SavedJob.user_id == user_id,
                 SavedJob.job_posting_id == job_posting_id,
@@ -188,7 +188,7 @@ class JobApplicationRepository(BaseRepository[JobApplication]):
     async def get_for_user_and_job(
         self, user_id: UUID, job_posting_id: UUID
     ) -> JobApplication | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(JobApplication).where(
                 JobApplication.user_id == user_id,
                 JobApplication.job_posting_id == job_posting_id,

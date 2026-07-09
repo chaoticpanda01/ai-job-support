@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Any
 from uuid import UUID
 
 from celery import Task
@@ -25,16 +26,21 @@ from app.workers.celery_app import celery_app
 logger = logging.getLogger(__name__)
 
 
-class _BaseTask(Task):  # type: ignore[type-arg]
+class _BaseTask(Task):  # type: ignore[misc]
     abstract = True
 
     def on_failure(
-        self, exc: Exception, task_id: str, args: list, kwargs: dict, einfo: object
+        self,
+        exc: Exception,
+        task_id: str,
+        args: list[Any],
+        kwargs: dict[str, Any],
+        einfo: object,
     ) -> None:
         logger.error("Task %s failed: %s", task_id, exc)
 
 
-@celery_app.task(
+@celery_app.task(  # type: ignore[misc]
     bind=True,
     base=_BaseTask,
     name="app.workers.analysis_tasks.analyze_resume_task",
@@ -47,7 +53,7 @@ def analyze_resume_task(
     user_id: str,
     analysis_type: str = "general",
     job_posting_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Synchronous Celery task that runs async code via asyncio.run().
     Returns the analysis result dict on success.
@@ -71,7 +77,7 @@ async def _run_analysis(
     user_id: UUID,
     analysis_type: str,
     job_posting_id: UUID | None,
-) -> dict:
+) -> dict[str, Any]:
     from app.config import settings
     from app.database import AsyncSessionFactory
     from app.models.enums import AnalysisType

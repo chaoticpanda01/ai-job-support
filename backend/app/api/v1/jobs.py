@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -38,6 +39,9 @@ from app.schemas.job import (
     TranslateJobRequest,
     UpdateApplicationRequest,
 )
+
+if TYPE_CHECKING:
+    from app.models.job import JobApplication
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +247,7 @@ async def delete_job(
     job_id: UUID,
     current_user: AuthUser,
     db: DbSession,
-) -> dict:
+) -> dict[str, Any]:
     """Soft-delete a job posting. Only the user who submitted it can delete it."""
     job_repo = JobPostingRepository(db)
     deleted = await job_repo.soft_delete(job_id, current_user.user_id)
@@ -412,7 +416,7 @@ async def match_job(
 # ---------------------------------------------------------------------------
 
 
-def _application_response(app) -> JobApplicationResponse:  # type: ignore[no-untyped-def]
+def _application_response(app: JobApplication) -> JobApplicationResponse:
     """Build response with denormalised posting title/company."""
     posting = getattr(app, "job_posting", None)
     return JobApplicationResponse(
@@ -458,12 +462,12 @@ async def create_application(
     existing = await app_repo.get_for_user_and_job(current_user.user_id, body.job_posting_id)
     if existing is not None:
         # Eagerly load posting for denormalisation
-        existing = await db.scalar(
+        refreshed_existing = await db.scalar(
             select(JobApplication)
             .where(JobApplication.id == existing.id)
             .options(selectinload(JobApplication.job_posting))
         )
-        return _application_response(existing)
+        return _application_response(refreshed_existing or existing)
 
     app = await app_repo.create(
         user_id=current_user.user_id,
@@ -473,12 +477,12 @@ async def create_application(
     )
     await db.flush()
 
-    app = await db.scalar(
+    refreshed = await db.scalar(
         select(JobApplication)
         .where(JobApplication.id == app.id)
         .options(selectinload(JobApplication.job_posting))
     )
-    return _application_response(app)
+    return _application_response(refreshed or app)
 
 
 @router.get("/applications", response_model=list[JobApplicationResponse])
@@ -547,7 +551,7 @@ async def update_application(
     if app is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
-    kwargs: dict = {}
+    kwargs: dict[str, Any] = {}
     if body.status is not None:
         try:
             new_status = ApplicationStatus(body.status)
@@ -570,11 +574,12 @@ async def update_application(
         app = await app_repo.update(app, **kwargs)
         await db.flush()
         # Re-fetch with relationship loaded
-        app = await db.scalar(
+        refreshed = await db.scalar(
             select(JobApplication)
             .where(JobApplication.id == application_id)
             .options(selectinload(JobApplication.job_posting))
         )
+        app = refreshed or app
 
     return _application_response(app)
 
@@ -584,7 +589,7 @@ async def delete_application(
     application_id: UUID,
     current_user: AuthUser,
     db: DbSession,
-) -> dict:
+) -> dict[str, Any]:
     """Remove a job from the application tracker."""
     from sqlalchemy import select
 

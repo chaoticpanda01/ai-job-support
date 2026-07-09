@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -17,7 +18,7 @@ class InterviewSessionRepository(BaseRepository[InterviewSession]):
         super().__init__(session)
 
     async def get_active(self, session_id: UUID, user_id: UUID) -> InterviewSession | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(InterviewSession).where(
                 InterviewSession.id == session_id,
                 InterviewSession.user_id == user_id,
@@ -26,7 +27,7 @@ class InterviewSessionRepository(BaseRepository[InterviewSession]):
         )
 
     async def get_with_messages(self, session_id: UUID, user_id: UUID) -> InterviewSession | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(InterviewSession)
             .where(
                 InterviewSession.id == session_id,
@@ -106,7 +107,7 @@ class InterviewMessageRepository(BaseRepository[InterviewMessage]):
         session_id: UUID,
         content: str,
         language: str | None,
-        ai_evaluation: dict | None,
+        ai_evaluation: dict[str, Any] | None,
     ) -> InterviewMessage:
         return await self.create(
             session_id=session_id,

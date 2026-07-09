@@ -20,19 +20,19 @@ class UserRepository(BaseRepository[User]):
     # ------------------------------------------------------------------
 
     async def get_by_clerk_id(self, clerk_id: str) -> User | None:
-        return await self.session.scalar(select(User).where(User.clerk_id == clerk_id))
+        return await self._scalar(select(User).where(User.clerk_id == clerk_id))
 
     async def get_by_email(self, email: str) -> User | None:
-        return await self.session.scalar(select(User).where(User.email == email))
+        return await self._scalar(select(User).where(User.email == email))
 
     async def get_with_profile(self, user_id: UUID) -> User | None:
         """Eagerly loads the profile in a single query."""
-        return await self.session.scalar(
+        return await self._scalar(
             select(User).where(User.id == user_id).options(selectinload(User.profile))
         )
 
     async def get_by_clerk_id_with_profile(self, clerk_id: str) -> User | None:
-        return await self.session.scalar(
+        return await self._scalar(
             select(User).where(User.clerk_id == clerk_id).options(selectinload(User.profile))
         )
 
@@ -77,7 +77,7 @@ class ProfileRepository(BaseRepository[Profile]):
         super().__init__(session)
 
     async def get_by_user_id(self, user_id: UUID) -> Profile | None:
-        return await self.session.scalar(select(Profile).where(Profile.user_id == user_id))
+        return await self._scalar(select(Profile).where(Profile.user_id == user_id))
 
     async def get_or_create(self, user_id: UUID) -> tuple[Profile, bool]:
         profile = await self.get_by_user_id(user_id)

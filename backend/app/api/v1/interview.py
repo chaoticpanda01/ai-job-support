@@ -20,6 +20,7 @@ import json
 import logging
 import time
 from collections.abc import AsyncGenerator
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -76,7 +77,7 @@ async def create_session(
     # Load candidate profile for richer question context
     profile_repo = ProfileRepository(db)
     profile = await profile_repo.get_by_user_id(current_user.user_id)
-    candidate_profile: dict | None = None
+    candidate_profile: dict[str, Any] | None = None
     if profile:
         candidate_profile = {
             "japanese_level": profile.japanese_level.value,
@@ -304,8 +305,8 @@ async def _stream_question(
     language: str,
     target_role: str | None,
     target_company: str | None,
-    candidate_profile: dict | None,
-    conversation_history: list[dict],
+    candidate_profile: dict[str, Any] | None,
+    conversation_history: list[dict[str, str]],
 ) -> AsyncGenerator[str, None]:
     from app.config import settings
     from app.database import AsyncSessionFactory
@@ -376,7 +377,7 @@ async def _stream_eval_and_question(
     language: str,
     target_role: str | None,
     target_company: str | None,
-    conversation_history: list[dict],
+    conversation_history: list[dict[str, str]],
 ) -> AsyncGenerator[str, None]:
     from app.config import settings
     from app.database import AsyncSessionFactory
@@ -398,7 +399,7 @@ async def _stream_eval_and_question(
     eval_system = build_eval_system_prompt(language)
     eval_user = build_eval_user_prompt(question=last_question, answer=answer)
 
-    eval_result: dict | None = None
+    eval_result: dict[str, Any] | None = None
     try:
         eval_text, eval_in, eval_out = await ai_client.generate(
             eval_system,
@@ -478,8 +479,8 @@ async def _stream_summary(
     user_id: UUID,
     session_type: str,
     target_role: str | None,
-    conversation_history: list[dict],
-    per_answer_scores: list[dict],
+    conversation_history: list[dict[str, str]],
+    per_answer_scores: list[dict[str, Any]],
 ) -> AsyncGenerator[str, None]:
     from app.config import settings
     from app.database import AsyncSessionFactory
@@ -545,7 +546,7 @@ async def _stream_summary(
 # ---------------------------------------------------------------------------
 
 
-def _sse(event_type: str, content: str | dict) -> str:
+def _sse(event_type: str, content: str | dict[str, Any]) -> str:
     payload = json.dumps({"type": event_type, "content": content}, ensure_ascii=False)
     return f"data: {payload}\n\n"
 

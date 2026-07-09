@@ -58,7 +58,7 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
 
 def _extract_pdf(file_bytes: bytes) -> str:
     try:
-        import PyPDF2  # type: ignore[import-untyped]
+        import PyPDF2
     except ImportError as exc:
         raise ParseError("PyPDF2 is not installed") from exc
 
@@ -76,7 +76,7 @@ def _extract_pdf(file_bytes: bytes) -> str:
 
 def _extract_docx(file_bytes: bytes) -> str:
     try:
-        from docx import Document  # type: ignore[import-untyped]
+        from docx import Document
     except ImportError as exc:
         raise ParseError("python-docx is not installed") from exc
 

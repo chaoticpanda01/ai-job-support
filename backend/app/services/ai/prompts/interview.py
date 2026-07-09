@@ -43,6 +43,8 @@ Summary schema (stored in interview_sessions):
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
@@ -116,7 +118,7 @@ def build_question_user_prompt(
     conversation_history: list[dict[str, str]],
     target_role: str | None = None,
     target_company: str | None = None,
-    candidate_profile: dict | None = None,
+    candidate_profile: dict[str, Any] | None = None,
 ) -> str:
     """
     Build the user-turn prompt for generating the next interview question.
@@ -254,7 +256,7 @@ def build_summary_user_prompt(
     session_type: str,
     target_role: str | None,
     conversation_history: list[dict[str, str]],
-    per_answer_scores: list[dict],
+    per_answer_scores: list[dict[str, Any]],
 ) -> str:
     """
     Build the user-turn prompt for the end-of-session summary.
