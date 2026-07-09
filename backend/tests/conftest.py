@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncGenerator
-from unittest.mock import MagicMock
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -72,6 +73,29 @@ def make_profile(user_id: uuid.UUID | None = None) -> MagicMock:
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limiter() -> Any:
+    """
+    Force RateLimiterMiddleware to fail open on every request in every test.
+
+    Route tests drive real HTTP requests through the full middleware stack
+    via ASGITransport, including the real RateLimiterMiddleware — not just
+    the auth middleware tests deliberately exercise. If a developer machine
+    (or CI's redis service container) has Redis actually reachable, rapid
+    test requests hit real per-route limits (e.g. 5/hour for resume
+    uploads), causing flaky, test-order-dependent 429s unrelated to what's
+    being tested. Patching _get_redis to fail mirrors the middleware's own
+    documented fail-open behavior when Redis is unavailable — it's not
+    bypassing a check we care about here, just removing an unrelated
+    dependency on ambient Redis state.
+    """
+    with patch(
+        "app.middleware.rate_limiter.RateLimiterMiddleware._get_redis",
+        side_effect=RuntimeError("Redis disabled in unit tests"),
+    ):
+        yield
 
 
 @pytest_asyncio.fixture

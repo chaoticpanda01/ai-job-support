@@ -219,200 +219,14 @@ async def list_jobs(
 
 
 # ---------------------------------------------------------------------------
-# Get detail
-# ---------------------------------------------------------------------------
-
-
-@router.get("/{job_id}", response_model=JobPostingDetailResponse)
-async def get_job(
-    job_id: UUID,
-    current_user: AuthUser,
-    db: DbSession,
-) -> JobPostingDetailResponse:
-    """Return full job posting including translated description."""
-    job_repo = JobPostingRepository(db)
-    job = await job_repo.get_active(job_id)
-    if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
-    return JobPostingDetailResponse.model_validate(job)
-
-
-# ---------------------------------------------------------------------------
-# Soft-delete (submitter only)
-# ---------------------------------------------------------------------------
-
-
-@router.delete("/{job_id}", status_code=status.HTTP_200_OK)
-async def delete_job(
-    job_id: UUID,
-    current_user: AuthUser,
-    db: DbSession,
-) -> dict[str, Any]:
-    """Soft-delete a job posting. Only the user who submitted it can delete it."""
-    job_repo = JobPostingRepository(db)
-    deleted = await job_repo.soft_delete(job_id, current_user.user_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job posting not found or you do not have permission to delete it",
-        )
-    await db.commit()
-    return {"detail": "Job deleted"}
-
-
-# ---------------------------------------------------------------------------
-# Match score
-# ---------------------------------------------------------------------------
-
-
-@router.post("/{job_id}/match", response_model=MatchScoreResponse, status_code=status.HTTP_200_OK)
-async def match_job(
-    job_id: UUID,
-    body: MatchRequest,
-    current_user: AuthUser,
-    db: DbSession,
-) -> MatchScoreResponse:
-    """
-    Score a resume against a job posting using Claude.
-    Upserts the result — calling again with the same (resume, job) pair
-    refreshes the score.
-    """
-    from app.config import settings
-    from app.services.ai.client import AIError, ai_client
-    from app.services.ai.prompts.job_match import (
-        JobMatchResult,
-        build_system_prompt,
-        build_user_prompt,
-    )
-    from app.services.ai.response_parser import ResponseParseError, parse_response
-    from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
-    from app.services.file_storage import StorageError, file_storage
-    from app.services.resume_parser import ParseError, extract_text
-
-    # -- Load job
-    job_repo = JobPostingRepository(db)
-    job = await job_repo.get_active(job_id)
-    if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
-
-    if not job.translated_description:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Job posting has no translated description yet",
-        )
-
-    # -- Load resume (ownership enforced)
-    resume_repo = ResumeRepository(db)
-    resume = await resume_repo.get_owned(body.resume_id, current_user.user_id)
-    if resume is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-
-    # -- Load candidate's Japanese level from profile
-    profile_repo = ProfileRepository(db)
-    profile = await profile_repo.get_by_user_id(current_user.user_id)
-    japanese_level: str | None = profile.japanese_level.value if profile else None
-
-    # -- Budget check
-    try:
-        await usage_tracker.check_budget(current_user.user_id, "job_match", db)
-    except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
-
-    # -- Extract resume text from S3 / Backblaze B2
-    try:
-        file_bytes = file_storage.download(resume.file_url)
-    except StorageError as exc:
-        logger.error("S3 fetch failed for resume=%s: %s", resume.id, exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not retrieve resume file. Please try again.",
-        ) from exc
-
-    try:
-        resume_text = extract_text(file_bytes, resume.mime_type)
-    except ParseError as exc:
-        logger.warning("Resume text extraction failed for resume=%s: %s", resume.id, exc)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Could not read this resume file. Please re-upload it in a supported format.",
-        ) from exc
-
-    # -- Call Claude
-    system = build_system_prompt()
-    user_prompt = build_user_prompt(
-        resume_text=resume_text,
-        job_title=job.translated_title or job.original_title or "",
-        job_description=job.translated_description,
-        japanese_level=japanese_level,
-    )
-
-    t0 = time.monotonic()
-    try:
-        response_text, input_tokens, output_tokens = await ai_client.generate(
-            system,
-            user_prompt,
-            max_tokens=_MATCH_MAX_TOKENS,
-            feature="job_match",
-            json_mode=True,
-        )
-    except AIError as exc:
-        logger.error("AI match scoring failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Match scoring failed. Please try again.",
-        ) from exc
-    latency_ms = int((time.monotonic() - t0) * 1000)
-
-    # -- Parse
-    try:
-        parsed: JobMatchResult = parse_response(response_text, JobMatchResult)
-    except ResponseParseError as exc:
-        logger.error("Match response parse failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Match scoring response was malformed. Please try again.",
-        ) from exc
-
-    # -- Upsert match row
-    match_repo = JobMatchRepository(db)
-    match = await match_repo.upsert(
-        user_id=current_user.user_id,
-        resume_id=body.resume_id,
-        job_posting_id=job_id,
-        match_score=float(parsed.match_score),
-        match_breakdown=parsed.match_breakdown.model_dump(),
-        recommendations=parsed.recommendations.model_dump(),
-    )
-
-    # -- Record usage (never raises)
-    await usage_tracker.record(
-        user_id=current_user.user_id,
-        feature="job_match",
-        model=settings.gemini_default_model,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        latency_ms=latency_ms,
-        db=db,
-    )
-
-    await db.commit()
-    await db.refresh(match)
-
-    logger.info(
-        "Match scored: job_id=%s resume_id=%s score=%s tokens=%d",
-        job_id,
-        body.resume_id,
-        parsed.match_score,
-        input_tokens + output_tokens,
-    )
-    return MatchScoreResponse.model_validate(match)
-
-
-# ---------------------------------------------------------------------------
 # Application tracker
+#
+# Deliberately declared before the /{job_id} routes below: Starlette matches
+# routes in registration order, not by specificity, so a literal path like
+# /applications must come before a dynamic /{job_id} segment of the same
+# length or every request to /jobs/applications gets swallowed by get_job()
+# (job_id="applications" fails UUID parsing -> 422). This was a real bug —
+# GET /jobs/applications was unreachable before this reordering.
 # ---------------------------------------------------------------------------
 
 
@@ -607,3 +421,196 @@ async def delete_application(
     await db.delete(app)
     await db.flush()
     return {"detail": "Application deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Get detail
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{job_id}", response_model=JobPostingDetailResponse)
+async def get_job(
+    job_id: UUID,
+    current_user: AuthUser,
+    db: DbSession,
+) -> JobPostingDetailResponse:
+    """Return full job posting including translated description."""
+    job_repo = JobPostingRepository(db)
+    job = await job_repo.get_active(job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
+    return JobPostingDetailResponse.model_validate(job)
+
+
+# ---------------------------------------------------------------------------
+# Soft-delete (submitter only)
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_200_OK)
+async def delete_job(
+    job_id: UUID,
+    current_user: AuthUser,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Soft-delete a job posting. Only the user who submitted it can delete it."""
+    job_repo = JobPostingRepository(db)
+    deleted = await job_repo.soft_delete(job_id, current_user.user_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job posting not found or you do not have permission to delete it",
+        )
+    await db.commit()
+    return {"detail": "Job deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Match score
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{job_id}/match", response_model=MatchScoreResponse, status_code=status.HTTP_200_OK)
+async def match_job(
+    job_id: UUID,
+    body: MatchRequest,
+    current_user: AuthUser,
+    db: DbSession,
+) -> MatchScoreResponse:
+    """
+    Score a resume against a job posting using Claude.
+    Upserts the result — calling again with the same (resume, job) pair
+    refreshes the score.
+    """
+    from app.config import settings
+    from app.services.ai.client import AIError, ai_client
+    from app.services.ai.prompts.job_match import (
+        JobMatchResult,
+        build_system_prompt,
+        build_user_prompt,
+    )
+    from app.services.ai.response_parser import ResponseParseError, parse_response
+    from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
+    from app.services.file_storage import StorageError, file_storage
+    from app.services.resume_parser import ParseError, extract_text
+
+    # -- Load job
+    job_repo = JobPostingRepository(db)
+    job = await job_repo.get_active(job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
+
+    if not job.translated_description:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Job posting has no translated description yet",
+        )
+
+    # -- Load resume (ownership enforced)
+    resume_repo = ResumeRepository(db)
+    resume = await resume_repo.get_owned(body.resume_id, current_user.user_id)
+    if resume is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    # -- Load candidate's Japanese level from profile
+    profile_repo = ProfileRepository(db)
+    profile = await profile_repo.get_by_user_id(current_user.user_id)
+    japanese_level: str | None = profile.japanese_level.value if profile else None
+
+    # -- Budget check
+    try:
+        await usage_tracker.check_budget(current_user.user_id, "job_match", db)
+    except AIBudgetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+        ) from exc
+
+    # -- Extract resume text from S3 / Backblaze B2
+    try:
+        file_bytes = file_storage.download(resume.file_url)
+    except StorageError as exc:
+        logger.error("S3 fetch failed for resume=%s: %s", resume.id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not retrieve resume file. Please try again.",
+        ) from exc
+
+    try:
+        resume_text = extract_text(file_bytes, resume.mime_type)
+    except ParseError as exc:
+        logger.warning("Resume text extraction failed for resume=%s: %s", resume.id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not read this resume file. Please re-upload it in a supported format.",
+        ) from exc
+
+    # -- Call Claude
+    system = build_system_prompt()
+    user_prompt = build_user_prompt(
+        resume_text=resume_text,
+        job_title=job.translated_title or job.original_title or "",
+        job_description=job.translated_description,
+        japanese_level=japanese_level,
+    )
+
+    t0 = time.monotonic()
+    try:
+        response_text, input_tokens, output_tokens = await ai_client.generate(
+            system,
+            user_prompt,
+            max_tokens=_MATCH_MAX_TOKENS,
+            feature="job_match",
+            json_mode=True,
+        )
+    except AIError as exc:
+        logger.error("AI match scoring failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Match scoring failed. Please try again.",
+        ) from exc
+    latency_ms = int((time.monotonic() - t0) * 1000)
+
+    # -- Parse
+    try:
+        parsed: JobMatchResult = parse_response(response_text, JobMatchResult)
+    except ResponseParseError as exc:
+        logger.error("Match response parse failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Match scoring response was malformed. Please try again.",
+        ) from exc
+
+    # -- Upsert match row
+    match_repo = JobMatchRepository(db)
+    match = await match_repo.upsert(
+        user_id=current_user.user_id,
+        resume_id=body.resume_id,
+        job_posting_id=job_id,
+        match_score=float(parsed.match_score),
+        match_breakdown=parsed.match_breakdown.model_dump(),
+        recommendations=parsed.recommendations.model_dump(),
+    )
+
+    # -- Record usage (never raises)
+    await usage_tracker.record(
+        user_id=current_user.user_id,
+        feature="job_match",
+        model=settings.gemini_default_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=latency_ms,
+        db=db,
+    )
+
+    await db.commit()
+    await db.refresh(match)
+
+    logger.info(
+        "Match scored: job_id=%s resume_id=%s score=%s tokens=%d",
+        job_id,
+        body.resume_id,
+        parsed.match_score,
+        input_tokens + output_tokens,
+    )
+    return MatchScoreResponse.model_validate(match)
