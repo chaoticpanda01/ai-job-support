@@ -8,6 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    desc,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -55,14 +56,15 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("is_primary = TRUE"),
         ),
-        Index("idx_resumes_created_at", "user_id", "created_at"),
+        Index("idx_resumes_user_id", "user_id"),
+        Index("idx_resumes_created_at", "user_id", desc("created_at")),
+        Index("idx_resumes_parsed_content", "parsed_content", postgresql_using="gin"),
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="resumes_user_id_fk"),
         nullable=False,
-        index=True,
     )
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
     file_url: Mapped[str] = mapped_column(Text, nullable=False)
@@ -92,6 +94,7 @@ class ResumeAnalysis(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         CheckConstraint("input_tokens >= 0", name="resume_analyses_input_tokens_gte0"),
         CheckConstraint("output_tokens >= 0", name="resume_analyses_output_tokens_gte0"),
+        Index("idx_resume_analyses_resume_id", "resume_id"),
         Index("idx_resume_analyses_result", "result", postgresql_using="gin"),
     )
 
@@ -99,7 +102,6 @@ class ResumeAnalysis(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         PgUUID(as_uuid=True),
         ForeignKey("resumes.id", ondelete="CASCADE", name="resume_analyses_resume_fk"),
         nullable=False,
-        index=True,
     )
     analysis_type: Mapped[AnalysisType] = mapped_column(
         sa_analysis_type, nullable=False, server_default=text("'general'")

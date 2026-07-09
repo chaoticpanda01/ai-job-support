@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    desc,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
@@ -57,13 +58,13 @@ class Subscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status IN ('active', 'trialing')"),
         ),
+        Index("idx_subscriptions_user_id", "user_id"),
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="subscriptions_user_fk"),
         nullable=False,
-        index=True,
     )
     stripe_subscription_id: Mapped[str] = mapped_column(String(255), nullable=False)
     stripe_customer_id: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -86,12 +87,14 @@ class BillingEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """
 
     __tablename__ = "billing_events"
-    __table_args__ = (UniqueConstraint("stripe_event_id", name="billing_events_stripe_ev_uk"),)
+    __table_args__ = (
+        UniqueConstraint("stripe_event_id", name="billing_events_stripe_ev_uk"),
+        Index("idx_billing_events_user_id", "user_id", desc("created_at")),
+    )
 
     user_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL", name="billing_events_user_fk"),
-        index=True,
     )
     stripe_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type: Mapped[BillingEventType] = mapped_column(sa_billing_event_type, nullable=False)
@@ -118,7 +121,7 @@ class NotificationLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "idx_notification_log_user_template",
             "user_id",
             "template_id",
-            "created_at",
+            desc("created_at"),
         ),
     )
 

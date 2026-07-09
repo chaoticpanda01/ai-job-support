@@ -8,6 +8,7 @@ from sqlalchemy import (
     Computed,
     DateTime,
     ForeignKey,
+    Index,
     SmallInteger,
     String,
     Text,
@@ -130,6 +131,7 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "onboarding_step BETWEEN 0 AND 4",
             name="profiles_onboarding_step_range",
         ),
+        Index("idx_profiles_user_id", "user_id"),
     )
 
     user_id: Mapped[UUID] = mapped_column(

@@ -10,6 +10,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    desc,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -48,15 +49,15 @@ class InterviewSession(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "completed_at IS NULL OR completed_at >= created_at",
             name="interview_sessions_timing",
         ),
+        Index("idx_interview_sessions_user_id", "user_id"),
         Index("idx_interview_sessions_status", "user_id", "status"),
-        Index("idx_interview_sessions_created", "user_id", "created_at"),
+        Index("idx_interview_sessions_created", "user_id", desc("created_at")),
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="interview_sessions_user_fk"),
         nullable=False,
-        index=True,
     )
     session_type: Mapped[InterviewType] = mapped_column(
         sa_interview_type, nullable=False, server_default=text("'general'")

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,12 +20,12 @@ class VisaConsultation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """
 
     __tablename__ = "visa_consultations"
+    __table_args__ = (Index("idx_visa_consultations_user_id", "user_id"),)
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="visa_consultations_user_fk"),
         nullable=False,
-        index=True,
     )
     visa_type: Mapped[str | None] = mapped_column(String(100))
     profile_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

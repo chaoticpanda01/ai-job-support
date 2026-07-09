@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, Index, String, Text, UniqueConstraint, desc, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,7 +21,7 @@ class CultureTopic(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("slug", name="culture_topics_slug_uk"),
         Index(
             "idx_culture_topics_published",
-            "published_at",
+            desc("published_at"),
             postgresql_where=text("published_at IS NOT NULL"),
         ),
         Index("idx_culture_topics_tags", "tags", postgresql_using="gin"),
@@ -40,7 +40,17 @@ class CultureGlossary(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Japanese workplace term with Indonesian definition and romaji reading."""
 
     __tablename__ = "culture_glossary"
-    __table_args__ = (UniqueConstraint("term_ja", name="culture_glossary_term_uk"),)
+    __table_args__ = (
+        UniqueConstraint("term_ja", name="culture_glossary_term_uk"),
+        Index(
+            "idx_culture_glossary_term",
+            text(
+                "to_tsvector('simple'::regconfig, (term_ja::text || ' '::text) "
+                "|| COALESCE(reading_romaji, ''::character varying)::text)"
+            ),
+            postgresql_using="gin",
+        ),
+    )
 
     term_ja: Mapped[str] = mapped_column(String(255), nullable=False)
     reading_romaji: Mapped[str | None] = mapped_column(String(255))

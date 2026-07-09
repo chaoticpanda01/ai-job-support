@@ -120,6 +120,11 @@ jobs:
       - name: Mypy type check
         run: mypy app/
 
+      - name: Apply migrations
+        run: alembic upgrade head
+        env:
+          DATABASE_SYNC_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/ai_job_support_test
+
       - name: Alembic migration check
         run: alembic check
         env:

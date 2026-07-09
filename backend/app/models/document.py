@@ -2,7 +2,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    desc,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -52,14 +62,14 @@ class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "status",
             postgresql_where=text("status IN ('pending', 'processing')"),
         ),
-        Index("idx_gen_docs_created", "user_id", "created_at"),
+        Index("idx_gen_docs_user_id", "user_id"),
+        Index("idx_gen_docs_created", "user_id", desc("created_at")),
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="generated_documents_user_fk"),
         nullable=False,
-        index=True,
     )
     resume_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),

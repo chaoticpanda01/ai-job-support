@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    desc,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -59,7 +60,7 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ),
         Index(
             "idx_job_postings_created_at",
-            "created_at",
+            desc("created_at"),
             postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
@@ -70,7 +71,16 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         Index("idx_job_postings_structured", "structured_data", postgresql_using="gin"),
         Index(
             "idx_job_postings_friendliness",
-            "foreigner_friendliness_score",
+            desc("foreigner_friendliness_score"),
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "idx_job_postings_title_search",
+            text(
+                "to_tsvector('simple'::regconfig, (COALESCE(translated_title, ''::text) "
+                "|| ' '::text) || COALESCE(translation_summary, ''::text))"
+            ),
+            postgresql_using="gin",
             postgresql_where=text("deleted_at IS NULL"),
         ),
     )
@@ -121,14 +131,14 @@ class JobMatch(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "job_posting_id",
             name="job_matches_unique_triple",
         ),
-        Index("idx_job_matches_score", "user_id", "match_score"),
+        Index("idx_job_matches_user_resume", "user_id", "resume_id"),
+        Index("idx_job_matches_score", "user_id", desc("match_score")),
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="job_matches_user_fk"),
         nullable=False,
-        index=True,
     )
     resume_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
@@ -154,13 +164,15 @@ class SavedJob(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """Lightweight bookmark. Separate from JobMatch — saving ≠ applying."""
 
     __tablename__ = "saved_jobs"
-    __table_args__ = (UniqueConstraint("user_id", "job_posting_id", name="saved_jobs_unique"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_posting_id", name="saved_jobs_unique"),
+        Index("idx_saved_jobs_user_id", "user_id"),
+    )
 
     user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="saved_jobs_user_fk"),
         nullable=False,
-        index=True,
     )
     job_posting_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
@@ -186,6 +198,7 @@ class JobApplication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "job_applications"
     __table_args__ = (
         UniqueConstraint("user_id", "job_posting_id", name="job_applications_unique"),
+        Index("idx_job_applications_user_id", "user_id"),
         Index("idx_job_applications_status", "user_id", "status"),
     )
 
@@ -193,7 +206,6 @@ class JobApplication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE", name="job_applications_user_fk"),
         nullable=False,
-        index=True,
     )
     job_posting_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
