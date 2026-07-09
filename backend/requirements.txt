@@ -13,6 +13,7 @@ httpx==0.28.*                    # async HTTP client (internal calls, URL fetch)
 # --- Database ---
 sqlalchemy[asyncio]==2.0.*
 asyncpg==0.30.*                  # async PostgreSQL driver
+psycopg2-binary==2.9.*           # sync PostgreSQL driver — required by Alembic (DATABASE_SYNC_URL)
 alembic==1.14.*
 
 # --- Cache / Queue ---

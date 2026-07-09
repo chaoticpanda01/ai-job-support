@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for the Docker image (backend/../Dockerfile copies
+  // .next/standalone into the runtime stage). Vercel ignores this and
+  // uses its own build pipeline, so it's safe alongside the Vercel deploy.
+  output: "standalone",
+
   images: {
     remotePatterns: [
       {
