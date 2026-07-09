@@ -21,6 +21,7 @@ from app.services.document_generator import (
     _render_rirekisho,
     _render_shokumu,
 )
+from app.utils.pdf_generator import PDFGenerationError
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -317,7 +318,10 @@ async def test_generate_raises_on_pdf_error() -> None:
         patch("app.services.document_generator.usage_tracker.check_budget", new=AsyncMock()),
         patch.object(generator, "_call_ai", new=AsyncMock(return_value=("{}", 100, 50))),
         patch.object(generator, "_parse_response", return_value=_rirekisho_content()),
-        patch("app.services.document_generator.html_to_pdf", side_effect=Exception("font missing")),
+        patch(
+            "app.services.document_generator.html_to_pdf",
+            side_effect=PDFGenerationError("font missing"),
+        ),
     ):
         MockDocRepo.return_value.get = AsyncMock(return_value=doc)
         MockResumeRepo.return_value.get_owned = AsyncMock(return_value=resume)

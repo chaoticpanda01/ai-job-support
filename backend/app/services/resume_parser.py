@@ -106,5 +106,5 @@ def _clean(text: str) -> str:
     # Collapse runs of blank lines to a single blank line
     text = re.sub(r"\n{3,}", "\n\n", text)
     # Collapse horizontal whitespace (spaces/tabs) within a line
-    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"[ \t]+", " ", text)
     return text.strip()

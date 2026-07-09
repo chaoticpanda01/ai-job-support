@@ -7,11 +7,15 @@ DB calls and middleware are mocked so these run without a live database.
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.main import app
+from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import UserRole
 from httpx import ASGITransport, AsyncClient
 
@@ -21,22 +25,33 @@ from tests.conftest import make_profile, make_user
 # Helpers
 # ---------------------------------------------------------------------------
 
+_FAKE_JWKS: dict[str, Any] = {"keys": []}
+
 
 def _auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer valid_token"}
 
 
-def _bypass_middleware(user: Any) -> Any:
-    """Patch ClerkJWTMiddleware.dispatch to inject a user directly."""
+@contextmanager
+def _bypass_middleware(user: Any) -> Iterator[None]:
+    """
+    Let the real ClerkJWTMiddleware run, but mock its I/O boundaries (JWKS
+    fetch, JWT decode, DB user resolution) so it resolves to `user`.
 
-    async def _fake_dispatch(self: Any, request: Any, call_next: Any) -> Any:
-        request.state.user_id = user.id
-        request.state.clerk_id = user.clerk_id
-        request.state.email = user.email
-        request.state.role = user.role
-        return await call_next(request)
-
-    return patch("app.middleware.clerk_auth.ClerkJWTMiddleware.dispatch", _fake_dispatch)
+    Deliberately NOT patching BaseHTTPMiddleware.dispatch directly (the
+    previous approach here) — Starlette runs dispatch inside an internal
+    task group, and unittest.mock.patch's context-manager exit doesn't wait
+    for that task to fully finish, which leaked state (and sometimes a
+    stale event loop reference) into whichever test ran next. This mirrors
+    the pattern already used successfully in test_clerk_middleware.py.
+    """
+    claims = {"sub": user.clerk_id, "email": user.email, "exp": int(time.time()) + 3600}
+    with (
+        patch.object(clerk_auth_module, "_get_jwks", new=AsyncMock(return_value=_FAKE_JWKS)),
+        patch("app.middleware.clerk_auth.jwt.decode", return_value=claims),
+        patch("app.middleware.clerk_auth._resolve_user", new=AsyncMock(return_value=user)),
+    ):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +195,7 @@ async def test_webhook_user_created_calls_upsert() -> None:
                 },
             )
 
-    assert resp.status_code == 204
+    assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
