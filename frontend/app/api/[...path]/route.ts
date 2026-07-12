@@ -65,10 +65,21 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
   if (!isWebhook) {
     try {
-      const { getToken } = await auth();
+      const { userId, sessionId, getToken } = await auth();
       const token = await getToken();
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
+      } else if (userId) {
+        // A session exists (userId is set) but getToken() still came back
+        // empty with no exception thrown — this is the case a plain null
+        // check can't distinguish from a genuinely anonymous request. Log
+        // it: whoever's calling this route has a session, so this is a
+        // real failure to mint a token (e.g. Clerk dev-instance rate
+        // limit swallowed internally by the SDK), not "not logged in".
+        console.warn(
+          `[api-proxy] getToken() returned empty for ${request.method} ${pathname} despite an active session ` +
+            `(userId=${userId}, sessionId=${sessionId}) — request will be forwarded without a token`,
+        );
       }
     } catch (err) {
       // auth()/getToken() can throw (e.g. Clerk dev-instance rate limits,
