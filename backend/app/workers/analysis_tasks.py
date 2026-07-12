@@ -53,6 +53,7 @@ def analyze_resume_task(
     user_id: str,
     analysis_type: str = "general",
     job_posting_id: str | None = None,
+    language: str = "en",
 ) -> dict[str, Any]:
     """
     Synchronous Celery task that runs async code via asyncio.run().
@@ -65,6 +66,7 @@ def analyze_resume_task(
                 user_id=UUID(user_id),
                 analysis_type=analysis_type,
                 job_posting_id=UUID(job_posting_id) if job_posting_id else None,
+                language=language,
             )
         )
     except Exception as exc:
@@ -77,6 +79,7 @@ async def _run_analysis(
     user_id: UUID,
     analysis_type: str,
     job_posting_id: UUID | None,
+    language: str = "en",
 ) -> dict[str, Any]:
     from app.config import settings
     from app.database import AsyncSessionFactory
@@ -117,7 +120,7 @@ async def _run_analysis(
             raise ValueError("Could not read resume file — unsupported or corrupt format") from exc
 
         # -- Build prompts
-        system = build_system_prompt()
+        system = build_system_prompt(language)
         user_prompt = build_user_prompt(resume_text)
 
         # -- Call Claude

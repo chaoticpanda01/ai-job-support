@@ -17,6 +17,23 @@ def test_system_prompt_contains_json_schema_hint() -> None:
     assert "JSON" in prompt
 
 
+def test_system_prompt_defaults_to_english() -> None:
+    prompt = build_system_prompt()
+    assert "in English" in prompt
+
+
+def test_system_prompt_respects_japanese_language() -> None:
+    prompt = build_system_prompt("ja")
+    assert "Japanese" in prompt
+    assert "in English" not in prompt
+
+
+def test_system_prompt_respects_indonesian_language() -> None:
+    prompt = build_system_prompt("id")
+    assert "Indonesian" in prompt
+    assert "in English" not in prompt
+
+
 def test_user_prompt_includes_resume_text() -> None:
     prompt = build_user_prompt("5 years Java developer")
     assert "5 years Java developer" in prompt

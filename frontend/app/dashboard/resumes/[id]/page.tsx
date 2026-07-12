@@ -23,7 +23,7 @@ export default function ResumeDetailPage({ params }: Props) {
 
   function handleAnalyze() {
     analyzeMutation.mutate(
-      { resumeId: id },
+      { resumeId: id, language: lang },
       {
         onError: (err) => {
           toast({

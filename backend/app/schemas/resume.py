@@ -64,6 +64,7 @@ class ResumeAnalysisResponse(_Base):
 class AnalyzeRequest(_Base):
     analysis_type: AnalysisType = AnalysisType.general
     job_posting_id: UUID | None = None
+    language: PreferredLanguage = PreferredLanguage.en
 
 
 class AnalyzeResponse(_Base):

@@ -233,6 +233,7 @@ async def analyze_resume(
         current_user.user_id,
         body.analysis_type.value,
         body.job_posting_id,
+        body.language.value,
     )
 
     return AnalyzeResponse(task_id=str(resume_id), resume_id=resume_id)

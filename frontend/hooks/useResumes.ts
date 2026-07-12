@@ -39,9 +39,10 @@ export function useResumeAnalysis(resumeId: string) {
 export function useAnalyzeResume() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ resumeId }: { resumeId: string }) =>
+    mutationFn: ({ resumeId, language }: { resumeId: string; language: string }) =>
       apiClient.post<AnalyzeResponse>(`/resumes/${resumeId}/analyze`, {
         analysis_type: "general",
+        language,
       }),
     onSuccess: (_data, { resumeId }) => {
       // Invalidate so the analysis query starts polling

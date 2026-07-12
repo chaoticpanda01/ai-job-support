@@ -40,18 +40,19 @@ class ResumeAnalysisResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def build_system_prompt() -> str:
-    return """\
+def build_system_prompt(language: str = "en") -> str:
+    intro = f"""\
 You are a career consultant specialising in helping Indonesian professionals \
 enter the Japanese job market. You have deep knowledge of Japanese workplace \
 culture, HR expectations, and the specific challenges faced by foreign workers \
 seeking employment in Japan.
 
 Your task is to analyse a resume and produce a structured JSON assessment. \
-Be honest, specific, and actionable. Always respond in English.
+Be honest, specific, and actionable. {_lang_instruction(language)}
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
-
+"""
+    schema = """
 {
   "japan_market_score": <integer 0-100>,
   "strengths": [<string>, ...],
@@ -68,6 +69,7 @@ Scoring guide for japan_market_score:
   61–80  Good fit; minor adjustments recommended
   81–100 Strong fit; ready to apply with minimal changes
 """
+    return intro + schema
 
 
 def build_user_prompt(
@@ -100,3 +102,16 @@ def build_user_prompt(
     )
 
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _lang_instruction(language: str) -> str:
+    if language == "ja":
+        return "Write every string value in the JSON response in Japanese (日本語)."
+    if language == "id":
+        return "Write every string value in the JSON response in Indonesian (Bahasa Indonesia)."
+    return "Write every string value in the JSON response in English."
