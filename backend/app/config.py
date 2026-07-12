@@ -99,8 +99,6 @@ class Settings(BaseSettings):
     # is beyond that hop count and ignored. See middleware/rate_limiter.py.
     trusted_proxy_hops: int = 1
 
-    # --- PDF ---
-    pdf_font_path: str = "/usr/share/fonts/noto"
     job_translation_cache_days: int = 7
 
     # --- Derived ---

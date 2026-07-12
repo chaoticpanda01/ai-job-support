@@ -1,11 +1,18 @@
 """
-WeasyPrint-based PDF generator with Noto Sans JP support.
+WeasyPrint-based PDF generator with Japanese (CJK) font support.
 
-Takes an HTML string and returns PDF bytes. All CJK characters are rendered
-via Noto Sans JP, which the Dockerfile installs at /usr/share/fonts/noto.
-
-The font path is read from settings.pdf_font_path so it can be overridden
-in tests (point to a local font directory on the developer's machine).
+Takes an HTML string and returns PDF bytes. WeasyPrint renders text via
+Pango, which resolves font families through the system's fontconfig
+database — so any CJK-capable font already installed on the system (the
+Dockerfile installs `fonts-noto-cjk` via apt) is picked up by family name
+automatically. This deliberately avoids hardcoding a font file path/name via
+@font-face: OS package managers change the exact install path and filenames
+between versions, and a stale hardcoded path fails *silently* — WeasyPrint
+just drops the unresolvable @font-face and falls back to a Latin-only font,
+so Japanese text renders as blank while everything else looks fine. Letting
+fontconfig resolve the family name is what the Dockerfile's own
+`fc-list :lang=ja` build check already validates, so the app and the build
+check are now looking at the same thing.
 
 This module is synchronous — WeasyPrint is CPU-bound. Call from a Celery
 worker or a thread-pool executor; never call directly from an async route.
@@ -14,72 +21,55 @@ worker or a thread-pool executor; never call directly from an async route.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-
-from app.config import settings
+import subprocess
 
 logger = logging.getLogger(__name__)
 
-# CSS injected into every document to load Noto Sans JP from the local
-# filesystem. The @font-face src uses a file:// URI so WeasyPrint does not
-# make network requests.
-_FONT_CSS_TEMPLATE = """\
-@font-face {{
-    font-family: 'Noto Sans JP';
-    src: url('file://{font_path}/NotoSansJP-Regular.otf') format('opentype');
-    font-weight: 400;
-    font-style: normal;
-}}
-@font-face {{
-    font-family: 'Noto Sans JP';
-    src: url('file://{font_path}/NotoSansJP-Bold.otf') format('opentype');
-    font-weight: 700;
-    font-style: normal;
-}}
-"""
-
-# Base page styles shared by all document templates
+# Font stack: prefer whichever CJK-capable family fontconfig resolves first
+# (Debian's fonts-noto-cjk package registers "Noto Sans CJK JP"), falling
+# back to generic sans-serif for any environment that lacks CJK fonts —
+# Latin text still renders there, only Japanese glyphs would be missing.
 _BASE_CSS = """\
-* {{
+* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-}}
-body {{
-    font-family: 'Noto Sans JP', sans-serif;
+}
+body {
+    font-family: 'Noto Sans CJK JP', 'Noto Sans JP', 'Noto Sans', sans-serif;
     font-size: 10pt;
     line-height: 1.6;
     color: #1a1a1a;
-}}
-@page {{
+}
+@page {
     size: A4;
     margin: 15mm 18mm 15mm 18mm;
-}}
-table {{
+}
+table {
     border-collapse: collapse;
     width: 100%;
-}}
-th, td {{
+}
+th, td {
     border: 1px solid #999;
     padding: 4px 6px;
     vertical-align: top;
-}}
-th {{
+}
+th {
     background-color: #f0f0f0;
     font-weight: 700;
     white-space: nowrap;
-}}
-.section-title {{
+}
+.section-title {
     font-size: 11pt;
     font-weight: 700;
     border-bottom: 2px solid #333;
     margin: 12px 0 6px;
     padding-bottom: 2px;
-}}
-.label {{
+}
+.label {
     color: #555;
     font-size: 9pt;
-}}
+}
 """
 
 
@@ -92,20 +82,15 @@ def html_to_pdf(html_body: str) -> bytes:
     Render an HTML fragment to PDF bytes.
 
     html_body should be the <body> content only — this function wraps it
-    in a complete HTML document with the correct font declarations and
-    base styles injected.
+    in a complete HTML document with the correct font-family and base
+    styles injected.
 
     Raises PDFGenerationError on WeasyPrint failure.
     """
     try:
         from weasyprint import CSS, HTML  # type: ignore[import-untyped]
-        from weasyprint.text.fonts import FontConfiguration  # type: ignore[import-untyped]
     except ImportError as exc:
         raise PDFGenerationError("weasyprint is not installed") from exc
-
-    font_path = _resolve_font_path()
-    font_css = _FONT_CSS_TEMPLATE.format(font_path=font_path)
-    full_css = font_css + _BASE_CSS
 
     full_html = f"""<!DOCTYPE html>
 <html lang="ja">
@@ -113,12 +98,9 @@ def html_to_pdf(html_body: str) -> bytes:
 <body>{html_body}</body>
 </html>"""
 
-    font_config = FontConfiguration()
-
     try:
         pdf_bytes: bytes = HTML(string=full_html).write_pdf(
-            stylesheets=[CSS(string=full_css, font_config=font_config)],
-            font_config=font_config,
+            stylesheets=[CSS(string=_BASE_CSS)],
         )
     except Exception as exc:
         logger.error("WeasyPrint rendering failed: %s", exc)
@@ -130,24 +112,25 @@ def html_to_pdf(html_body: str) -> bytes:
 
 def verify_fonts() -> bool:
     """
-    Return True if the expected Noto Sans JP font files exist on disk.
-    Called at startup (or in CI) to detect missing font installations early.
+    Return True if fontconfig can resolve a Japanese-capable font on this
+    system. Checked at app startup and surfaced on GET /health so a missing
+    or misconfigured CJK font fails loudly instead of silently producing
+    PDFs with blank Japanese text (see html_to_pdf's font-family stack,
+    which relies on fontconfig resolving one of these families).
     """
-    font_path = Path(_resolve_font_path())
-    required = ["NotoSansJP-Regular.otf", "NotoSansJP-Bold.otf"]
-    missing = [f for f in required if not (font_path / f).exists()]
-    if missing:
-        logger.warning("Missing Noto Sans JP fonts: %s in %s", missing, font_path)
+    try:
+        result = subprocess.run(  # noqa: S603 — hardcoded, non-user-controlled command
+            ["fc-list", ":lang=ja"],  # noqa: S607 — fc-list resolved via PATH is expected here
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning("Could not run fc-list to verify Japanese font support: %s", exc)
+        return False
+
+    if result.returncode != 0 or not result.stdout.strip():
+        logger.warning("No Japanese-capable font found via fontconfig (fc-list :lang=ja empty)")
         return False
     return True
-
-
-def _resolve_font_path() -> str:
-    """Return the font directory, falling back to a common system path."""
-    configured = settings.pdf_font_path
-    if Path(configured).exists():
-        return configured
-    # Common fallback for macOS development environments
-    fallback = "/Library/Fonts"
-    logger.debug("Font path %s not found, falling back to %s", configured, fallback)
-    return fallback

@@ -8,6 +8,7 @@ Middleware order (outermost → innermost):
 Sentry is initialized before the app starts if SENTRY_DSN is configured.
 """
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,9 @@ from app.config import settings
 from app.database import close_db, ping_db
 from app.middleware.clerk_auth import ClerkJWTMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.utils.pdf_generator import verify_fonts
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Sentry — initialize before creating the app
@@ -47,6 +51,12 @@ if settings.sentry_dsn:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    if not verify_fonts():
+        logger.error(
+            "No Japanese-capable font found on this system — resume/rirekisho PDF "
+            "generation will silently produce documents with blank Japanese text. "
+            "Check that fonts-noto-cjk (or equivalent) is installed."
+        )
     yield
     await close_db()
 
@@ -85,10 +95,12 @@ app.add_middleware(
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, object]:
     db_ok = await ping_db()
+    fonts_ok = verify_fonts()
     return {
-        "status": "ok" if db_ok else "degraded",
+        "status": "ok" if db_ok and fonts_ok else "degraded",
         "version": settings.app_version,
         "db": "ok" if db_ok else "unreachable",
+        "fonts": "ok" if fonts_ok else "missing_ja_font",
     }
 
 
