@@ -1,11 +1,19 @@
 # =============================================================================
 # Backend — Multi-stage Dockerfile
-# Stage 1: base     — Python + system deps + fonts
+# Stage 1: base     — Python + system deps
 # Stage 2: builder  — install Python packages into venv
 # Stage 3: runtime  — minimal production image
 #
 # Target: --target=runtime (default) for API server
 #         --target=celery   for Celery workers (same image, different CMD)
+#
+# Japanese font support for WeasyPrint PDF generation does NOT come from a
+# system package here — production (Render) runs both services on Render's
+# native Python buildpack, not this Dockerfile, so an apt-installed font
+# would silently be absent there. The font is bundled as a repo asset
+# instead (app/assets/fonts/) and loaded by an in-repo file path, which
+# works identically under this image, Render's native runtime, or local
+# dev. See app/utils/pdf_generator.py.
 # =============================================================================
 
 # ---- Stage 1: Base ----
@@ -14,14 +22,12 @@ FROM python:3.12-slim AS base
 # System packages:
 #   build-essential   — C extensions (asyncpg, python-magic)
 #   libmagic1         — python-magic MIME detection
-#   fonts-noto-cjk    — Noto Sans JP for WeasyPrint PDF generation (Japanese support)
 #   libpango-1.0-0 libpangocairo-1.0-0 libcairo2   — WeasyPrint rendering engine
 #   libffi-dev        — cryptography package
 #   curl              — healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libmagic1 \
-    fonts-noto-cjk \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libcairo2 \
@@ -30,10 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Verify Japanese font installation — build fails here if fonts are missing
-# (prevents silent font fallback producing unreadable PDFs)
-RUN fc-list :lang=ja | grep -q "Noto" || (echo "ERROR: Noto CJK fonts not found" && exit 1)
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

@@ -105,7 +105,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmagic1 fonts-noto-cjk \
+          sudo apt-get install -y libmagic1 \
             libpango-1.0-0 libpangocairo-1.0-0 libcairo2
 
       - name: Install Python dependencies
@@ -171,10 +171,10 @@ jobs:
             --tag ai-job-support-backend:ci \
             ./backend
 
-      - name: Verify Japanese fonts in backend image
+      - name: Verify bundled Japanese font ships in backend image
         run: |
           docker run --rm ai-job-support-backend:ci \
-            fc-list :lang=ja | grep -q "Noto"
+            python -c "from app.utils.pdf_generator import verify_fonts; import sys; sys.exit(0 if verify_fonts() else 1)"
 
       - name: Build frontend image
         run: |

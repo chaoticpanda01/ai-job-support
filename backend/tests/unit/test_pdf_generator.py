@@ -1,8 +1,8 @@
-"""Unit tests for pdf_generator. WeasyPrint and subprocess are mocked."""
+"""Unit tests for pdf_generator. WeasyPrint and the filesystem are mocked."""
 
 from __future__ import annotations
 
-import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,11 +17,11 @@ def _fake_weasyprint_modules(html_cls: MagicMock, css_cls: MagicMock) -> dict[st
     """
     Build a fake weasyprint package tree for sys.modules.
 
-    html_to_pdf() imports HTML/CSS *inside* the function body (deliberately,
-    so test_html_to_pdf_raises_when_weasyprint_not_installed below can
-    simulate a missing install via sys.modules). That means HTML/CSS are
-    never real attributes of app.utils.pdf_generator to patch directly —
-    patching them there raises AttributeError. Substituting the module in
+    html_to_pdf() imports HTML/CSS/FontConfiguration *inside* the function
+    body (deliberately, so test_html_to_pdf_raises_when_weasyprint_not_installed
+    below can simulate a missing install via sys.modules). That means HTML/CSS
+    are never real attributes of app.utils.pdf_generator to patch directly —
+    patching them there raises AttributeError. Substituting the modules in
     sys.modules instead works regardless of whether the real weasyprint
     package (and its native Pango/GLib dependencies) can even import in the
     current environment.
@@ -29,7 +29,13 @@ def _fake_weasyprint_modules(html_cls: MagicMock, css_cls: MagicMock) -> dict[st
     fake_weasyprint = MagicMock()
     fake_weasyprint.HTML = html_cls
     fake_weasyprint.CSS = css_cls
-    return {"weasyprint": fake_weasyprint}
+    fake_fonts_module = MagicMock()
+    fake_fonts_module.FontConfiguration = MagicMock()
+    return {
+        "weasyprint": fake_weasyprint,
+        "weasyprint.text": MagicMock(),
+        "weasyprint.text.fonts": fake_fonts_module,
+    }
 
 
 def test_html_to_pdf_returns_bytes() -> None:
@@ -46,6 +52,9 @@ def test_html_to_pdf_returns_bytes() -> None:
 
     assert result == b"%PDF-fake"
     mock_html_instance.write_pdf.assert_called_once()
+    # font_config must be passed to write_pdf — without it WeasyPrint
+    # silently ignores the bundled @font-face (see html_to_pdf's docstring).
+    assert mock_html_instance.write_pdf.call_args.kwargs.get("font_config") is not None
 
 
 def test_html_to_pdf_raises_on_weasyprint_error() -> None:
@@ -73,9 +82,11 @@ def test_html_to_pdf_raises_when_weasyprint_not_installed() -> None:
 
 def test_html_wraps_body_fragment() -> None:
     """Ensure the generated HTML contains the body content and lang=ja,
-    and the generated CSS declares a CJK-capable font family."""
+    and the generated CSS declares the bundled Noto Sans JP font with a
+    font_config shared between CSS() and write_pdf()."""
     captured_html: list[str] = []
     captured_css: list[str] = []
+    captured_css_kwargs: list[dict[str, object]] = []
 
     mock_html_cls = MagicMock()
     mock_instance = MagicMock()
@@ -87,8 +98,9 @@ def test_html_wraps_body_fragment() -> None:
 
     mock_css_cls = MagicMock()
 
-    def capture_css(**kwargs: str) -> MagicMock:
-        captured_css.append(kwargs.get("string", ""))
+    def capture_css(**kwargs: object) -> MagicMock:
+        captured_css.append(str(kwargs.get("string", "")))
+        captured_css_kwargs.append(kwargs)
         return MagicMock()
 
     mock_html_cls.side_effect = capture_html
@@ -104,7 +116,12 @@ def test_html_wraps_body_fragment() -> None:
     assert "<p>履歴書</p>" in html
 
     assert captured_css, "CSS() was not called"
-    assert "Noto Sans CJK JP" in captured_css[0]
+    assert "Noto Sans JP" in captured_css[0]
+    assert "NotoSansJP-Regular.woff" in captured_css[0]
+    assert "NotoSansJP-Bold.woff" in captured_css[0]
+    # CSS() must receive the same font_config instance later passed to
+    # write_pdf() — that's what makes the bundled @font-face register.
+    assert captured_css_kwargs[0].get("font_config") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -112,33 +129,41 @@ def test_html_wraps_body_fragment() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_verify_fonts_returns_true_when_fc_list_finds_a_font() -> None:
-    fake_stdout = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc\n"
-    fake_result = MagicMock(returncode=0, stdout=fake_stdout)
-    with patch("subprocess.run", return_value=fake_result) as mock_run:
+def test_verify_fonts_returns_true_when_bundled_files_exist(tmp_path: Path) -> None:
+    regular = tmp_path / "NotoSansJP-Regular.woff"
+    bold = tmp_path / "NotoSansJP-Bold.woff"
+    regular.touch()
+    bold.touch()
+
+    with (
+        patch("app.utils.pdf_generator._FONT_REGULAR", regular),
+        patch("app.utils.pdf_generator._FONT_BOLD", bold),
+    ):
         assert verify_fonts() is True
-    mock_run.assert_called_once_with(
-        ["fc-list", ":lang=ja"], capture_output=True, text=True, timeout=5, check=False
-    )
 
 
-def test_verify_fonts_returns_false_when_fc_list_output_empty() -> None:
-    fake_result = MagicMock(returncode=0, stdout="")
-    with patch("subprocess.run", return_value=fake_result):
+def test_verify_fonts_returns_false_when_a_file_is_missing(tmp_path: Path) -> None:
+    regular = tmp_path / "NotoSansJP-Regular.woff"
+    bold = tmp_path / "NotoSansJP-Bold.woff"
+    regular.touch()
+    # bold is never created
+
+    with (
+        patch("app.utils.pdf_generator._FONT_REGULAR", regular),
+        patch("app.utils.pdf_generator._FONT_BOLD", bold),
+    ):
         assert verify_fonts() is False
 
 
-def test_verify_fonts_returns_false_on_nonzero_exit() -> None:
-    fake_result = MagicMock(returncode=1, stdout="")
-    with patch("subprocess.run", return_value=fake_result):
+def test_verify_fonts_returns_false_when_both_files_missing(tmp_path: Path) -> None:
+    with (
+        patch("app.utils.pdf_generator._FONT_REGULAR", tmp_path / "missing-regular.woff"),
+        patch("app.utils.pdf_generator._FONT_BOLD", tmp_path / "missing-bold.woff"),
+    ):
         assert verify_fonts() is False
 
 
-def test_verify_fonts_returns_false_when_fc_list_not_installed() -> None:
-    with patch("subprocess.run", side_effect=FileNotFoundError("fc-list not found")):
-        assert verify_fonts() is False
-
-
-def test_verify_fonts_returns_false_on_timeout() -> None:
-    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="fc-list", timeout=5)):
-        assert verify_fonts() is False
+def test_verify_fonts_returns_true_for_the_actual_bundled_files() -> None:
+    """No mocking — the real bundled font files must actually be checked
+    into the repo at the path pdf_generator.py expects."""
+    assert verify_fonts() is True

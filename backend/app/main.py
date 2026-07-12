@@ -53,9 +53,9 @@ if settings.sentry_dsn:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not verify_fonts():
         logger.error(
-            "No Japanese-capable font found on this system — resume/rirekisho PDF "
-            "generation will silently produce documents with blank Japanese text. "
-            "Check that fonts-noto-cjk (or equivalent) is installed."
+            "Bundled Noto Sans JP font file(s) missing from app/assets/fonts/ — "
+            "resume/rirekisho PDF generation will silently produce documents with "
+            "blank Japanese text. Check that the font files are present in this deploy."
         )
     yield
     await close_db()
