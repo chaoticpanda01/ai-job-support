@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-_TRANSLATION_MAX_TOKENS = 2000
+_TRANSLATION_MAX_TOKENS = 8192
 _MATCH_MAX_TOKENS = 2048
 
 

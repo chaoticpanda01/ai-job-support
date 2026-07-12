@@ -59,6 +59,13 @@ class AIClient:
                 )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 text = response.text or ""
+                if response.candidates and response.candidates[0].finish_reason == "MAX_TOKENS":
+                    logger.warning(
+                        "Gemini response truncated by max_output_tokens=%d for feature=%s "
+                        "— output is likely incomplete/invalid JSON",
+                        max_tokens,
+                        feature,
+                    )
                 input_tokens = (
                     response.usage_metadata.prompt_token_count or 0
                     if response.usage_metadata

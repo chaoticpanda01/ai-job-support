@@ -70,8 +70,16 @@ async function handler(request: NextRequest): Promise<NextResponse> {
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-    } catch {
-      // auth() throws outside of Clerk context — let FastAPI handle 401
+    } catch (err) {
+      // auth()/getToken() can throw (e.g. Clerk dev-instance rate limits,
+      // outages, or calls outside a Clerk context). Falling through lets
+      // FastAPI reject with 401 as before, but log here — otherwise the
+      // resulting "Missing or malformed Authorization header" error has no
+      // trace of why the token was never attached.
+      console.error(
+        `[api-proxy] getToken() failed for ${request.method} ${pathname} — request will be forwarded without a token:`,
+        err,
+      );
     }
   }
 
