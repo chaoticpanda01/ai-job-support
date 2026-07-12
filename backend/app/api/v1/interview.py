@@ -69,10 +69,7 @@ async def create_session(
     try:
         await usage_tracker.check_budget(current_user.user_id, "interview_message", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     # Load candidate profile for richer question context
     profile_repo = ProfileRepository(db)
@@ -152,10 +149,7 @@ async def send_message(
     try:
         await usage_tracker.check_budget(current_user.user_id, "interview_message", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     # Fetch recent history for context
     msg_repo = InterviewMessageRepository(db)
@@ -221,10 +215,7 @@ async def end_session(
     try:
         await usage_tracker.check_budget(current_user.user_id, "interview_message", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     msg_repo = InterviewMessageRepository(db)
     all_messages = await msg_repo.list_for_session(session_id)

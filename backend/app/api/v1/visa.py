@@ -92,10 +92,7 @@ async def create_consultation(
     try:
         await usage_tracker.check_budget(current_user.user_id, "visa_guidance", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     snapshot = _profile_snapshot(profile)
 

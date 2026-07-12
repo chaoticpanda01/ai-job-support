@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -37,20 +38,33 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         r = row.one()
         return r.call_count, r.total_tokens, r.total_cost_usd
 
-    async def get_daily_call_count(self, user_id: UUID) -> int:
+    async def get_recent_usage_window(
+        self, user_id: UUID, window_hours: int
+    ) -> tuple[int, datetime | None]:
         """
-        Returns total AI call count across all features for the current
-        calendar day (server timezone). Used by the per-user fair-use quota
-        enforced in check_budget — deliberately whole-app, not per-feature,
-        so a user can't just spread calls across endpoints to dodge the cap.
+        Returns (call_count, oldest_call_at) across all features in the
+        trailing `window_hours` (rolling window, not calendar-aligned).
+        Used by the per-user fair-use quota enforced in check_budget —
+        deliberately whole-app, not per-feature, so a user can't just spread
+        calls across endpoints to dodge the cap.
+
+        oldest_call_at is the timestamp of the earliest call still inside the
+        window — once that call ages out (oldest_call_at + window_hours), the
+        count drops by one and a new call is allowed. It's None when the
+        window is empty. Callers use it to compute a reset countdown.
         """
+        cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
         row = await self.session.execute(
-            select(func.count()).where(
+            select(
+                func.count().label("call_count"),
+                func.min(AIUsageLog.created_at).label("oldest_call_at"),
+            ).where(
                 AIUsageLog.user_id == user_id,
-                func.date_trunc("day", AIUsageLog.created_at) == func.date_trunc("day", func.now()),
+                AIUsageLog.created_at >= cutoff,
             )
         )
-        return row.scalar_one()
+        r = row.one()
+        return r.call_count, r.oldest_call_at
 
     async def get_all_features_this_month(self, user_id: UUID) -> list[dict[str, Any]]:
         """

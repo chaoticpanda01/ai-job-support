@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.config import settings
@@ -68,10 +68,7 @@ async def chat_message(
     try:
         await usage_tracker.check_budget(current_user.user_id, "chatbot", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     # Build conversation context from history (last 10 messages)
     history_text = ""

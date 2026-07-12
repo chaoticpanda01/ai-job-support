@@ -102,10 +102,7 @@ async def translate_job(
     try:
         await usage_tracker.check_budget(current_user.user_id, "job_translation", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     # -- Call Claude
     system = build_system_prompt()
@@ -521,10 +518,7 @@ async def match_job(
     try:
         await usage_tracker.check_budget(current_user.user_id, "job_match", db)
     except AIBudgetError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(exc),
-        ) from exc
+        raise exc.to_http_exception() from exc
 
     # -- Extract resume text from S3 / Backblaze B2
     try:
