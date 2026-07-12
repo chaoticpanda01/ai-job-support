@@ -19,6 +19,13 @@ Thumbs.db
 *.swp
 *.swo
 
+# --- Claude Code (per-developer local state; commit .claude/settings.json instead for shared config) ---
+.claude/settings.local.json
+
+# --- Sensitive documents (never commit) ---
+Security_Vulnerability_Report_EN.xlsx
+脆弱性診断レポート.xlsx
+
 # =============================================================================
 # Frontend
 # =============================================================================
@@ -28,6 +35,7 @@ frontend/out/
 frontend/coverage/
 frontend/.vercel/
 frontend/dist/
+frontend/*.tsbuildinfo
 
 # =============================================================================
 # Backend
