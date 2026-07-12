@@ -45,6 +45,14 @@ class AIClient:
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
             response_mime_type="application/json" if json_mode else "text/plain",
+            # Gemini 2.5 models default to a *dynamic* thinking budget, and
+            # those reasoning tokens count against max_output_tokens — on a
+            # hard input the model can burn most of the budget "thinking"
+            # and leave too little for the actual JSON, truncating it
+            # (intermittently, since the thinking token spend varies per
+            # call). These are structured extraction/scoring tasks, not
+            # tasks that benefit from extended reasoning, so disable it.
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
         last_exc: Exception | None = None
 
@@ -76,13 +84,19 @@ class AIClient:
                     if response.usage_metadata
                     else 0
                 )
+                thoughts_tokens = (
+                    response.usage_metadata.thoughts_token_count or 0
+                    if response.usage_metadata
+                    else 0
+                )
                 logger.debug(
-                    "AI generate: feature=%s attempt=%d latency=%dms tokens=%d+%d",
+                    "AI generate: feature=%s attempt=%d latency=%dms tokens=%d+%d thoughts=%d",
                     feature,
                     attempt,
                     latency_ms,
                     input_tokens,
                     output_tokens,
+                    thoughts_tokens,
                 )
                 return text, input_tokens, output_tokens
             except Exception as exc:
