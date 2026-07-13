@@ -67,3 +67,6 @@ backend/temp_uploads/
 # =============================================================================
 # Keep docker-compose.yml; ignore overrides with secrets
 docker-compose.override.yml
+
+# --- Local-only notes ---
+HANDOFF.md
