@@ -17,10 +17,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.config import settings
 from app.database import close_db, ping_db
+from app.middleware.body_limit import BodySizeLimitMiddleware
 from app.middleware.clerk_auth import ClerkJWTMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.utils.pdf_generator import verify_fonts
@@ -75,7 +77,8 @@ app = FastAPI(
 )
 
 # Middleware — added in reverse order (last added = outermost)
-# Final execution order: TrustedHost → CORS → RateLimiter → ClerkJWT → handler
+# Final execution order:
+#   TrustedHost → BodySizeLimit → CORS → RateLimiter → ClerkJWT → handler
 app.add_middleware(ClerkJWTMiddleware)
 app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(
@@ -84,6 +87,17 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+# Reject oversized bodies early, before auth/rate-limit/routing do any work.
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_body_bytes)
+# Outermost: reject requests with a Host header not in ALLOWED_HOSTS before any
+# other middleware runs. Enforced only in production (set ALLOWED_HOSTS to the
+# deployed hostname(s) there); dev/test allow any host so local tooling and the
+# test client's synthetic Host aren't blocked. The middleware stays in the chain
+# in every environment so its wiring is always exercised.
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.allowed_hosts_list if settings.is_production else ["*"],
 )
 
 

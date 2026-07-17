@@ -15,13 +15,13 @@ seconds (default 3600). The cache is module-level so it survives request
 boundaries without a Redis round-trip.
 """
 
+import json
 import logging
 import time
 from typing import Any
 
 import httpx
-from jose import JWTError, jwt
-from jose.exceptions import ExpiredSignatureError
+import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -54,12 +54,12 @@ _BYPASS_PATHS: frozenset[tuple[str, str]] = frozenset(
 )
 
 
-async def _get_jwks() -> dict[str, Any]:
-    """Return cached JWKS, refreshing if stale."""
+async def _get_jwks(force: bool = False) -> dict[str, Any]:
+    """Return cached JWKS, refreshing if stale (or if force=True)."""
     global _jwks_cache, _jwks_fetched_at
 
     now = time.monotonic()
-    if _jwks_cache and (now - _jwks_fetched_at) < JWKS_CACHE_TTL:
+    if not force and _jwks_cache and (now - _jwks_fetched_at) < JWKS_CACHE_TTL:
         return _jwks_cache
 
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -69,6 +69,45 @@ async def _get_jwks() -> dict[str, Any]:
         _jwks_fetched_at = now
 
     return _jwks_cache
+
+
+def _find_key(jwks: dict[str, Any], kid: str | None) -> dict[str, Any] | None:
+    keys: list[dict[str, Any]] = jwks.get("keys", [])
+    for key in keys:
+        if key.get("kid") == kid:
+            return key
+    return None
+
+
+async def _validate_token(token: str) -> dict[str, Any]:
+    """
+    Validate a Clerk-issued JWT against the cached JWKS and return its claims.
+
+    Uses PyJWT (actively maintained) instead of the unmaintained python-jose.
+    The signing key is selected from the JWKS by the token's `kid`; on a miss
+    (e.g. Clerk rotated keys mid-cache) the JWKS is force-refreshed once before
+    giving up. Raises a jwt.PyJWTError subclass on any validation failure.
+    """
+    kid = jwt.get_unverified_header(token).get("kid")
+
+    jwks = await _get_jwks()
+    jwk = _find_key(jwks, kid)
+    if jwk is None:
+        jwks = await _get_jwks(force=True)
+        jwk = _find_key(jwks, kid)
+    if jwk is None:
+        raise jwt.InvalidTokenError(f"No JWKS key matching kid={kid!r}")
+
+    # from_jwk returns RSAPublicKey for a public JWK; typed as a private|public
+    # union upstream, so annotate as Any for jwt.decode's key parameter.
+    signing_key: Any = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+    claims: dict[str, Any] = jwt.decode(
+        token,
+        signing_key,
+        algorithms=["RS256"],
+        options={"verify_aud": False},
+    )
+    return claims
 
 
 def _unauthorized(detail: str) -> JSONResponse:
@@ -111,24 +150,24 @@ class ClerkJWTMiddleware(BaseHTTPMiddleware):
 
         token = auth_header.removeprefix("Bearer ").strip()
 
-        # Validate JWT against Clerk JWKS
+        # Validate JWT against Clerk JWKS (PyJWT)
         try:
-            jwks = await _get_jwks()
-            claims: dict[str, Any] = jwt.decode(
-                token,
-                jwks,
-                algorithms=["RS256"],
-                options={"verify_aud": False},
-            )
-        except ExpiredSignatureError:
+            claims: dict[str, Any] = await _validate_token(token)
+        except jwt.ExpiredSignatureError:
             logger.warning("JWT rejected: token expired")
             return _unauthorized("Token has expired")
-        except JWTError as e:
-            logger.warning("JWT rejected: JWTError: %s", e)
+        except jwt.InvalidTokenError as e:
+            logger.warning("JWT rejected: %s", e)
             return _unauthorized("Invalid token")
         except Exception as e:
             logger.warning("JWT rejected: %s: %s", type(e).__name__, e)
             return _unauthorized("Token validation failed")
+
+        # Optional authorized-party enforcement — skipped unless configured.
+        allowed_parties = settings.clerk_authorized_parties_list
+        if allowed_parties and claims.get("azp") not in allowed_parties:
+            logger.warning("JWT rejected: azp=%r not in allowed parties", claims.get("azp"))
+            return _unauthorized("Invalid token")
 
         clerk_id: str | None = claims.get("sub")
         email: str | None = claims.get("email") or None  # treat "" as None

@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     clerk_secret_key: str
     clerk_webhook_secret: str = ""
     clerk_jwks_url: str
+    # Optional defense-in-depth: comma-separated list of allowed `azp`
+    # (authorized-party) claim values. Empty = azp is not checked (default,
+    # correct for a single Clerk application). Set it to your frontend
+    # origin(s) to reject tokens minted for a different app on the same
+    # Clerk instance. See middleware/clerk_auth.py.
+    clerk_authorized_parties: str = ""
 
     # --- Gemini (primary AI provider) ---
     gemini_api_key: str
@@ -101,6 +107,11 @@ class Settings(BaseSettings):
 
     job_translation_cache_days: int = 7
 
+    # Global hard ceiling on request body size, enforced by BodySizeLimitMiddleware
+    # before auth/routing. Set above the 10 MB resume-upload cap so uploads pass
+    # and only absurd bodies are rejected early.
+    max_request_body_bytes: int = 12 * 1024 * 1024  # 12 MB
+
     # --- Derived ---
     @property
     def allowed_origins_list(self) -> list[str]:
@@ -109,6 +120,10 @@ class Settings(BaseSettings):
     @property
     def allowed_hosts_list(self) -> list[str]:
         return [h.strip() for h in self.allowed_hosts.split(",")]
+
+    @property
+    def clerk_authorized_parties_list(self) -> list[str]:
+        return [p.strip() for p in self.clerk_authorized_parties.split(",") if p.strip()]
 
     @property
     def is_production(self) -> bool:

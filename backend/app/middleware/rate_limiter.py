@@ -1,12 +1,16 @@
 """
 Redis-backed sliding-window rate limiter middleware.
 
-Enforces four independent limits (from Appendix C of HANDOFF.md):
+Enforces three independent IP-based limits:
 
   1. Global per-IP:       60 requests / minute   (all endpoints)
   2. Resume uploads:       5 requests / hour      (POST /api/v1/resumes/upload)
   3. Job translations:    10 requests / hour      (POST /api/v1/jobs/translate)
-  4. AI features (free): 20 requests / hour      (all POST AI endpoints, free tier only)
+
+All limits key on the client IP (see _extract_ip): this middleware runs BEFORE
+ClerkJWTMiddleware, so request.state has no authenticated user yet. Per-user AI
+quota is enforced separately and authoritatively by usage_tracker.check_budget()
+inside each AI route, which is where the "fair use" ceiling actually lives.
 
 Algorithm: fixed window counter using Redis INCR + EXPIRE.
   - Key format: rl:<scope>:<identifier>:<window_start>
@@ -66,21 +70,6 @@ _ROUTE_LIMITS: list[tuple[str, str, int, int, str]] = [
 _GLOBAL_IP_LIMIT = 60
 _GLOBAL_IP_WINDOW = 60  # seconds
 
-# Free-tier AI feature limit — POST requests to known AI endpoints
-_AI_PATHS: frozenset[str] = frozenset(
-    [
-        "/api/v1/resumes/",  # analysis triggers
-        "/api/v1/documents/rirekisho",
-        "/api/v1/documents/shokumu",
-        "/api/v1/jobs/translate",
-        "/api/v1/jobs/",  # match scoring
-        "/api/v1/interview/sessions",
-        "/api/v1/visa/consultations",
-    ]
-)
-_AI_FREE_LIMIT = 20
-_AI_FREE_WINDOW = 3600
-
 
 # ---------------------------------------------------------------------------
 # Middleware
@@ -129,31 +118,15 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             if not await _check(redis, f"ip:{client_ip}", _GLOBAL_IP_LIMIT, _GLOBAL_IP_WINDOW):
                 return _too_many("Too many requests. Slow down.", retry_after=_GLOBAL_IP_WINDOW)
 
-            # 2. Per-route limits (resume upload, job translate)
+            # 2. Per-route limits (resume upload, job translate), keyed by IP.
             for r_method, r_prefix, r_max, r_window, r_scope in _ROUTE_LIMITS:
                 if method == r_method and path.startswith(r_prefix):
-                    user_id = getattr(
-                        getattr(request.state, "user_id", None), "__str__", lambda: None
-                    )()
-                    ident = f"{r_scope}:{user_id or client_ip}"
+                    ident = f"{r_scope}:{client_ip}"
                     if not await _check(redis, ident, r_max, r_window):
                         return _too_many(
                             f"Rate limit exceeded for {r_scope.replace('_', ' ')}. "
                             f"Max {r_max} per hour.",
                             retry_after=r_window,
-                        )
-
-            # 3. Free-tier AI feature limit (POST to AI paths, user_id required)
-            if method == "POST" and _is_ai_path(path):
-                user_id_str: str | None = getattr(request.state, "user_id", None)
-                tier: str = getattr(request.state, "subscription_tier", "free")
-                if user_id_str and tier == "free":
-                    ident = f"ai_free:{user_id_str}"
-                    if not await _check(redis, ident, _AI_FREE_LIMIT, _AI_FREE_WINDOW):
-                        return _too_many(
-                            f"Free tier AI limit reached ({_AI_FREE_LIMIT} requests/hour). "
-                            "Upgrade your plan for more.",
-                            retry_after=_AI_FREE_WINDOW,
                         )
 
         except Exception as exc:
@@ -206,10 +179,6 @@ def _extract_ip(request: Request) -> str:
     if request.client:
         return request.client.host
     return "unknown"
-
-
-def _is_ai_path(path: str) -> bool:
-    return any(path.startswith(p) for p in _AI_PATHS)
 
 
 def _too_many(detail: str, retry_after: int) -> JSONResponse:
