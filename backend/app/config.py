@@ -99,10 +99,20 @@ class Settings(BaseSettings):
     rate_limit_job_translate_per_hour: int = 10
     rate_limit_global_per_ip_per_minute: int = 60
 
-    # Number of trusted reverse-proxy hops in front of the app (e.g. Render's
-    # edge load balancer = 1). Only the Nth-from-right entry in X-Forwarded-For
-    # is trusted as the real client IP; anything a direct client sets itself
-    # is beyond that hop count and ignored. See middleware/rate_limiter.py.
+    # Number of trusted reverse-proxy hops in front of the app. Only the
+    # Nth-from-right entry of X-Forwarded-For is trusted as the client IP.
+    # The rightmost entry is appended by the proxy that connects to this
+    # process and CANNOT be forged by a client, so hops=1 is always spoof-safe
+    # (the security concern the original finding raised does not apply).
+    #
+    # Deployment note (Vercel -> Render): the path is browser -> Vercel Next.js
+    # proxy -> Render edge -> app, so the app sees "clientIP, vercelEgressIP".
+    # With hops=1 every proxied request keys by Vercel's egress IP — safe, but
+    # all users share one rate-limit bucket (coarse, fine for a demo). Set to 2
+    # to key by the real client IP, but only if the upstream (Vercel) sets
+    # X-Forwarded-For authoritatively; otherwise 2 could reintroduce spoofing.
+    # AI-cost limits (usage_tracker.check_budget) key on user_id, not IP, so
+    # they are unaffected by this value either way. See middleware/rate_limiter.py.
     trusted_proxy_hops: int = 1
 
     job_translation_cache_days: int = 7
