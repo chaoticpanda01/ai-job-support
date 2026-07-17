@@ -66,6 +66,26 @@ class AIUsageRepository(BaseRepository[AIUsageLog]):
         r = row.one()
         return r.call_count, r.oldest_call_at
 
+    async def get_total_usage_window(self, window_hours: int) -> tuple[int, datetime | None]:
+        """
+        Returns (call_count, oldest_call_at) across ALL users and features in the
+        trailing `window_hours`. Used by the global circuit-breaker in
+        check_budget to keep the whole app under the shared Gemini free-tier
+        daily quota. Same shape as get_recent_usage_window but without the
+        per-user filter.
+        """
+        cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
+        row = await self.session.execute(
+            select(
+                func.count().label("call_count"),
+                func.min(AIUsageLog.created_at).label("oldest_call_at"),
+            ).where(
+                AIUsageLog.created_at >= cutoff,
+            )
+        )
+        r = row.one()
+        return r.call_count, r.oldest_call_at
+
     async def get_all_features_this_month(self, user_id: UUID) -> list[dict[str, Any]]:
         """
         Returns per-feature usage for the current month.

@@ -41,11 +41,18 @@ _OUTPUT_COST_PER_TOKEN = Decimal("0.000015")
 
 # Flat fair-use ceiling: total AI calls per rolling window, summed across
 # every feature, applied equally to all users regardless of subscription tier.
-# Kept just under Google's Gemini free-tier ceiling (20 requests/day for this
-# project) so a user hits this clean "daily limit reached" message before the
-# raw Gemini 429. Raise substantially if billing is enabled on the Gemini project.
-AI_CALL_LIMIT = 18
+# Per-user rolling-window fair-use cap (all AI features combined). Sized so a
+# single visitor can do one full short interview or several quick features, but
+# can't monopolize the shared Gemini free-tier budget.
+AI_CALL_LIMIT = 8
 AI_CALL_WINDOW_HOURS = 24
+
+# Global circuit-breaker across ALL users, kept just under Google's Gemini
+# free-tier ceiling (20 requests/day for this project) so the whole app stays
+# under the shared daily quota and no one hits the raw Gemini 429. Raise both
+# limits substantially if billing is enabled on the Gemini project.
+AI_GLOBAL_CALL_LIMIT = 18
+AI_GLOBAL_WINDOW_HOURS = 24
 
 
 class AIBudgetError(Exception):
@@ -57,6 +64,7 @@ class AIBudgetError(Exception):
         limit: int,
         window_hours: int = AI_CALL_WINDOW_HOURS,
         retry_after_seconds: int = 0,
+        scope: str = "user",
     ) -> None:
         self.used = used
         self.limit = limit
@@ -66,10 +74,19 @@ class AIBudgetError(Exception):
         # is rolling, so each call ages out individually rather than the
         # whole quota resetting at once.
         self.retry_after_seconds = retry_after_seconds
-        super().__init__(
-            f"AI usage limit reached: used={used}, limit={limit} per {window_hours} hours. "
-            f"Try again in {_format_duration(retry_after_seconds)}."
-        )
+        self.scope = scope
+        if scope == "global":
+            message = (
+                f"The demo has reached today's shared AI limit "
+                f"({limit} requests per {window_hours} hours across all users). "
+                f"Try again in {_format_duration(retry_after_seconds)}."
+            )
+        else:
+            message = (
+                f"AI usage limit reached: used={used}, limit={limit} per {window_hours} hours. "
+                f"Try again in {_format_duration(retry_after_seconds)}."
+            )
+        super().__init__(message)
 
     def to_http_exception(self) -> HTTPException:
         """Shared 429 shape for every route that catches this exception."""
@@ -78,6 +95,14 @@ class AIBudgetError(Exception):
             detail=str(self),
             headers={"Retry-After": str(self.retry_after_seconds)},
         )
+
+
+def _reset_seconds(oldest_call_at: datetime | None, window_hours: int) -> int:
+    """Seconds until the oldest call in the window ages out and frees a slot."""
+    if oldest_call_at is None:
+        return 0
+    reset_at = oldest_call_at + timedelta(hours=window_hours)
+    return max(0, math.ceil((reset_at - datetime.now(UTC)).total_seconds()))
 
 
 def _format_duration(seconds: int) -> str:
@@ -107,25 +132,37 @@ class UsageTracker:
         db: AsyncSession,
     ) -> None:
         """
-        Enforce the flat rolling-window fair-use quota (AI_CALL_LIMIT calls
-        per AI_CALL_WINDOW_HOURS, all features combined). Raises
-        AIBudgetError once the user hits it, with retry_after_seconds set to
-        when the oldest call in the window ages out and frees a slot.
+        Enforce two rolling-window caps before an AI call (all features share
+        one budget). Raises AIBudgetError with retry_after_seconds = time until
+        the oldest counted call ages out and frees a slot.
+
+          1. Per-user cap    (AI_CALL_LIMIT / AI_CALL_WINDOW_HOURS)
+          2. Global breaker  (AI_GLOBAL_CALL_LIMIT / AI_GLOBAL_WINDOW_HOURS)
+             across all users — keeps the app under Google's shared free-tier
+             daily quota so no one hits the raw Gemini 429.
         """
         repo = AIUsageRepository(db)
+
+        # 1. Per-user fair-use cap
         used, oldest_call_at = await repo.get_recent_usage_window(user_id, AI_CALL_WINDOW_HOURS)
         if used >= AI_CALL_LIMIT:
-            retry_after_seconds = 0
-            if oldest_call_at is not None:
-                reset_at = oldest_call_at + timedelta(hours=AI_CALL_WINDOW_HOURS)
-                retry_after_seconds = max(
-                    0, math.ceil((reset_at - datetime.now(UTC)).total_seconds())
-                )
             raise AIBudgetError(
                 used=used,
                 limit=AI_CALL_LIMIT,
                 window_hours=AI_CALL_WINDOW_HOURS,
-                retry_after_seconds=retry_after_seconds,
+                retry_after_seconds=_reset_seconds(oldest_call_at, AI_CALL_WINDOW_HOURS),
+                scope="user",
+            )
+
+        # 2. Global circuit-breaker across all users
+        total, global_oldest = await repo.get_total_usage_window(AI_GLOBAL_WINDOW_HOURS)
+        if total >= AI_GLOBAL_CALL_LIMIT:
+            raise AIBudgetError(
+                used=total,
+                limit=AI_GLOBAL_CALL_LIMIT,
+                window_hours=AI_GLOBAL_WINDOW_HOURS,
+                retry_after_seconds=_reset_seconds(global_oldest, AI_GLOBAL_WINDOW_HOURS),
+                scope="global",
             )
 
     async def record(
