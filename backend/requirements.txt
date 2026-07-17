@@ -31,7 +31,7 @@ anthropic==0.50.*                # Claude API SDK (kept for optional fallback)
 openai==1.65.*                   # OpenAI fallback provider
 
 # --- File Processing ---
-pypdf==5.*                       # PDF text extraction (maintained successor to PyPDF2)
+pypdf==6.*                       # PDF text extraction (maintained successor to PyPDF2)
 python-docx==1.1.*               # DOCX text extraction
 python-magic==0.4.*              # MIME type detection from file bytes
 pillow==12.*                     # Image handling (resume photo placeholder)
