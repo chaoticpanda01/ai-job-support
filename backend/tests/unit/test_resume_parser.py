@@ -44,7 +44,7 @@ def test_extract_pdf_returns_text() -> None:
     mock_reader = MagicMock()
     mock_reader.pages = [mock_page]
 
-    with patch("PyPDF2.PdfReader", return_value=mock_reader):
+    with patch("pypdf.PdfReader", return_value=mock_reader):
         result = extract_text(b"fake_pdf_bytes", MIME_PDF)
 
     assert "Resume content here" in result
@@ -57,7 +57,7 @@ def test_extract_pdf_raises_on_empty_text() -> None:
     mock_reader.pages = [mock_page]
 
     with (
-        patch("PyPDF2.PdfReader", return_value=mock_reader),
+        patch("pypdf.PdfReader", return_value=mock_reader),
         pytest.raises(ParseError, match="No readable text"),
     ):
         extract_text(b"fake_pdf_bytes", MIME_PDF)
@@ -65,7 +65,7 @@ def test_extract_pdf_raises_on_empty_text() -> None:
 
 def test_extract_pdf_raises_on_reader_error() -> None:
     with (
-        patch("PyPDF2.PdfReader", side_effect=Exception("corrupted")),
+        patch("pypdf.PdfReader", side_effect=Exception("corrupted")),
         pytest.raises(ParseError, match="PDF extraction failed"),
     ):
         extract_text(b"bad_bytes", MIME_PDF)
@@ -111,7 +111,7 @@ def test_extract_truncates_long_text() -> None:
     mock_reader = MagicMock()
     mock_reader.pages = [mock_page]
 
-    with patch("PyPDF2.PdfReader", return_value=mock_reader):
+    with patch("pypdf.PdfReader", return_value=mock_reader):
         result = extract_text(b"fake_pdf_bytes", MIME_PDF)
 
     assert len(result) == 20_000

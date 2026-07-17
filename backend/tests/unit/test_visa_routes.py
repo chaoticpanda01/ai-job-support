@@ -38,7 +38,7 @@ def _bypass_middleware(user: Any) -> Iterator[None]:
     claims = {"sub": user.clerk_id, "email": user.email, "exp": int(time.time()) + 3600}
     with (
         patch.object(clerk_auth_module, "_get_jwks", new=AsyncMock(return_value=_FAKE_JWKS)),
-        patch("app.middleware.clerk_auth.jwt.decode", return_value=claims),
+        patch("app.middleware.clerk_auth._validate_token", new=AsyncMock(return_value=claims)),
         patch("app.middleware.clerk_auth._resolve_user", new=AsyncMock(return_value=user)),
     ):
         yield
