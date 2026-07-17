@@ -22,7 +22,7 @@ celery[redis]==5.4.*
 kombu==5.4.*                     # Celery transport; pinned for compatibility
 
 # --- Authentication ---
-python-jose[cryptography]==3.3.* # JWT validation (Clerk JWKS)
+pyjwt[crypto]==2.*               # JWT validation (Clerk JWKS) — maintained; ships type hints
 svix==1.95.*                     # Clerk webhook signature verification
 
 # --- AI ---
@@ -31,10 +31,10 @@ anthropic==0.50.*                # Claude API SDK (kept for optional fallback)
 openai==1.65.*                   # OpenAI fallback provider
 
 # --- File Processing ---
-pypdf2==3.0.*                    # PDF text extraction
+pypdf==5.*                       # PDF text extraction (maintained successor to PyPDF2)
 python-docx==1.1.*               # DOCX text extraction
 python-magic==0.4.*              # MIME type detection from file bytes
-pillow==11.1.*                   # Image handling (resume photo placeholder)
+pillow==12.*                     # Image handling (resume photo placeholder)
 
 # --- PDF Generation ---
 weasyprint==63.*                 # HTML/CSS → PDF with Japanese font support
@@ -56,5 +56,5 @@ sentry-sdk[fastapi,celery]==2.20.*
 # --- Utilities ---
 python-dateutil==2.9.*
 pytz==2025.1
-orjson==3.10.*                   # Fast JSON serialization for FastAPI responses
+orjson==3.11.*                   # Fast JSON serialization for FastAPI responses
 boto3==1.37.*                    # AWS S3 client
