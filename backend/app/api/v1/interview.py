@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interview", tags=["interview"])
 
 _QUESTION_MAX_TOKENS = 800
-_EVAL_MAX_TOKENS = 2048
+_TURN_MAX_TOKENS = 2048  # combined eval + next-question response
 _SUMMARY_MAX_TOKENS = 800
 
 # Cap conversation history sent to Claude — keeps context window predictable
@@ -380,40 +380,57 @@ async def _stream_eval_and_question(
     from app.repositories.interview import InterviewMessageRepository
     from app.services.ai.client import AIError, ai_client
     from app.services.ai.prompts.interview import (
-        InterviewEvalResult,
-        build_eval_system_prompt,
-        build_eval_user_prompt,
-        build_question_system_prompt,
-        build_question_user_prompt,
+        InterviewTurnResult,
+        build_turn_system_prompt,
+        build_turn_user_prompt,
     )
-    from app.services.ai.response_parser import parse_response
+    from app.services.ai.response_parser import ResponseParseError, parse_response
     from app.services.ai.usage_tracker import usage_tracker
 
     t0 = time.monotonic()
 
-    # -- Step 1: Evaluate the answer (non-streaming, returns JSON)
-    eval_system = build_eval_system_prompt(language)
-    eval_user = build_eval_user_prompt(question=last_question, answer=answer)
+    # Single combined AI call: evaluate the answer AND generate the next question.
+    # Halves the Gemini requests per turn vs. separate eval + question calls, which
+    # matters on the free tier's tight daily request quota.
+    turn_system = build_turn_system_prompt(session_type, language)
+    turn_user = build_turn_user_prompt(
+        question=last_question,
+        answer=answer,
+        turn_number=turn_number,
+        conversation_history=conversation_history,
+        target_role=target_role,
+        target_company=target_company,
+    )
 
-    eval_result: dict[str, Any] | None = None
     try:
-        eval_text, eval_in, eval_out = await ai_client.generate(
-            eval_system,
-            eval_user,
-            max_tokens=_EVAL_MAX_TOKENS,
+        text, in_tok, out_tok = await ai_client.generate(
+            turn_system,
+            turn_user,
+            max_tokens=_TURN_MAX_TOKENS,
             feature="interview_message",
             json_mode=True,
         )
-        parsed_eval = parse_response(eval_text, InterviewEvalResult)
-        eval_result = parsed_eval.model_dump()
-        yield _sse("eval", eval_result)
-    except Exception as exc:
-        logger.warning("Eval failed for session=%s: %s — continuing without eval", session_id, exc)
-        eval_in = eval_out = 0
+        parsed = parse_response(text, InterviewTurnResult)
+    except (AIError, ResponseParseError) as exc:
+        logger.error("Interview turn generation failed: session=%s error=%s", session_id, exc)
+        yield _sse_error("Question generation failed. Please try again.")
+        return
 
-    # -- Step 2: Persist user turn with evaluation
-    updated_history = conversation_history + [{"role": "user", "content": answer}]
+    eval_result = parsed.evaluation.model_dump()
+    next_question = parsed.next_question.strip()
+    if not next_question:
+        logger.error("Interview turn returned empty question: session=%s", session_id)
+        yield _sse_error("Question generation failed. Please try again.")
+        return
 
+    # Emit the evaluation, then the next question (as a single token event).
+    yield _sse("eval", eval_result)
+    yield _sse("token", next_question)
+
+    latency_ms = int((time.monotonic() - t0) * 1000)
+
+    # Persist the answer (with eval), the interviewer's next question, and usage
+    # BEFORE signalling done, so the client's on-done refetch sees the new turn.
     async with AsyncSessionFactory() as db:
         msg_repo = InterviewMessageRepository(db)
         await msg_repo.add_user_turn(
@@ -422,51 +439,19 @@ async def _stream_eval_and_question(
             language=language,
             ai_evaluation=eval_result,
         )
-        await db.commit()
-
-    # -- Step 3: Stream next question
-    q_system = build_question_system_prompt(session_type, language)
-    q_user = build_question_user_prompt(
-        turn_number=turn_number,
-        conversation_history=updated_history,
-        target_role=target_role,
-        target_company=target_company,
-    )
-
-    full_question = ""
-    try:
-        async for chunk in ai_client.stream(
-            q_system, q_user, max_tokens=_QUESTION_MAX_TOKENS, feature="interview_message"
-        ):
-            full_question += chunk
-            yield _sse("token", chunk)
-    except AIError as exc:
-        logger.error("Question stream failed after eval: session=%s error=%s", session_id, exc)
-        yield _sse_error("Question generation failed. Please try again.")
-        return
-
-    if not full_question.strip():
-        logger.error("Question stream returned empty text after eval: session=%s", session_id)
-        yield _sse_error("Question generation failed. Please try again.")
-        return
-
-    yield _sse_done()
-    latency_ms = int((time.monotonic() - t0) * 1000)
-
-    # -- Persist next question + usage
-    async with AsyncSessionFactory() as db:
-        msg_repo = InterviewMessageRepository(db)
-        await msg_repo.add_interviewer_turn(session_id=session_id, content=full_question)
+        await msg_repo.add_interviewer_turn(session_id=session_id, content=next_question)
         await usage_tracker.record(
             user_id=user_id,
             feature="interview_message",
             model=settings.gemini_default_model,
-            input_tokens=eval_in,
-            output_tokens=eval_out + len(full_question.split()),
+            input_tokens=in_tok,
+            output_tokens=out_tok,
             latency_ms=latency_ms,
             db=db,
         )
         await db.commit()
+
+    yield _sse_done()
 
 
 # ---------------------------------------------------------------------------

@@ -72,6 +72,16 @@ class InterviewSummaryResult(BaseModel):
     top_improvements: list[str]
 
 
+class InterviewTurnResult(BaseModel):
+    """
+    Combined per-answer evaluation + next interviewer question, produced in a
+    single AI call (halves the Gemini requests per turn vs. separate calls).
+    """
+
+    evaluation: InterviewEvalResult
+    next_question: str = Field(min_length=1)
+
+
 # ---------------------------------------------------------------------------
 # 1. Question prompt — interviewer turn
 # ---------------------------------------------------------------------------
@@ -221,6 +231,92 @@ def build_eval_user_prompt(question: str, answer: str) -> str:
         f"CANDIDATE'S ANSWER:\n{answer}\n\n"
         "Please evaluate this answer and return the JSON assessment only."
     )
+
+
+# ---------------------------------------------------------------------------
+# 2b. Combined turn prompt — evaluate answer AND ask next question (one call)
+# ---------------------------------------------------------------------------
+
+
+def build_turn_system_prompt(session_type: str, language: str) -> str:
+    """
+    Combined interviewer + evaluator system prompt: in one response, evaluate the
+    candidate's most recent answer AND ask the next question. Used to halve the
+    Gemini calls per interview turn.
+    """
+    return f"""\
+You are an experienced Japanese hiring manager and interview coach conducting a \
+mock job interview to help an Indonesian candidate prepare. You are professional, \
+encouraging, and culturally aware.
+
+{_lang_instruction(language)}
+
+{_type_instruction(session_type)}
+
+On each turn you do TWO things:
+
+A) EVALUATE the candidate's most recent answer, with honest, specific, actionable \
+feedback on three dimensions:
+   - keigo_score (0-100): correctness/appropriateness of Japanese honorific \
+language (敬語). If the answer is not in Japanese, score the formality and \
+professionalism of the language used.
+   - content_relevance (0-100): how directly and completely the answer addresses \
+the question.
+   - specificity_score (0-100): use of concrete examples, numbers, outcomes \
+(STAR method).
+
+B) ASK the NEXT interview question:
+   - Exactly ONE question — realistic, the kind a Japanese HR manager would ask.
+   - 1-3 sentences. Do not repeat an earlier question. Do not evaluate inside the \
+question. No preamble, numbering, or quotation marks.
+
+Return ONLY a JSON object — no prose before or after:
+
+{{
+  "evaluation": {{
+    "keigo_score":       <integer 0-100>,
+    "content_relevance": <integer 0-100>,
+    "specificity_score": <integer 0-100>,
+    "grammar_issues":    [<string — specific issue>, ...],
+    "positive_feedback": <string — 1-2 sentences on what was done well>,
+    "improvement_tip":   <string — 1 concrete, actionable suggestion>
+  }},
+  "next_question": <string — the next interview question only>
+}}"""
+
+
+def build_turn_user_prompt(
+    question: str,
+    answer: str,
+    turn_number: int,
+    conversation_history: list[dict[str, str]],
+    target_role: str | None = None,
+    target_company: str | None = None,
+) -> str:
+    """User-turn prompt for the combined evaluate-answer + next-question call."""
+    parts: list[str] = []
+
+    if target_role or target_company:
+        context_parts: list[str] = []
+        if target_role:
+            context_parts.append(f"Role: {target_role}")
+        if target_company:
+            context_parts.append(f"Company: {target_company}")
+        parts.append("INTERVIEW CONTEXT:\n" + "\n".join(context_parts))
+
+    if conversation_history:
+        history_lines = "\n".join(
+            f"{msg['role'].upper()}: {msg['content']}" for msg in conversation_history
+        )
+        parts.append(f"CONVERSATION SO FAR:\n{history_lines}")
+
+    parts.append(f"QUESTION JUST ASKED:\n{question}")
+    parts.append(f"CANDIDATE'S ANSWER:\n{answer}")
+    parts.append(
+        f"This is question number {turn_number}. Evaluate the answer above, then ask "
+        "the next appropriate question. Return the JSON object only."
+    )
+    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
