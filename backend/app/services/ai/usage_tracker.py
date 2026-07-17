@@ -47,11 +47,14 @@ _OUTPUT_COST_PER_TOKEN = Decimal("0.000015")
 AI_CALL_LIMIT = 8
 AI_CALL_WINDOW_HOURS = 24
 
-# Global circuit-breaker across ALL users, kept just under Google's Gemini
-# free-tier ceiling (20 requests/day for this project) so the whole app stays
-# under the shared daily quota and no one hits the raw Gemini 429. Raise both
-# limits substantially if billing is enabled on the Gemini project.
-AI_GLOBAL_CALL_LIMIT = 18
+# Global circuit-breaker across ALL users, kept below Google's Gemini free-tier
+# ceiling (20 requests/day for this project) so the whole app stays under the
+# shared daily quota and no one hits the raw Gemini 429. The 4-request gap under
+# 20 is deliberate headroom: check_budget is check-then-act (finding #14), so a
+# concurrent burst can overshoot slightly — the buffer absorbs that overshoot so
+# it still can't reach Google's hard limit. Raise both limits substantially if
+# billing is enabled on the Gemini project.
+AI_GLOBAL_CALL_LIMIT = 16
 AI_GLOBAL_WINDOW_HOURS = 24
 
 
