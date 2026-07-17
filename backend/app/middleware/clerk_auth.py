@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 JWKS_CACHE_TTL = 3600  # seconds
+# Minimum gap between forced JWKS refetches. A kid-miss triggers force=True, and
+# an unauthenticated caller can force that with a bogus kid on an unsigned token
+# (the header is parsed before any signature check) — so throttle forced
+# refetches to avoid an amplification vector against Clerk's JWKS endpoint.
+_JWKS_FORCE_MIN_INTERVAL = 10  # seconds
 
 _jwks_cache: dict[str, Any] = {}
 _jwks_fetched_at: float = 0.0
@@ -60,6 +65,11 @@ async def _get_jwks(force: bool = False) -> dict[str, Any]:
 
     now = time.monotonic()
     if not force and _jwks_cache and (now - _jwks_fetched_at) < JWKS_CACHE_TTL:
+        return _jwks_cache
+    # Throttle forced refetches (kid-miss) so a flood of bogus-kid tokens can't
+    # trigger one Clerk fetch per request; a real key rotation is still picked
+    # up within _JWKS_FORCE_MIN_INTERVAL.
+    if force and _jwks_cache and (now - _jwks_fetched_at) < _JWKS_FORCE_MIN_INTERVAL:
         return _jwks_cache
 
     async with httpx.AsyncClient(timeout=10.0) as client:

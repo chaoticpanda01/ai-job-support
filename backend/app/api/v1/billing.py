@@ -106,7 +106,6 @@ async def create_checkout_session(
 
 @router.post("/portal", response_model=PortalResponse)
 async def create_portal_session(
-    request: Request,
     current_user: AuthUser,
     db: DbSession,
 ) -> PortalResponse:
@@ -123,7 +122,10 @@ async def create_portal_session(
             detail="No active subscription found.",
         )
 
-    return_url = str(request.base_url).rstrip("/") + _PORTAL_RETURN_PATH
+    # Build the return URL from a trusted configured origin, not request.base_url
+    # (which derives from the Host header — only validated when ALLOWED_HOSTS is set).
+    frontend_origin = settings.allowed_origins_list[0].rstrip("/")
+    return_url = frontend_origin + _PORTAL_RETURN_PATH
 
     try:
         result = stripe_client.create_portal_session(
