@@ -90,14 +90,22 @@ app.add_middleware(
 )
 # Reject oversized bodies early, before auth/rate-limit/routing do any work.
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_body_bytes)
-# Outermost: reject requests with a Host header not in ALLOWED_HOSTS before any
-# other middleware runs. Enforced only in production (set ALLOWED_HOSTS to the
-# deployed hostname(s) there); dev/test allow any host so local tooling and the
-# test client's synthetic Host aren't blocked. The middleware stays in the chain
-# in every environment so its wiring is always exercised.
+# Outermost: reject requests whose Host header isn't in ALLOWED_HOSTS.
+# Enforced ONLY in production AND only once ALLOWED_HOSTS has been explicitly
+# configured beyond the localhost default — otherwise allow any host. This is
+# deliberate: an unset ALLOWED_HOSTS previously 400'd every request on a
+# deployed host (Host = the platform domain), bricking the app. Opt in to host
+# allowlisting by setting ALLOWED_HOSTS to your deployed domain(s); until then
+# it fails open rather than taking the site down. dev/test always allow any host.
+_DEFAULT_HOSTS = {"localhost", "127.0.0.1"}
+_host_allowlist_configured = bool(set(settings.allowed_hosts_list) - _DEFAULT_HOSTS)
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.allowed_hosts_list if settings.is_production else ["*"],
+    allowed_hosts=(
+        settings.allowed_hosts_list
+        if settings.is_production and _host_allowlist_configured
+        else ["*"]
+    ),
 )
 
 
