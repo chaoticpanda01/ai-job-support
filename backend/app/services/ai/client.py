@@ -121,6 +121,11 @@ class AIClient:
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
+            # Disable the dynamic thinking budget (same as generate()): otherwise
+            # gemini-2.5-flash can spend the whole max_output_tokens on reasoning
+            # tokens and stream back no visible text, producing a silent empty
+            # response (e.g. an interview question that never appears).
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
 
         try:

@@ -333,6 +333,11 @@ async def _stream_question(
         yield _sse_error("Question generation failed. Please try again.")
         return
 
+    if not full_text.strip():
+        logger.error("Question stream returned empty text: session=%s", session_id)
+        yield _sse_error("Question generation failed. Please try again.")
+        return
+
     yield _sse_done()
     latency_ms = int((time.monotonic() - t0) * 1000)
 
@@ -437,6 +442,11 @@ async def _stream_eval_and_question(
             yield _sse("token", chunk)
     except AIError as exc:
         logger.error("Question stream failed after eval: session=%s error=%s", session_id, exc)
+        yield _sse_error("Question generation failed. Please try again.")
+        return
+
+    if not full_question.strip():
+        logger.error("Question stream returned empty text after eval: session=%s", session_id)
         yield _sse_error("Question generation failed. Please try again.")
         return
 
