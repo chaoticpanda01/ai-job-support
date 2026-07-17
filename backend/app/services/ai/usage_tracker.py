@@ -41,8 +41,11 @@ _OUTPUT_COST_PER_TOKEN = Decimal("0.000015")
 
 # Flat fair-use ceiling: total AI calls per rolling window, summed across
 # every feature, applied equally to all users regardless of subscription tier.
-AI_CALL_LIMIT = 5
-AI_CALL_WINDOW_HOURS = 5
+# Kept just under Google's Gemini free-tier ceiling (20 requests/day for this
+# project) so a user hits this clean "daily limit reached" message before the
+# raw Gemini 429. Raise substantially if billing is enabled on the Gemini project.
+AI_CALL_LIMIT = 18
+AI_CALL_WINDOW_HOURS = 24
 
 
 class AIBudgetError(Exception):

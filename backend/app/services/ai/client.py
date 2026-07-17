@@ -12,6 +12,7 @@ import time
 from collections.abc import AsyncGenerator
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from app.config import settings
@@ -99,6 +100,15 @@ class AIClient:
                     thoughts_tokens,
                 )
                 return text, input_tokens, output_tokens
+            except genai_errors.ClientError as exc:
+                # 4xx (e.g. 429 RESOURCE_EXHAUSTED quota, 400 bad request):
+                # retrying can't succeed and each attempt burns another request
+                # against the daily quota — fail fast without retrying.
+                last_exc = exc
+                logger.warning(
+                    "Gemini client error (not retrying) for feature=%s: %s", feature, exc
+                )
+                break
             except Exception as exc:
                 last_exc = exc
                 logger.warning(
