@@ -17,7 +17,7 @@ from typing import Any
 from uuid import UUID
 
 import magic
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile, status
 
 from app.dependencies import AuthUser, DbSession
 from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
@@ -51,6 +51,7 @@ _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB (matches DB constraint)
 
 @router.post("", response_model=ResumeResponse, status_code=status.HTTP_201_CREATED)
 async def upload_resume(
+    request: Request,
     file: UploadFile,
     current_user: AuthUser,
     db: DbSession,
@@ -59,13 +60,21 @@ async def upload_resume(
     Upload a PDF or DOCX resume. Stores it in S3 (private bucket) and
     creates the DB row. Text extraction and AI analysis are triggered separately.
     """
-    file_bytes = await file.read()
+    too_large = HTTPException(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        detail=f"File exceeds maximum size of {_MAX_FILE_SIZE // 1024 // 1024} MB",
+    )
 
+    # Reject an honestly-declared oversized body before reading anything.
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > _MAX_FILE_SIZE:
+        raise too_large
+
+    # Bounded read: pull at most one byte past the limit so a spoofed or absent
+    # Content-Length can't force the whole (potentially multi-GB) body into memory.
+    file_bytes = await file.read(_MAX_FILE_SIZE + 1)
     if len(file_bytes) > _MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds maximum size of {_MAX_FILE_SIZE // 1024 // 1024} MB",
-        )
+        raise too_large
 
     # Detect MIME from bytes (not from filename extension) for security
     detected_mime = magic.from_buffer(file_bytes[:2048], mime=True)

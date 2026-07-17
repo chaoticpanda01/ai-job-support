@@ -2,7 +2,7 @@
 Resume text extraction.
 
 Supports:
-  application/pdf  — pypdf2 (PdfReader)
+  application/pdf  — pypdf (PdfReader)
   application/vnd.openxmlformats-officedocument.wordprocessingml.document — python-docx
 
 Returns cleaned plain text. All extraction is synchronous (CPU-bound, but fast
@@ -58,12 +58,12 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
 
 def _extract_pdf(file_bytes: bytes) -> str:
     try:
-        import PyPDF2
+        import pypdf
     except ImportError as exc:
-        raise ParseError("PyPDF2 is not installed") from exc
+        raise ParseError("pypdf is not installed") from exc
 
     try:
-        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        reader = pypdf.PdfReader(io.BytesIO(file_bytes))
         parts: list[str] = []
         for page in reader.pages:
             text = page.extract_text() or ""

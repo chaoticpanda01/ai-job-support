@@ -54,6 +54,18 @@ async def clerk_webhook(request: Request, db: DbSession) -> dict[str, Any]:
     payload = await request.body()
     headers = dict(request.headers)
 
+    # Fail closed with an actionable error if the webhook secret is unset —
+    # otherwise Webhook("") raises a bare RuntimeError surfaced as an opaque 500.
+    if not settings.clerk_webhook_secret:
+        logger.error(
+            "Clerk webhook received but CLERK_WEBHOOK_SECRET is not configured — "
+            "set it (Clerk dashboard → Webhooks → Signing Secret) to enable user sync."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Webhook processing is not configured.",
+        )
+
     # Verify Svix signature
     try:
         wh = Webhook(settings.clerk_webhook_secret)

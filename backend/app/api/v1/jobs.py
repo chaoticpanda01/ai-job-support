@@ -16,6 +16,7 @@ DELETE /jobs/applications/{id}       — remove application from tracker
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC
@@ -531,7 +532,9 @@ async def match_job(
         ) from exc
 
     try:
-        resume_text = extract_text(file_bytes, resume.mime_type)
+        # extract_text is CPU-bound (PDF/DOCX parsing) — run it off the event
+        # loop so a slow or pathological file can't stall all other requests.
+        resume_text = await asyncio.to_thread(extract_text, file_bytes, resume.mime_type)
     except ParseError as exc:
         logger.warning("Resume text extraction failed for resume=%s: %s", resume.id, exc)
         raise HTTPException(

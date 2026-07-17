@@ -53,8 +53,14 @@ class JobPostingListResponse(_Base):
 
 class TranslateJobRequest(_Base):
     # At least one of source_url or raw_text is required (validated in route)
-    source_url: str | None = None
-    raw_text: str = Field(min_length=50, description="Raw text pasted from the job posting page")
+    source_url: str | None = Field(default=None, max_length=2000)
+    # Upper bound caps per-call Gemini input cost: a job posting is realistically
+    # well under 20k characters, and the extractor truncates resume text at 20k too.
+    raw_text: str = Field(
+        min_length=50,
+        max_length=20_000,
+        description="Raw text pasted from the job posting page",
+    )
 
 
 # ---------------------------------------------------------------------------

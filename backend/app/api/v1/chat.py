@@ -13,7 +13,7 @@ import logging
 import time
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.dependencies import AuthUser, DbSession
@@ -47,12 +47,14 @@ Keep responses concise and practical. If a question is outside your area of expe
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
-    content: str
+    content: str = Field(max_length=8000)
 
 
 class ChatRequest(BaseModel):
-    message: str
-    history: list[ChatMessage] = []
+    # Bounds per-call Gemini input cost; the call-count quota alone can't (a
+    # single call could otherwise carry a near-context-window payload).
+    message: str = Field(min_length=1, max_length=8000)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=20)
 
 
 class ChatResponse(BaseModel):
