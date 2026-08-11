@@ -296,7 +296,7 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 **Deployment:**
 - Backend → Render (auto-deploys on `git push main`)
-- Frontend → Vercel (manual: `cd frontend && vercel --prod`)
+- Frontend → Vercel (auto-deploys on `git push main` — connected to GitHub)
 
 ---
 
@@ -304,6 +304,5 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 - Render free tier spins down after 15 min idle → ~50s cold start on first request. Mitigate with a cron ping to `/health` every 10 min.
 - GitHub Actions CI is currently failing (missing env secrets in CI config) — non-blocking, Render deploys from git push regardless.
-- Vercel is not connected to GitHub auto-deploy — requires manual `vercel --prod` for frontend changes.
 
 Current status: **Fully deployed and live. All AI features confirmed working.**

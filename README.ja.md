@@ -302,7 +302,7 @@ npm run format
 
 **デプロイ:**
 - バックエンド → Render（`git push main` で自動デプロイ）
-- フロントエンド → Vercel（手動: `cd frontend && vercel --prod`）
+- フロントエンド → Vercel（`git push main` で自動デプロイ — GitHub 連携済み）
 
 ---
 
@@ -310,6 +310,5 @@ npm run format
 
 - Render 無料プランは15分アイドル後にスリープ → 初回リクエストに約50秒かかる。`/health` への定期ping（10分毎）で軽減可能。
 - GitHub Actions CI は現在失敗中（CI設定の環境変数不足）— 非ブロッキング、git push でのRenderデプロイは正常動作。
-- Vercel は GitHub 自動デプロイ未設定 — フロントエンド変更には手動 `vercel --prod` が必要。
 
 現在のステータス: **本番環境にデプロイ済み。全AI機能の動作確認済み。**
