@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { z } from "zod";
 import { useMe, useUpdateProfile } from "@/hooks/useMe";
-import { useDeleteAccount } from "@/hooks/useBilling";
+import { useDeleteAccount } from "@/hooks/useAccount";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { SIGN_IN_ROUTE } from "@/lib/routes";

@@ -17,7 +17,6 @@ export const translations = {
     interview: { en: "Interview", id: "Wawancara", ja: "面接" },
     visa: { en: "Visa", id: "Visa", ja: "ビザ" },
     culture: { en: "Culture", id: "Budaya", ja: "文化" },
-    billing: { en: "Billing", id: "Tagihan", ja: "料金" },
     settings: { en: "Settings", id: "Pengaturan", ja: "設定" },
     signIn: { en: "Sign in", id: "Masuk", ja: "ログイン" },
     getStarted: { en: "Get started free", id: "Mulai gratis", ja: "無料で始める" },
