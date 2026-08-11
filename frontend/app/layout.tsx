@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import { ChatWidget } from "@/components/chat-widget";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,7 +34,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <body className="min-h-screen bg-background font-sans antialiased">
           <Providers>
             {children}
-            <ChatWidget />
+            {/* Chatbot requires authentication (see chat.py); only render it for
+                signed-in users so anonymous visitors aren't shown a widget that
+                would reject them with "please sign in". */}
+            <SignedIn>
+              <ChatWidget />
+            </SignedIn>
             <Toaster />
           </Providers>
         </body>

@@ -239,7 +239,7 @@ npm run format
 | Interview Practice | Real-time mock interviews with SSE streaming + per-answer evaluation |
 | Visa Guidance | Personalised visa checklist and roadmap |
 | Culture Content | Browseable articles and glossary for Indonesian professionals |
-| AI Chatbot | Floating widget (no login required) — Japan career Q&A in EN/ID/JP |
+| AI Chatbot | Floating widget (sign-in required) — Japan career Q&A in EN/ID/JP |
 | Language Switcher | EN / ID / JP — wired across all pages including onboarding and dashboard |
 | Admin Panel | `/admin` — manage users, culture topics, glossary (role=admin required) |
 | Account Deletion | Full GDPR/PDPA-compliant account deletion from Settings |
