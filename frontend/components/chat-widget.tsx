@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SIGN_IN_ROUTE } from "@/lib/routes";
 
 interface Message {
   role: "user" | "assistant";
@@ -113,81 +116,101 @@ export function ChatWidget() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat window */}
       {open && (
-        <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border bg-background shadow-xl sm:w-96">
-          {/* Header */}
-          <div className="flex items-center justify-between bg-primary px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🤖</span>
-              <div>
-                <p className="text-sm font-semibold text-primary-foreground">Japan Job Assistant</p>
-                <p className="text-xs text-primary-foreground/70">Powered by Gemini AI</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close chat"
-              className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground"
+        <SignedOut>
+          <div className="flex h-[500px] w-80 flex-col items-center justify-center gap-4 rounded-2xl border bg-background p-6 text-center shadow-xl sm:w-96">
+            <span className="text-3xl">🤖</span>
+            <p className="text-sm text-muted-foreground">
+              Sign in first before chatting with the Japan Job Assistant.
+            </p>
+            <Link
+              href={SIGN_IN_ROUTE}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              ✕
-            </button>
+              Sign in
+            </Link>
           </div>
-
-          {/* Messages */}
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
-                    msg.role === "user"
-                      ? "rounded-br-sm bg-primary text-primary-foreground"
-                      : "rounded-bl-sm bg-muted text-foreground"
-                  }`}
-                >
-                  {msg.content}
+        </SignedOut>
+      )}
+      {open && (
+        <SignedIn>
+          <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border bg-background shadow-xl sm:w-96">
+            {/* Header */}
+            <div className="flex items-center justify-between bg-primary px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🤖</span>
+                <div>
+                  <p className="text-sm font-semibold text-primary-foreground">
+                    Japan Job Assistant
+                  </p>
+                  <p className="text-xs text-primary-foreground/70">Powered by Gemini AI</p>
                 </div>
               </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  Thinking…
-                </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input */}
-          <div className="border-t p-3">
-            {rateLimited && (
-              <p className="mb-2 text-xs text-muted-foreground">
-                Chat limit reached — you can send another message in{" "}
-                <span className="font-mono font-medium">{formatCountdown(retryRemainingMs)}</span>
-              </p>
-            )}
-            <div className="flex gap-2">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder={rateLimited ? "Chat limit reached…" : "Ask me anything…"}
-                rows={1}
-                disabled={rateLimited}
-                className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              />
               <button
-                onClick={sendMessage}
-                disabled={loading || !input.trim() || rateLimited}
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                onClick={() => setOpen(false)}
+                aria-label="Close chat"
+                className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground"
               >
-                Send
+                ✕
               </button>
             </div>
+
+            {/* Messages */}
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
+                      msg.role === "user"
+                        ? "rounded-br-sm bg-primary text-primary-foreground"
+                        : "rounded-bl-sm bg-muted text-foreground"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    Thinking…
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input */}
+            <div className="border-t p-3">
+              {rateLimited && (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Chat limit reached — you can send another message in{" "}
+                  <span className="font-mono font-medium">{formatCountdown(retryRemainingMs)}</span>
+                </p>
+              )}
+              <div className="flex gap-2">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder={rateLimited ? "Chat limit reached…" : "Ask me anything…"}
+                  rows={1}
+                  disabled={rateLimited}
+                  className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={loading || !input.trim() || rateLimited}
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </SignedIn>
       )}
 
       {/* Toggle button */}
