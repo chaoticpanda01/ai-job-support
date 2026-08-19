@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Computed,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -21,11 +22,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
+    Gender,
     JapaneseLevel,
     PreferredLanguage,
     SubscriptionTier,
     UserRole,
     VisaStatus,
+    sa_gender,
     sa_japanese_level,
     sa_preferred_language,
     sa_subscription_tier,
@@ -114,10 +117,11 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         1 = basic info saved
         2 = resume uploaded
         3 = preferences set
-        4 = completed
+        4 = Japanese level / visa / preferences saved
+        5 = completed (rirekisho personal-info step done)
 
     onboarding_completed is a STORED GENERATED column — always derived from
-    onboarding_step = 4. Never set it directly.
+    onboarding_step = 5. Never set it directly.
     """
 
     __tablename__ = "profiles"
@@ -128,7 +132,7 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="profiles_years_experience_range",
         ),
         CheckConstraint(
-            "onboarding_step BETWEEN 0 AND 4",
+            "onboarding_step BETWEEN 0 AND 5",
             name="profiles_onboarding_step_range",
         ),
         Index("idx_profiles_user_id", "user_id"),
@@ -165,10 +169,18 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # STORED GENERATED: computed by PostgreSQL. Read-only in ORM.
     onboarding_completed: Mapped[bool] = mapped_column(
-        Computed("onboarding_step = 4", persisted=True),
+        Computed("onboarding_step = 5", persisted=True),
     )
     # Explicit AI-processing consent (Section 8.4). NULL = not yet given.
     consent_given_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # --- Rirekisho personal-info fields (collected in onboarding step 5) ---
+    name_kana: Mapped[str | None] = mapped_column(String(255))
+    date_of_birth: Mapped[date | None] = mapped_column(Date)
+    gender: Mapped[Gender | None] = mapped_column(sa_gender)
+    phone_number: Mapped[str | None] = mapped_column(String(50))
+    mailing_address: Mapped[str | None] = mapped_column(Text)
+    residence_card_expiration: Mapped[date | None] = mapped_column(Date)
+    visa_category: Mapped[str | None] = mapped_column(String(255))
 
     # --- Relationships ---
     user: Mapped["User"] = relationship("User", back_populates="profile")
