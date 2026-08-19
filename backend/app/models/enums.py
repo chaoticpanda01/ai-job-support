@@ -45,6 +45,11 @@ class VisaStatus(str, enum.Enum):
     held = "held"
 
 
+class Gender(str, enum.Enum):
+    male = "male"
+    female = "female"
+
+
 class DocumentType(str, enum.Enum):
     rirekisho = "rirekisho"
     shokumukeirekisho = "shokumukeirekisho"
@@ -152,6 +157,7 @@ sa_subscription_tier = SAEnum(SubscriptionTier, name="subscription_tier", **_kw)
 sa_japanese_level = SAEnum(JapaneseLevel, name="japanese_level", **_kw)
 sa_preferred_language = SAEnum(PreferredLanguage, name="preferred_language", **_kw)
 sa_visa_status = SAEnum(VisaStatus, name="visa_status", **_kw)
+sa_gender = SAEnum(Gender, name="gender", **_kw)
 sa_document_type = SAEnum(DocumentType, name="document_type", **_kw)
 sa_document_status = SAEnum(DocumentStatus, name="document_status", **_kw)
 sa_job_source_platform = SAEnum(JobSourcePlatform, name="job_source_platform", **_kw)
