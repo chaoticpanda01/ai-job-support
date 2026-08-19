@@ -4,13 +4,14 @@ Pydantic request/response schemas for user and profile endpoints.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.enums import (
+    Gender,
     JapaneseLevel,
     PreferredLanguage,
     SubscriptionTier,
@@ -47,6 +48,13 @@ class ProfileResponse(_Base):
     onboarding_step: int
     onboarding_completed: bool
     consent_given_at: datetime | None
+    name_kana: str | None
+    date_of_birth: date | None
+    gender: Gender | None
+    phone_number: str | None
+    mailing_address: str | None
+    residence_card_expiration: date | None
+    visa_category: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -61,7 +69,14 @@ class ProfileUpdateRequest(_Base):
     target_location: str | None = None
     visa_status: VisaStatus | None = None
     preferred_language: PreferredLanguage | None = None
-    onboarding_step: int | None = Field(None, ge=0, le=4)
+    onboarding_step: int | None = Field(None, ge=0, le=5)
+    name_kana: str | None = None
+    date_of_birth: date | None = None
+    gender: Gender | None = None
+    phone_number: str | None = None
+    mailing_address: str | None = None
+    residence_card_expiration: date | None = None
+    visa_category: str | None = None
 
 
 # ---------------------------------------------------------------------------
