@@ -149,25 +149,25 @@ Swagger docs: **http://localhost:8000/docs**
 
 ## First-time admin setup
 
-After signing up, promote your account to admin directly in the database:
+After signing up, promote your account to admin:
 
 ```bash
 cd backend
 source .venv/bin/activate
-python -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres:postgres@localhost:5432/ai_job_support')
-conn.autocommit = True
-cur = conn.cursor()
-cur.execute(\"UPDATE users SET role = 'admin' WHERE email = 'your@email.com'\")
-print('Rows updated:', cur.rowcount)
-conn.close()
-"
+python -m scripts.promote_admin --email your@email.com
 ```
 
-Then access the admin panel at **http://localhost:3000/admin**.
+Then access the admin panel at **http://localhost:3000/admin**. Every
+subsequent role change (promoting or demoting other accounts) can be done
+from the admin panel's Users tab — this script is only needed once per
+environment.
 
-> **Note:** Admin promotion requires a direct DB update by design — there is no API endpoint to prevent privilege escalation.
+**In production:** run the identical command via Render's Shell tab for the
+`ai-job-support-api` service — it already runs with the production
+`DATABASE_URL` loaded, so no credentials need to leave Render's dashboard.
+
+> **Note:** Admin promotion requires direct DB/shell access by design —
+> there is no API endpoint to prevent privilege escalation.
 
 ---
 
