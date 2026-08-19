@@ -90,7 +90,8 @@ CREATE TRIGGER users_updated_at
 -- TABLE: profiles
 -- Extended user preferences. One per user (enforced by unique constraint).
 -- onboarding_step: 0=not started, 1=basic info, 2=resume uploaded,
---                  3=preferences set, 4=completed
+--                  3=preferences set, 4=Japanese level/visa/preferences saved,
+--                  5=completed (rirekisho personal-info step done)
 -- =============================================================================
 
 CREATE TABLE profiles (
