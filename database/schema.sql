@@ -29,6 +29,7 @@ CREATE TYPE subscription_tier   AS ENUM ('free', 'basic', 'pro');
 CREATE TYPE japanese_level      AS ENUM ('N1', 'N2', 'N3', 'N4', 'N5', 'none');
 CREATE TYPE preferred_language  AS ENUM ('id', 'en', 'ja');
 CREATE TYPE visa_status         AS ENUM ('none', 'pending', 'held');
+CREATE TYPE gender              AS ENUM ('male', 'female');
 
 -- cover_letter removed — deferred to post-MVP. Re-add when prompt and endpoint are ready.
 CREATE TYPE document_type       AS ENUM ('rirekisho', 'shokumukeirekisho');
@@ -104,9 +105,16 @@ CREATE TABLE profiles (
   target_location       VARCHAR(255),
   visa_status           visa_status NOT NULL DEFAULT 'none',
   preferred_language    preferred_language NOT NULL DEFAULT 'id',
-  onboarding_step       SMALLINT    NOT NULL DEFAULT 0 CHECK (onboarding_step BETWEEN 0 AND 4),
-  onboarding_completed  BOOLEAN     GENERATED ALWAYS AS (onboarding_step = 4) STORED,
+  onboarding_step       SMALLINT    NOT NULL DEFAULT 0 CHECK (onboarding_step BETWEEN 0 AND 5),
+  onboarding_completed  BOOLEAN     GENERATED ALWAYS AS (onboarding_step = 5) STORED,
   consent_given_at      TIMESTAMPTZ,
+  name_kana             VARCHAR(255),
+  date_of_birth         DATE,
+  gender                gender,
+  phone_number          VARCHAR(50),
+  mailing_address       TEXT,
+  residence_card_expiration DATE,
+  visa_category         VARCHAR(255),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
