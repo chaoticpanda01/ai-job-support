@@ -164,23 +164,24 @@ docker compose up
 
 ## 初回管理者設定
 
-サインアップ後、データベースを直接更新してアカウントを管理者に昇格させます:
+サインアップ後、以下のコマンドでアカウントを管理者に昇格させます:
 
 ```bash
 cd backend
 source .venv/bin/activate
-python -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres:postgres@localhost:5432/ai_job_support')
-conn.autocommit = True
-cur = conn.cursor()
-cur.execute(\"UPDATE users SET role = 'admin' WHERE email = 'your@email.com'\")
-print('Rows updated:', cur.rowcount)
-conn.close()
-"
+python -m scripts.promote_admin --email your@email.com
 ```
 
 その後、管理パネルには **http://localhost:3000/admin** からアクセスできます。
+それ以降のロール変更（他アカウントの昇格・降格）は管理パネルの Users タブから行えます
+— このスクリプトが必要なのは環境ごとに最初の一度だけです。
+
+> **本番環境の場合:** `ai-job-support-api` サービスの Render Shell タブから同じ
+> コマンドを実行してください。本番用の `DATABASE_URL` が既に読み込まれているはずなので、
+> 認証情報を Render のダッシュボード外に持ち出す必要はありません。
+
+> **注意:** 権限昇格を防ぐ設計上、管理者昇格には直接的な DB/シェルアクセスが必要です
+> — API エンドポイントは提供していません。
 
 ---
 
