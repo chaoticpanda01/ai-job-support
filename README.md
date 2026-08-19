@@ -162,9 +162,9 @@ subsequent role change (promoting or demoting other accounts) can be done
 from the admin panel's Users tab — this script is only needed once per
 environment.
 
-**In production:** run the identical command via Render's Shell tab for the
-`ai-job-support-api` service — it already runs with the production
-`DATABASE_URL` loaded, so no credentials need to leave Render's dashboard.
+> **In production:** run the identical command via Render's Shell tab for the
+> `ai-job-support-api` service — it should already run with the production
+> `DATABASE_URL` loaded, so no credentials need to leave Render's dashboard.
 
 > **Note:** Admin promotion requires direct DB/shell access by design —
 > there is no API endpoint to prevent privilege escalation.
