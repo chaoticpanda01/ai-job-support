@@ -2,6 +2,9 @@
 # Root .gitignore
 # =============================================================================
 
+# --- Brainstorming companion scratch files ---
+.superpowers/
+
 # --- Secrets (never commit) ---
 .env
 .env.local
