@@ -67,6 +67,13 @@ def make_profile(user_id: uuid.UUID | None = None) -> MagicMock:
     profile.preferred_language = "id"
     profile.onboarding_step = 0
     profile.onboarding_completed = False
+    profile.name_kana = None
+    profile.date_of_birth = None
+    profile.gender = None
+    profile.phone_number = None
+    profile.mailing_address = None
+    profile.residence_card_expiration = None
+    profile.visa_category = None
     return profile
 
 
