@@ -9,7 +9,7 @@ import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
 import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { JapaneseLevel, VisaStatus } from "@/types/api";
+import type { Gender, JapaneseLevel, VisaStatus } from "@/types/api";
 
 // ---------------------------------------------------------------------------
 // Step schemas
@@ -34,11 +34,22 @@ const step4Schema = z.object({
   target_role: z.string().min(1, "Enter at least one role"),
 });
 
+const step5BaseSchema = z.object({
+  name_kana: z.string().min(1, "Furigana is required"),
+  date_of_birth: z.string().min(1, "Date of birth is required"),
+  gender: z.enum(["male", "female"] as const),
+  phone_number: z.string().min(1, "Phone number is required"),
+  mailing_address: z.string().min(1, "Mailing address is required"),
+  residence_card_expiration: z.string().min(1, "Residence card expiration date is required"),
+  visa_category: z.string().optional(),
+});
+
 type Step2Data = z.infer<typeof step2Schema>;
 type Step3Data = z.infer<typeof step3Schema>;
 type Step4Data = z.infer<typeof step4Schema>;
+type Step5Data = z.infer<typeof step5BaseSchema>;
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 function errorMessage(err: unknown, lang: Parameters<typeof t>[2]): string {
   return err instanceof ApiClientError ? err.detail : t("common", "error", lang);
@@ -166,12 +177,39 @@ export default function OnboardingPage() {
                     .filter(Boolean),
                   onboarding_step: 4,
                 });
-                router.push("/dashboard/resumes");
+                setStep(5);
               } catch (err) {
                 setError(errorMessage(err, lang));
               }
             }}
             onBack={() => setStep(3)}
+            loading={updateProfile.isPending}
+          />
+        )}
+
+        {/* Step 5 — Personal info for 履歴書 */}
+        {step === 5 && (
+          <Step5
+            visaHeld={me?.profile?.visa_status === "held"}
+            onNext={async (data) => {
+              setError(null);
+              try {
+                await updateProfile.mutateAsync({
+                  name_kana: data.name_kana,
+                  date_of_birth: data.date_of_birth,
+                  gender: data.gender as Gender,
+                  phone_number: data.phone_number,
+                  mailing_address: data.mailing_address,
+                  residence_card_expiration: data.residence_card_expiration,
+                  ...(data.visa_category ? { visa_category: data.visa_category } : {}),
+                  onboarding_step: 5,
+                });
+                router.push("/dashboard/resumes");
+              } catch (err) {
+                setError(errorMessage(err, lang));
+              }
+            }}
+            onBack={() => setStep(4)}
             loading={updateProfile.isPending}
           />
         )}
@@ -408,6 +446,95 @@ function Step4({
           className={inputCls}
         />
       </Field>
+
+      <div className="flex gap-3">
+        <button type="button" onClick={onBack} className={secondaryBtnCls}>
+          {t("common", "back", lang)}
+        </button>
+        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 5 — Personal info for 履歴書
+// ---------------------------------------------------------------------------
+
+function Step5({
+  visaHeld,
+  onNext,
+  onBack,
+  loading,
+}: {
+  visaHeld: boolean;
+  onNext: (data: Step5Data) => Promise<void>;
+  onBack: () => void;
+  loading: boolean;
+}) {
+  const { lang } = useLang();
+  const step5Schema = visaHeld
+    ? step5BaseSchema.extend({
+        visa_category: z.string().min(1, "Visa category is required"),
+      })
+    : step5BaseSchema;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Step5Data>({
+    resolver: zodResolver(step5Schema),
+    defaultValues: { gender: "male" },
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onNext)} className="space-y-5">
+      <h1 className="text-2xl font-semibold">{t("onboarding", "s5Title", lang)}</h1>
+      <p className="text-sm text-muted-foreground">{t("onboarding", "s5Sub", lang)}</p>
+
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {t("onboarding", "s5GroupIdentity", lang)}
+      </p>
+      <Field label={t("onboarding", "s5NameKana", lang)} error={errors.name_kana?.message}>
+        <input {...register("name_kana")} placeholder="ヤマダ タロウ" className={inputCls} />
+      </Field>
+      <Field label={t("onboarding", "s5DateOfBirth", lang)} error={errors.date_of_birth?.message}>
+        <input {...register("date_of_birth")} type="date" className={inputCls} />
+      </Field>
+      <Field label={t("onboarding", "s5Gender", lang)} error={errors.gender?.message}>
+        <select {...register("gender")} className={inputCls}>
+          <option value="male">{t("onboarding", "s5GenderMale", lang)}</option>
+          <option value="female">{t("onboarding", "s5GenderFemale", lang)}</option>
+        </select>
+      </Field>
+
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {t("onboarding", "s5GroupContact", lang)}
+      </p>
+      <Field label={t("onboarding", "s5Phone", lang)} error={errors.phone_number?.message}>
+        <input {...register("phone_number")} type="tel" className={inputCls} />
+      </Field>
+      <Field label={t("onboarding", "s5Address", lang)} error={errors.mailing_address?.message}>
+        <input {...register("mailing_address")} className={inputCls} />
+      </Field>
+
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {t("onboarding", "s5GroupVisa", lang)}
+      </p>
+      <Field
+        label={t("onboarding", "s5VisaExpiration", lang)}
+        error={errors.residence_card_expiration?.message}
+      >
+        <input {...register("residence_card_expiration")} type="date" className={inputCls} />
+      </Field>
+      {visaHeld && (
+        <Field
+          label={t("onboarding", "s5VisaCategory", lang)}
+          error={errors.visa_category?.message}
+        >
+          <input {...register("visa_category")} className={inputCls} />
+        </Field>
+      )}
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className={secondaryBtnCls}>
