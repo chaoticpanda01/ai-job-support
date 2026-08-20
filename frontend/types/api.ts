@@ -4,6 +4,7 @@ export type JapaneseLevel = "N1" | "N2" | "N3" | "N4" | "N5" | "none";
 export type VisaStatus = "none" | "pending" | "held";
 export type PreferredLanguage = "id" | "en" | "ja";
 export type AnalysisType = "general" | "job_match" | "gap_analysis";
+export type Gender = "male" | "female";
 
 export interface Profile {
   id: string;
@@ -20,6 +21,13 @@ export interface Profile {
   onboarding_step: number;
   onboarding_completed: boolean;
   consent_given_at: string | null;
+  name_kana: string | null;
+  date_of_birth: string | null;
+  gender: Gender | null;
+  phone_number: string | null;
+  mailing_address: string | null;
+  residence_card_expiration: string | null;
+  visa_category: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +63,13 @@ export interface ProfileUpdateRequest {
   visa_status?: VisaStatus;
   preferred_language?: PreferredLanguage;
   onboarding_step?: number;
+  name_kana?: string;
+  date_of_birth?: string;
+  gender?: Gender;
+  phone_number?: string;
+  mailing_address?: string;
+  residence_card_expiration?: string;
+  visa_category?: string;
 }
 
 export interface Resume {
