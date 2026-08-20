@@ -287,6 +287,41 @@ export const translations = {
     visaNone: { en: "No visa yet", id: "Belum ada visa", ja: "ビザなし" },
     visaPending: { en: "Application in progress", id: "Sedang diproses", ja: "申請中" },
     visaHeld: { en: "Already holding a visa", id: "Sudah memiliki visa", ja: "取得済み" },
+    // Step 5 — Personal info for 履歴書
+    s5Title: {
+      en: "履歴書 personal info",
+      id: "Info pribadi untuk 履歴書",
+      ja: "履歴書用の個人情報",
+    },
+    s5Sub: {
+      en: "This is used to fill in your 履歴書 accurately — never guessed or invented.",
+      id: "Digunakan untuk mengisi 履歴書 kamu secara akurat — tidak pernah ditebak.",
+      ja: "履歴書を正確に作成するために使用されます。推測で埋めることはありません。",
+    },
+    s5GroupIdentity: { en: "Identity", id: "Identitas", ja: "本人情報" },
+    s5GroupContact: { en: "Contact", id: "Kontak", ja: "連絡先" },
+    s5GroupVisa: { en: "Visa", id: "Visa", ja: "ビザ情報" },
+    s5NameKana: {
+      en: "Name in katakana (ふりがな)",
+      id: "Nama dalam katakana (ふりがな)",
+      ja: "ふりがな",
+    },
+    s5DateOfBirth: { en: "Date of birth", id: "Tanggal lahir", ja: "生年月日" },
+    s5Gender: { en: "Gender", id: "Jenis kelamin", ja: "性別" },
+    s5GenderMale: { en: "Male", id: "Laki-laki", ja: "男性" },
+    s5GenderFemale: { en: "Female", id: "Perempuan", ja: "女性" },
+    s5Phone: { en: "Phone number", id: "Nomor telepon", ja: "電話番号" },
+    s5Address: { en: "Mailing address", id: "Alamat surat", ja: "住所" },
+    s5VisaExpiration: {
+      en: "Residence card expiration date",
+      id: "Tanggal kedaluwarsa kartu izin tinggal",
+      ja: "在留カード有効期限",
+    },
+    s5VisaCategory: {
+      en: "Visa category (e.g. Engineer/Specialist in Humanities)",
+      id: "Kategori visa (misalnya Insinyur/Spesialis Humaniora)",
+      ja: "在留資格（例：技術・人文知識・国際業務）",
+    },
   },
 
   // ---------------------------------------------------------------------------
