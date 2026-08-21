@@ -304,6 +304,12 @@ def _check_rirekisho_profile_complete(user: User, profile: Profile | None) -> No
             missing.append("name in kana (ふりがな)")
         if profile.date_of_birth is None:
             missing.append("date of birth")
+        else:
+            today = date.today()
+            dob = profile.date_of_birth
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if not (16 <= age <= 80):
+                missing.append("a valid date of birth (age must be between 16 and 80)")
         if profile.gender is None:
             missing.append("gender")
         if not profile.phone_number:
@@ -324,6 +330,8 @@ def _check_rirekisho_profile_complete(user: User, profile: Profile | None) -> No
 
 def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
     """Assemble the rirekisho personal-info block from User/Profile."""
+    from pydantic import ValidationError
+
     from app.services.ai.prompts.rirekisho import RirekishoPersonal
     from app.utils.japanese_date import format_wareki_full
 
@@ -337,16 +345,19 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
     age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
     gender_ja = "男性" if profile.gender == Gender.male else "女性"
 
-    personal = RirekishoPersonal(
-        name_kanji=user.full_name or "",
-        name_kana=profile.name_kana or "",
-        date_of_birth=format_wareki_full(dob.year, dob.month, dob.day),
-        age=age,
-        gender=gender_ja,
-        address=profile.mailing_address or "",
-        phone=profile.phone_number or "",
-        email=user.email,
-    )
+    try:
+        personal = RirekishoPersonal(
+            name_kanji=user.full_name or "",
+            name_kana=profile.name_kana or "",
+            date_of_birth=format_wareki_full(dob.year, dob.month, dob.day),
+            age=age,
+            gender=gender_ja,
+            address=profile.mailing_address or "",
+            phone=profile.phone_number or "",
+            email=user.email,
+        )
+    except ValidationError as exc:
+        raise DocumentGenerationError(f"Invalid personal info for rirekisho: {exc}") from exc
     return personal.model_dump()
 
 
