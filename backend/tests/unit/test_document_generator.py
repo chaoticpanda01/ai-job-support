@@ -383,6 +383,33 @@ async def test_generate_rirekisho_raises_when_visa_held_but_category_missing() -
             await generator.generate(doc.id, doc.user_id, AsyncMock())
 
 
+@pytest.mark.asyncio
+async def test_generate_rirekisho_raises_when_age_out_of_range() -> None:
+    doc = _mock_document(DocumentType.rirekisho)
+    resume = _mock_resume()
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.date_of_birth = date(1930, 1, 1)  # computed age far outside 16-80
+
+    generator = DocumentGenerator()
+
+    with (
+        patch("app.services.document_generator.DocumentRepository") as MockDocRepo,
+        patch("app.services.document_generator.ResumeRepository") as MockResumeRepo,
+        patch("app.services.document_generator.ProfileRepository") as MockProfileRepo,
+        patch("app.services.document_generator.UserRepository") as MockUserRepo,
+    ):
+        MockDocRepo.return_value.get = AsyncMock(return_value=doc)
+        MockResumeRepo.return_value.get_owned = AsyncMock(return_value=resume)
+        MockProfileRepo.return_value.get_by_user_id = AsyncMock(return_value=profile)
+        MockUserRepo.return_value.get = AsyncMock(return_value=user)
+
+        # No _fetch_and_extract/_call_ai mocks — same early-exit proof as
+        # the other completeness tests above.
+        with pytest.raises(DocumentGenerationError, match="Complete your profile"):
+            await generator.generate(doc.id, doc.user_id, AsyncMock())
+
+
 # ---------------------------------------------------------------------------
 # DocumentGenerator.generate — other failure cases
 # ---------------------------------------------------------------------------
