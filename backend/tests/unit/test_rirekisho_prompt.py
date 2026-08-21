@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 from app.services.ai.prompts.rirekisho import (
     RirekishoEntry,
+    RirekishoPersonal,
     RirekishoResult,
+    RirekishoVisaInfo,
     build_system_prompt,
     build_user_prompt,
 )
@@ -20,17 +22,23 @@ def test_system_prompt_is_japanese_instruction() -> None:
     prompt = build_system_prompt()
     assert "履歴書" in prompt
     assert "JSON" in prompt
-    assert "name_kanji" in prompt
     assert "education" in prompt
     assert "work_history" in prompt
     assert "self_pr" in prompt
     assert "motivation" in prompt
 
 
+def test_system_prompt_excludes_personal_info_fields() -> None:
+    """Gemini must never be asked to produce personal info — it's DB-sourced."""
+    prompt = build_system_prompt()
+    assert "name_kanji" not in prompt
+    assert "date_of_birth" not in prompt
+    assert '"personal"' not in prompt
+
+
 def test_system_prompt_includes_all_schema_fields() -> None:
     prompt = build_system_prompt()
     for field in [
-        "personal",
         "education",
         "work_history",
         "qualifications",
@@ -111,16 +119,6 @@ def test_rirekisho_entry_empty_entry_rejected() -> None:
 
 def _valid_result() -> dict:
     return {
-        "personal": {
-            "name_kanji": "山田 太郎",
-            "name_kana": "ヤマダ タロウ",
-            "date_of_birth": "1990年1月15日",
-            "age": 35,
-            "gender": "男性",
-            "address": "東京都渋谷区",
-            "phone": "090-1234-5678",
-            "email": "test@example.com",
-        },
         "education": [
             {"year": 2012, "month": 3, "entry": "○○大学 卒業"},
         ],
@@ -136,7 +134,7 @@ def _valid_result() -> dict:
 
 def test_rirekisho_result_valid() -> None:
     result = RirekishoResult.model_validate(_valid_result())
-    assert result.personal.name_kanji == "山田 太郎"
+    assert result.self_pr == "積極的に業務に取り組んでいます。"
     assert len(result.education) == 1
     assert len(result.work_history) == 2
     assert result.qualifications == ["日本語能力試験N3"]
@@ -149,8 +147,28 @@ def test_rirekisho_result_empty_self_pr_rejected() -> None:
         RirekishoResult.model_validate(data)
 
 
-def test_rirekisho_result_age_out_of_range_rejected() -> None:
-    data = _valid_result()
-    data["personal"]["age"] = 10
+# ---------------------------------------------------------------------------
+# RirekishoPersonal / RirekishoVisaInfo — assembled in Python from
+# User/Profile, never sent through parse_response(), but still validated
+# as a safety net against a nonsensical DB value.
+# ---------------------------------------------------------------------------
+
+
+def test_rirekisho_personal_age_out_of_range_rejected() -> None:
     with pytest.raises(ValidationError):
-        RirekishoResult.model_validate(data)
+        RirekishoPersonal(
+            name_kanji="山田 太郎",
+            name_kana="ヤマダ タロウ",
+            date_of_birth="令和6年3月",
+            age=10,
+            gender="男性",
+            address="東京都",
+            phone="090-0000-0000",
+            email="test@example.com",
+        )
+
+
+def test_rirekisho_visa_info_optional_fields_default_none() -> None:
+    info = RirekishoVisaInfo(nationality="インドネシア")
+    assert info.visa_category is None
+    assert info.residence_card_expiration is None
