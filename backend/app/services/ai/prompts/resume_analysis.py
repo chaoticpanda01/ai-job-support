@@ -4,7 +4,7 @@ Prompt builders for resume analysis.
 Each function returns a plain string. The AIClient wraps user_prompt in
 <user_content> tags automatically — do NOT add them here.
 
-Output schema (JSON inside Claude's response):
+Output schema (JSON inside Gemini's response):
 {
   "japan_market_score": 0–100,
   "strengths": ["…"],
@@ -21,7 +21,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
-# Response schema — used by ResponseParser to validate Claude's output
+# Response schema — used by ResponseParser to validate Gemini's output
 # ---------------------------------------------------------------------------
 
 

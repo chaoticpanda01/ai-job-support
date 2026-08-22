@@ -1,7 +1,7 @@
 """
-Extracts and validates structured JSON from Claude's text output.
+Extracts and validates structured JSON from Gemini's text output.
 
-Claude sometimes wraps JSON in markdown code fences (```json … ```).
+Gemini sometimes wraps JSON in markdown code fences (```json … ```).
 The parser strips those, then validates the dict against a Pydantic model
 before any data is written to the database.
 """
@@ -71,4 +71,4 @@ def parse_response(text: str, schema: type[T]) -> T:
         return schema.model_validate(data)
     except ValidationError as exc:
         logger.warning("Schema validation failed: %s | data=%r", exc, data)
-        raise ResponseParseError(f"Claude response failed schema validation: {exc}") from exc
+        raise ResponseParseError(f"Gemini response failed schema validation: {exc}") from exc

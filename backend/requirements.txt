@@ -17,18 +17,14 @@ psycopg2-binary==2.9.*           # sync PostgreSQL driver — required by Alembi
 alembic==1.14.*
 
 # --- Cache / Queue ---
-redis[hiredis]==5.2.*
-celery[redis]==5.4.*
-kombu==5.4.*                     # Celery transport; pinned for compatibility
+redis[hiredis]==5.2.*             # rate limiting only
 
 # --- Authentication ---
 pyjwt[crypto]==2.*               # JWT validation (Clerk JWKS) — maintained; ships type hints
 svix==1.95.*                     # Clerk webhook signature verification
 
 # --- AI ---
-google-genai>=1.0               # Gemini API SDK (new package)
-anthropic==0.50.*                # Claude API SDK (kept for optional fallback)
-openai==1.65.*                   # OpenAI fallback provider
+google-genai>=1.0               # Gemini API SDK
 
 # --- File Processing ---
 pypdf==6.*                       # PDF text extraction (maintained successor to PyPDF2)
@@ -51,7 +47,7 @@ pydantic-settings==2.7.*
 email-validator==2.2.*
 
 # --- Observability ---
-sentry-sdk[fastapi,celery]==2.20.*
+sentry-sdk[fastapi]==2.20.*
 
 # --- Utilities ---
 python-dateutil==2.9.*

@@ -10,7 +10,7 @@ from app.models.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
 
 class AIUsageLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """
-    Immutable append-only log of every Claude (and fallback) API call.
+    Immutable append-only log of every Gemini (and fallback) API call.
 
     The underlying PostgreSQL table is partitioned by RANGE (created_at) —
     one partition per month. SQLAlchemy is unaware of this; it queries the

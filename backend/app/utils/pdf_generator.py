@@ -5,18 +5,20 @@ Takes an HTML string and returns PDF bytes. The Japanese font (Noto Sans JP)
 ships as WOFF files inside this repo at app/assets/fonts/ and is loaded via
 @font-face with a file:// path relative to this module — not a system font.
 
-This is deliberate: production (Render) runs both the API and the Celery
-worker on Render's native Python buildpack (see backend/render.yaml,
-`runtime: python`), which never executes the Dockerfile's `apt-get install
-fonts-noto-cjk` step. A font that depends on being installed at the OS level
+This is deliberate: production (Render) runs the API on Render's native
+Python buildpack (see backend/render.yaml, `runtime: python`), which never
+executes the Dockerfile's `apt-get install fonts-noto-cjk` step. A font
+that depends on being installed at the OS level
 is silently absent there — WeasyPrint doesn't error on a missing font, it
 just falls back to a Latin-only font, so Japanese text renders blank while
 everything else looks fine. Bundling the font as a repo asset and loading it
 by an in-repo file path sidesteps the OS/runtime entirely: it works
 identically under Docker, Render's native runtime, or local dev.
 
-This module is synchronous — WeasyPrint is CPU-bound. Call from a Celery
-worker or a thread-pool executor; never call directly from an async route.
+This module is synchronous — WeasyPrint is CPU-bound. Call it via
+asyncio.to_thread (see app.services.document_generator) or another
+thread-pool executor; never call it directly from an async route, or it
+blocks the event loop for every other in-flight request.
 """
 
 from __future__ import annotations

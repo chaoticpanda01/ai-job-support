@@ -65,17 +65,6 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
     # Queries
     # ------------------------------------------------------------------
 
-    async def list_pending(self, *, limit: int = 50) -> list[GeneratedDocument]:
-        """Used by Celery worker health check to detect stuck jobs."""
-        return await self._scalars(
-            select(GeneratedDocument)
-            .where(
-                GeneratedDocument.status.in_([DocumentStatus.pending, DocumentStatus.processing])
-            )
-            .order_by(GeneratedDocument.created_at.asc())
-            .limit(limit)
-        )
-
     async def list_by_user_and_type(
         self,
         user_id: UUID,

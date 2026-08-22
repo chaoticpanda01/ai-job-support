@@ -71,7 +71,7 @@ async def translate_job(
     Translate a Japanese job posting into Indonesian and extract structured data.
 
     - If source_url is provided and a non-expired cached translation exists,
-      it is returned immediately without calling Claude.
+      it is returned immediately without calling Gemini.
     - raw_text is required and must be the pasted content of the posting page.
     """
     from app.config import settings
@@ -92,7 +92,7 @@ async def translate_job(
 
     job_repo = JobPostingRepository(db)
 
-    # -- Cache hit: return existing translation without calling Claude
+    # -- Cache hit: return existing translation without calling Gemini
     if body.source_url:
         cached = await job_repo.get_by_url(body.source_url)
         if cached is not None:
@@ -105,7 +105,7 @@ async def translate_job(
     except AIBudgetError as exc:
         raise exc.to_http_exception() from exc
 
-    # -- Call Claude
+    # -- Call Gemini
     system = build_system_prompt()
     user_prompt = build_user_prompt(body.raw_text, source_url=body.source_url)
 
@@ -476,7 +476,7 @@ async def match_job(
     db: DbSession,
 ) -> MatchScoreResponse:
     """
-    Score a resume against a job posting using Claude.
+    Score a resume against a job posting using Gemini.
     Upserts the result — calling again with the same (resume, job) pair
     refreshes the score.
     """
@@ -542,7 +542,7 @@ async def match_job(
             detail="Could not read this resume file. Please re-upload it in a supported format.",
         ) from exc
 
-    # -- Call Claude
+    # -- Call Gemini
     system = build_system_prompt()
     user_prompt = build_user_prompt(
         resume_text=resume_text,

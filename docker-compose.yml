@@ -2,7 +2,7 @@ version: "3.9"
 
 # =============================================================================
 # Local development stack
-# Services: postgres, redis, backend API, celery-worker, frontend
+# Services: postgres, redis, backend API, frontend
 #
 # Usage:
 #   docker compose up              — start all services
@@ -17,8 +17,6 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/ai_job_support
   DATABASE_SYNC_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/ai_job_support
   REDIS_URL: redis://redis:6379/0
-  CELERY_BROKER_URL: redis://redis:6379/1
-  CELERY_RESULT_BACKEND: redis://redis:6379/2
   ALLOWED_ORIGINS: http://localhost:3000
 
 services:
@@ -96,44 +94,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-  # ---------------------------------------------------------------------------
-  # Celery worker (documents + analysis queues)
-  # ---------------------------------------------------------------------------
-  celery-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: celery
-    restart: unless-stopped
-    env_file:
-      - ./backend/.env
-    environment:
-      <<: *backend-env
-    volumes:
-      - ./backend:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # ---------------------------------------------------------------------------
-  # Celery Flower — task monitoring UI (dev only)
-  # Access: http://localhost:5555
-  # ---------------------------------------------------------------------------
-  flower:
-    image: mher/flower:2.0
-    restart: unless-stopped
-    ports:
-      - "5555:5555"
-    environment:
-      CELERY_BROKER_URL: redis://redis:6379/1
-      FLOWER_PORT: 5555
-    depends_on:
-      - redis
-    profiles:
-      - monitoring                            # Only starts with: docker compose --profile monitoring up
 
   # ---------------------------------------------------------------------------
   # Next.js frontend

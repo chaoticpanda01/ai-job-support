@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """
     Uploaded resume file. parsed_content is populated asynchronously by
-    the Celery analysis task after upload.
+    a background analysis task after upload.
 
     Only one resume per user can have is_primary=True (enforced by a partial
     unique index in the DB: idx_resumes_one_primary).

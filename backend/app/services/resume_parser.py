@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 MIME_PDF = "application/pdf"
 MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-_MAX_CHARS = 20_000  # truncate before sending to Claude
+_MAX_CHARS = 20_000  # truncate before sending to Gemini
 
 
 class ParseError(Exception):

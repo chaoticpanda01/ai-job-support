@@ -44,7 +44,7 @@ _QUESTION_MAX_TOKENS = 800
 _TURN_MAX_TOKENS = 2048  # combined eval + next-question response
 _SUMMARY_MAX_TOKENS = 800
 
-# Cap conversation history sent to Claude — keeps context window predictable
+# Cap conversation history sent to Gemini — keeps context window predictable
 _HISTORY_WINDOW = 20
 
 

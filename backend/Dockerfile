@@ -2,13 +2,10 @@
 # Backend — Multi-stage Dockerfile
 # Stage 1: base     — Python + system deps
 # Stage 2: builder  — install Python packages into venv
-# Stage 3: runtime  — minimal production image
-#
-# Target: --target=runtime (default) for API server
-#         --target=celery   for Celery workers (same image, different CMD)
+# Stage 3: runtime  — minimal production image (API server)
 #
 # Japanese font support for WeasyPrint PDF generation does NOT come from a
-# system package here — production (Render) runs both services on Render's
+# system package here — production (Render) runs the API on Render's
 # native Python buildpack, not this Dockerfile, so an apt-installed font
 # would silently be absent there. The font is bundled as a repo asset
 # instead (app/assets/fonts/) and loaded by an in-repo file path, which
@@ -75,11 +72,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
-
-# ---- Stage 4: Celery worker (inherits runtime) ----
-FROM runtime AS celery
-
-CMD ["celery", "-A", "app.workers.celery_app", "worker", \
-     "--loglevel=info", \
-     "--queues=documents,analysis", \
-     "--concurrency=2"]

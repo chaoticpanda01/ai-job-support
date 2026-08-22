@@ -15,10 +15,6 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
-      - key: CELERY_RESULT_BACKEND
-        sync: false
       - key: CLERK_SECRET_KEY
         sync: false
       - key: CLERK_PUBLISHABLE_KEY
@@ -45,52 +41,3 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
-
-  - type: worker
-    name: ai-job-support-worker
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.workers.celery_app worker --loglevel=info --queues=documents,analysis --concurrency=1
-    envVars:
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: DATABASE_URL
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: REDIS_URL
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: CELERY_BROKER_URL
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: CELERY_RESULT_BACKEND
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: GEMINI_API_KEY
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: AWS_ACCESS_KEY_ID
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: AWS_SECRET_ACCESS_KEY
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: CLOUDFLARE_R2_ENDPOINT_URL
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: S3_BUCKET_NAME
-      - fromService:
-          name: ai-job-support-api
-          type: web
-          envVarKey: AWS_REGION
-      - key: APP_ENV
-        value: production

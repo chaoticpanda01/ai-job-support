@@ -1,11 +1,12 @@
 """
-Celery tasks for resume analysis.
+Resume analysis background task.
 
-analyze_resume_task:
+_run_analysis is invoked via FastAPI BackgroundTasks (see
+app.api.v1.resumes), not a Celery task:
   1. Load resume + user from DB
-  2. Check AI budget (raises AIBudgetError → task fails with known error)
+  2. Check AI budget (raises AIBudgetError → caller records failure)
   3. Extract text from the S3 file
-  4. Call Claude via AIClient
+  4. Call Gemini via AIClient
   5. Parse and validate response JSON
   6. Write ResumeAnalysis row to DB
   7. Record AI usage
@@ -13,65 +14,12 @@ analyze_resume_task:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from typing import Any
 from uuid import UUID
 
-from celery import Task
-
-from app.workers.celery_app import celery_app
-
 logger = logging.getLogger(__name__)
-
-
-class _BaseTask(Task):  # type: ignore[misc]
-    abstract = True
-
-    def on_failure(
-        self,
-        exc: Exception,
-        task_id: str,
-        args: list[Any],
-        kwargs: dict[str, Any],
-        einfo: object,
-    ) -> None:
-        logger.error("Task %s failed: %s", task_id, exc)
-
-
-@celery_app.task(  # type: ignore[misc]
-    bind=True,
-    base=_BaseTask,
-    name="app.workers.analysis_tasks.analyze_resume_task",
-    max_retries=2,
-    default_retry_delay=30,
-)
-def analyze_resume_task(
-    self: Task,
-    resume_id: str,
-    user_id: str,
-    analysis_type: str = "general",
-    job_posting_id: str | None = None,
-    language: str = "en",
-) -> dict[str, Any]:
-    """
-    Synchronous Celery task that runs async code via asyncio.run().
-    Returns the analysis result dict on success.
-    """
-    try:
-        return asyncio.run(
-            _run_analysis(
-                resume_id=UUID(resume_id),
-                user_id=UUID(user_id),
-                analysis_type=analysis_type,
-                job_posting_id=UUID(job_posting_id) if job_posting_id else None,
-                language=language,
-            )
-        )
-    except Exception as exc:
-        logger.exception("analyze_resume_task error: resume_id=%s", resume_id)
-        raise self.retry(exc=exc) from exc
 
 
 async def _run_analysis(
@@ -123,7 +71,7 @@ async def _run_analysis(
         system = build_system_prompt(language)
         user_prompt = build_user_prompt(resume_text)
 
-        # -- Call Claude
+        # -- Call Gemini
         t0 = time.monotonic()
         try:
             response_text, input_tokens, output_tokens = await ai_client.generate(

@@ -68,7 +68,7 @@ async def create_consultation(
 ) -> VisaConsultationResponse:
     """
     Generate a personalised visa roadmap using the user's current profile.
-    Calls Claude, persists the result, and returns the full consultation.
+    Calls Gemini, persists the result, and returns the full consultation.
     """
     from app.services.ai.client import AIError, ai_client
     from app.services.ai.prompts.visa import (

@@ -1,7 +1,8 @@
 """
-Celery tasks for document generation.
+Document generation background task.
 
-generate_rirekisho_task / generate_shokumu_task:
+_run_generation is invoked via FastAPI BackgroundTasks (see
+app.api.v1.documents), not a Celery task:
   1. Mark document as processing
   2. Run DocumentGenerator.generate() pipeline
   3. On success: mark completed with output data
@@ -10,60 +11,11 @@ generate_rirekisho_task / generate_shokumu_task:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 from uuid import UUID
 
-from celery import Task
-
-from app.workers.celery_app import celery_app
-
 logger = logging.getLogger(__name__)
-
-
-class _BaseDocTask(Task):  # type: ignore[misc]
-    abstract = True
-
-    def on_failure(
-        self,
-        exc: Exception,
-        task_id: str,
-        args: list[Any],
-        kwargs: dict[str, Any],
-        einfo: object,
-    ) -> None:
-        logger.error("Document task %s failed: %s", task_id, exc)
-
-
-@celery_app.task(  # type: ignore[misc]
-    bind=True,
-    base=_BaseDocTask,
-    name="app.workers.document_tasks.generate_rirekisho_task",
-    max_retries=2,
-    default_retry_delay=30,
-)
-def generate_rirekisho_task(self: Task, document_id: str, user_id: str) -> dict[str, Any]:
-    try:
-        return asyncio.run(_run_generation(UUID(document_id), UUID(user_id)))
-    except Exception as exc:
-        logger.exception("generate_rirekisho_task error: document_id=%s", document_id)
-        raise self.retry(exc=exc) from exc
-
-
-@celery_app.task(  # type: ignore[misc]
-    bind=True,
-    base=_BaseDocTask,
-    name="app.workers.document_tasks.generate_shokumu_task",
-    max_retries=2,
-    default_retry_delay=30,
-)
-def generate_shokumu_task(self: Task, document_id: str, user_id: str) -> dict[str, Any]:
-    try:
-        return asyncio.run(_run_generation(UUID(document_id), UUID(user_id)))
-    except Exception as exc:
-        logger.exception("generate_shokumu_task error: document_id=%s", document_id)
-        raise self.retry(exc=exc) from exc
 
 
 async def _run_generation(document_id: UUID, user_id: UUID) -> dict[str, Any]:
