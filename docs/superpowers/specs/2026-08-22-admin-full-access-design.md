@@ -154,6 +154,10 @@ asynchronous ones persist it via `set_failed(error_message=...)` and render it a
 `usage_tracker.get_quota_status(user_id, is_admin, db)`. Both `check_budget` and the
 new endpoint consume it, so enforcement and display cannot drift apart.
 
+*Status: shipped in Plan 1* (`ed7ad36`), together with the `QuotaStatus` dataclass and
+its binding-cap tests. Part D therefore adds no quota math — only a response schema, a
+route, and the frontend.
+
 Division of responsibility, to avoid duplicating the role lookup: `get_quota_status` is
 a pure-math helper that *takes* `is_admin` and never queries for it. `check_budget`
 performs the role lookup described in Part A and passes the result down; the endpoint
@@ -172,16 +176,56 @@ Role-awareness falls out naturally: admins have no per-user cap, so theirs alway
 resolves to `global`. A normal user at 2/8 personal but 15/16 global correctly sees the
 global figure — the limit actually about to stop them.
 
+`current_user.is_admin` already exists on `CurrentUser` (`backend/app/dependencies.py:36`),
+so the route passes it straight through and performs no role query of its own.
+
 **Badge** in the dashboard header's right-hand cluster
-(`frontend/app/dashboard/layout.tsx:55`), beside the existing controls. Normal state
-shows remaining calls; exhausted state becomes a warning carrying the reset time.
-Refreshes on window focus and after any AI action — no aggressive polling.
+(`frontend/app/dashboard/layout.tsx:60`), before `LanguageSwitcher`. It lives in
+`frontend/components/ai-quota-badge.tsx` and reads `hooks/useAiQuota.ts`.
+
+| State | Chip | Style |
+|---|---|---|
+| loading / error | renders nothing | — |
+| normal | `⚡ 5/8` | `text-muted-foreground` |
+| low (`remaining <= 2`) | `⚡ 2/8` | amber |
+| exhausted | `⚡ 0/8 · 2h30m` | `text-destructive` |
+
+The `used/limit` form self-explains that the number is a quota without needing a word for
+it in three languages, and stays short enough for the mobile header. The full translated
+sentence goes in `title` plus an `sr-only` span. Admins always resolve to `scope:
+"global"`, so the tooltip distinguishes the shared demo pool from a personal limit.
+
+A failed quota fetch renders nothing. The badge is an advisory affordance sitting in the
+header of every dashboard page — it must never be able to break that header, and the
+authoritative enforcement path (the 429) is unaffected either way.
+
+**Freshness.** The query sets `staleTime: 0` (overriding the 30s default in
+`frontend/lib/providers.tsx:14`, so window-focus refetch actually fires) and
+`refetchInterval: 60_000`. `refetchIntervalInBackground` defaults to false, so polling
+pauses whenever the tab is hidden.
+
+This supersedes an earlier draft of this section, which said "refreshes on window focus
+and after any AI action." Per-call-site invalidation was rejected on discovering that two
+of the nine `check_budget` call sites spend quota inside background workers
+(`backend/app/workers/analysis_tasks.py:56`, `backend/app/services/document_generator.py:141`),
+where no mutation resolves at the moment the quota actually changes — invalidation is
+structurally blind to exactly those spends. A 60-second while-visible interval catches
+them, costs one indexed `COUNT` per minute per open tab, and cannot be forgotten by a
+future AI call site.
 
 **i18n:** new `aiQuota` namespace in `lib/i18n.ts` (en/id/ja), which currently has zero
 quota strings. The frontend composes user-facing text from the endpoint's structured
 numbers rather than displaying the backend's English string, so translation actually
 works. The backend message stays as-is for the persisted `error_message` path and as an
 API-level fallback.
+
+`t(section, key, lang)` takes no interpolation arguments (`lib/i18n.ts:1025`), so every
+string is assembled in the component from fragments: `left`, `ofLimit`, `exhausted`,
+`resetsIn`, `hourUnit` / `minuteUnit` (`h`/`m`, `j`/`m`, `時間`/`分`), `soon`,
+`sharedPool`, `yourQuota`. A local `formatReset(seconds, lang)` helper renders the reset
+duration; it is pure, roughly a dozen lines, and has exactly one consumer, so it lives in
+the badge file rather than becoming a shared utility. It intentionally does not reuse the
+backend's `_format_duration`, which emits English-only prose.
 
 **Terminology note:** the cap counts *requests*, not tokens. Token counts are logged for
 cost estimation but never enforced. User-facing strings must say requests/calls.
@@ -212,6 +256,13 @@ app", "🏠 Home") but nothing anywhere links *in* — confirmed by grep: zero r
   once-only sync not overriding manual Back navigation.
 - `full_name` round-trips through `PUT /auth/me` and cannot be cleared by omission.
 - Admin nav item renders for admins and is absent for regular users.
+- `GET /auth/me/ai-quota` returns the binding cap for a normal user, reports `scope:
+  "global"` for an admin, and rejects an unauthenticated request.
+
+The frontend has no test framework — no jest or vitest, no test script, no test files.
+Frontend changes are verified with `npm run type-check`, `npm run lint`, `npm run build`,
+and a browser pass against the running dashboard. Introducing a frontend test harness is
+its own project and is out of scope here.
 
 ## Out of scope
 
