@@ -1,17 +1,25 @@
 """
 AI usage budget enforcement and logging.
 
-Two operations:
-  check_budget(user_id, feature, db) — runs BEFORE every AI call.
-      Enforces a flat per-user fair-use quota (AI_CALL_LIMIT calls per
-      AI_CALL_WINDOW_HOURS, across all AI features combined). Raises
-      AIBudgetError (→ HTTP 429) once the user's calls in the trailing
-      window reach the limit.
+Three operations:
 
-      This is a fair-use ceiling, not a billing tier — every user gets the
-      same limit regardless of subscription. It exists to bound worst-case
-      Gemini API cost from a single compromised/scripted account, not to
-      gate features behind payment.
+  get_quota_status(user_id, is_admin, db) — pure quota math, no enforcement.
+      Returns the *binding* QuotaStatus: whichever cap has the least
+      headroom left. Admins have no per-user cap, so theirs always
+      resolves to the global scope. Shared by check_budget and (in a
+      follow-up plan) GET /auth/me/ai-quota, so enforcement and display
+      cannot drift apart.
+
+  check_budget(user_id, feature, db) — runs BEFORE every AI call.
+      Resolves the caller's role, asks get_quota_status for the binding
+      cap, and raises AIBudgetError (→ HTTP 429) if it is exhausted.
+
+      Admins bypass the per-user fair-use cap but remain subject to the
+      global circuit-breaker. That asymmetry is deliberate: the global cap
+      is a proxy for Google's real Gemini free-tier ceiling, so exempting
+      admins from it would create no extra capacity — it would only swap a
+      friendly message for a raw Gemini 429, and let admin testing starve
+      real visitors.
 
   record(user_id, feature, model, input_tokens, output_tokens, latency_ms, db)
       — runs AFTER every AI call.
@@ -23,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import math
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -30,7 +39,9 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.enums import UserRole
 from app.repositories.ai_usage import AIUsageRepository
+from app.repositories.user import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +51,7 @@ _INPUT_COST_PER_TOKEN = Decimal("0.000003")
 _OUTPUT_COST_PER_TOKEN = Decimal("0.000015")
 
 # Flat fair-use ceiling: total AI calls per rolling window, summed across
-# every feature, applied equally to all users regardless of subscription tier.
+# every feature, applied to all non-admin users regardless of subscription tier.
 # Per-user rolling-window fair-use cap (all AI features combined). Sized so a
 # single visitor can do one full short interview or several quick features, but
 # can't monopolize the shared Gemini free-tier budget.
@@ -54,6 +65,8 @@ AI_CALL_WINDOW_HOURS = 24
 # concurrent burst can overshoot slightly — the buffer absorbs that overshoot so
 # it still can't reach Google's hard limit. Raise both limits substantially if
 # billing is enabled on the Gemini project.
+#
+# Admins are NOT exempt from this one. See the module docstring.
 AI_GLOBAL_CALL_LIMIT = 16
 AI_GLOBAL_WINDOW_HOURS = 24
 
@@ -100,6 +113,32 @@ class AIBudgetError(Exception):
         )
 
 
+@dataclass(frozen=True)
+class QuotaStatus:
+    """
+    One rolling-window cap and how much of it is left.
+
+    `scope` names which cap this is: "user" for the per-user fair-use quota,
+    "global" for the shared circuit-breaker.
+    """
+
+    scope: str
+    used: int
+    limit: int
+    window_hours: int
+    resets_in_seconds: int
+
+    @property
+    def remaining(self) -> int:
+        # Clamped: check_budget is check-then-act, so a concurrent burst can
+        # push `used` past `limit`, and negative headroom is meaningless.
+        return max(0, self.limit - self.used)
+
+    @property
+    def exhausted(self) -> bool:
+        return self.used >= self.limit
+
+
 def _reset_seconds(oldest_call_at: datetime | None, window_hours: int) -> int:
     """Seconds until the oldest call in the window ages out and frees a slot."""
     if oldest_call_at is None:
@@ -123,10 +162,62 @@ def _format_duration(seconds: int) -> str:
     return f"{hours}h {rem_minutes}m"
 
 
+async def _is_admin(user_id: UUID, db: AsyncSession) -> bool:
+    """
+    Resolve whether the caller is an admin.
+
+    Fails closed: an unknown user_id yields False, so a lookup miss enforces
+    the cap rather than silently exempting the caller.
+    """
+    user = await UserRepository(db).get(user_id)
+    return user is not None and user.role == UserRole.admin
+
+
 class UsageTracker:
     """
     Stateless service — each method receives the DB session from the caller.
     """
+
+    async def get_quota_status(
+        self,
+        user_id: UUID,
+        is_admin: bool,
+        db: AsyncSession,
+    ) -> QuotaStatus:
+        """
+        Return the binding cap — whichever has the least headroom left.
+
+        Pure math: never raises on exhaustion, and never queries for the
+        caller's role. `is_admin` is supplied by the caller (check_budget
+        resolves it; API routes already hold it on CurrentUser), so the role
+        lookup happens at most once per request.
+
+        Admins have no per-user cap, so their binding cap is always the global
+        one. For everyone else a tie favours the per-user scope, whose message
+        is the more actionable of the two.
+        """
+        repo = AIUsageRepository(db)
+
+        total, global_oldest = await repo.get_total_usage_window(AI_GLOBAL_WINDOW_HOURS)
+        global_status = QuotaStatus(
+            scope="global",
+            used=total,
+            limit=AI_GLOBAL_CALL_LIMIT,
+            window_hours=AI_GLOBAL_WINDOW_HOURS,
+            resets_in_seconds=_reset_seconds(global_oldest, AI_GLOBAL_WINDOW_HOURS),
+        )
+        if is_admin:
+            return global_status
+
+        used, oldest_call_at = await repo.get_recent_usage_window(user_id, AI_CALL_WINDOW_HOURS)
+        user_status = QuotaStatus(
+            scope="user",
+            used=used,
+            limit=AI_CALL_LIMIT,
+            window_hours=AI_CALL_WINDOW_HOURS,
+            resets_in_seconds=_reset_seconds(oldest_call_at, AI_CALL_WINDOW_HOURS),
+        )
+        return user_status if user_status.remaining <= global_status.remaining else global_status
 
     async def check_budget(
         self,
@@ -135,37 +226,25 @@ class UsageTracker:
         db: AsyncSession,
     ) -> None:
         """
-        Enforce two rolling-window caps before an AI call (all features share
-        one budget). Raises AIBudgetError with retry_after_seconds = time until
-        the oldest counted call ages out and frees a slot.
+        Enforce the binding rolling-window cap before an AI call (all features
+        share one budget). Raises AIBudgetError with retry_after_seconds = time
+        until the oldest counted call ages out and frees a slot.
 
-          1. Per-user cap    (AI_CALL_LIMIT / AI_CALL_WINDOW_HOURS)
-          2. Global breaker  (AI_GLOBAL_CALL_LIMIT / AI_GLOBAL_WINDOW_HOURS)
-             across all users — keeps the app under Google's shared free-tier
-             daily quota so no one hits the raw Gemini 429.
+        Admins skip the per-user cap but not the global circuit-breaker.
+
+        `feature` is accepted for call-site clarity and logging symmetry with
+        record(); the quota itself is deliberately whole-app, not per-feature,
+        so a user can't spread calls across endpoints to dodge the cap.
         """
-        repo = AIUsageRepository(db)
-
-        # 1. Per-user fair-use cap
-        used, oldest_call_at = await repo.get_recent_usage_window(user_id, AI_CALL_WINDOW_HOURS)
-        if used >= AI_CALL_LIMIT:
+        is_admin = await _is_admin(user_id, db)
+        quota = await self.get_quota_status(user_id, is_admin, db)
+        if quota.exhausted:
             raise AIBudgetError(
-                used=used,
-                limit=AI_CALL_LIMIT,
-                window_hours=AI_CALL_WINDOW_HOURS,
-                retry_after_seconds=_reset_seconds(oldest_call_at, AI_CALL_WINDOW_HOURS),
-                scope="user",
-            )
-
-        # 2. Global circuit-breaker across all users
-        total, global_oldest = await repo.get_total_usage_window(AI_GLOBAL_WINDOW_HOURS)
-        if total >= AI_GLOBAL_CALL_LIMIT:
-            raise AIBudgetError(
-                used=total,
-                limit=AI_GLOBAL_CALL_LIMIT,
-                window_hours=AI_GLOBAL_WINDOW_HOURS,
-                retry_after_seconds=_reset_seconds(global_oldest, AI_GLOBAL_WINDOW_HOURS),
-                scope="global",
+                used=quota.used,
+                limit=quota.limit,
+                window_hours=quota.window_hours,
+                retry_after_seconds=quota.resets_in_seconds,
+                scope=quota.scope,
             )
 
     async def record(
