@@ -98,8 +98,21 @@ export default function OnboardingPage() {
     didSyncStep.current = true;
 
     const saved = me.profile?.onboarding_step ?? 0;
-    const next = Math.min(saved + 1, TOTAL_STEPS);
-    setStep(me.user.full_name ? next : Math.min(next, 2));
+    // onboarding_step values don't advance 1:1 with wizard step numbers: step 3
+    // saves onboarding_step 2 (not 3), and step 4 saves 4, skipping 3 entirely.
+    // This maps "last value saved" to the step that comes right after it.
+    let next: number;
+    if (saved >= 4) next = 5;
+    else if (saved >= 2) next = 4;
+    else if (saved >= 1) next = 3;
+    else next = 1;
+
+    const target = me.user.full_name ? next : Math.min(next, 2);
+    // Functional update: if the user has already navigated away from the
+    // initial step (e.g. finished step 1's consent while `me` was still
+    // resolving), this sync must not clobber that — only apply when we're
+    // still sitting at the untouched default.
+    setStep((current) => (current === 1 ? target : current));
   }, [me]);
 
   const stepLabel = t("onboarding", "stepOf", lang)
