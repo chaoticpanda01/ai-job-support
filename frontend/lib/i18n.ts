@@ -1009,6 +1009,9 @@ export const translations = {
   // AI quota badge — fragments, composed with numbers in ai-quota-badge.tsx
   // ---------------------------------------------------------------------------
   aiQuota: {
+    // Word separator. Japanese sets no space between clauses or between a
+    // number and its counter, so composed strings join with "" there.
+    sep: { en: " ", id: " ", ja: "" },
     left: { en: "AI calls left", id: "panggilan AI tersisa", ja: "回のAI利用が可能" },
     exhausted: {
       en: "AI limit reached.",

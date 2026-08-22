@@ -39,7 +39,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-sm font-semibold transition-opacity hover:opacity-80">
+            {/* shrink-0 + nowrap: without these flex squeezes the wordmark
+                first, wrapping it onto three lines inside a h-14 header. */}
+            <Link
+              href="/"
+              className="shrink-0 whitespace-nowrap text-sm font-semibold transition-opacity hover:opacity-80"
+            >
               🏠 Japan Job Support
             </Link>
             <nav className="hidden gap-4 md:flex">
@@ -59,7 +64,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <AiQuotaBadge />
+            {/* Only at lg+. Between md and lg the eight nav links already fill
+                the header exactly — measured, adding the badge there overflows
+                the page by ~78px. Below md the nav collapses and the drawer
+                carries the badge instead. */}
+            <AiQuotaBadge className="hidden lg:inline-flex" />
             <LanguageSwitcher />
             <UserButton afterSignOutUrl="/sign-in" />
             <button
@@ -77,6 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {menuOpen && (
           <nav id="mobile-nav" className="border-t bg-background md:hidden">
             <div className="container flex flex-col py-2">
+              <AiQuotaBadge className="mb-1 self-start" />
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}

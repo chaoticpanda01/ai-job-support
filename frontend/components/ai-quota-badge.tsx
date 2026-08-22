@@ -36,8 +36,12 @@ function formatReset(seconds: number, lang: Language): string {
  * or failed quota fetch renders nothing rather than risking the header. The
  * authoritative path is unaffected either way — an exhausted quota is still
  * enforced by check_budget and surfaced as a 429.
+ *
+ * `className` lets each call site own its own visibility: the header hides it
+ * below the `sm` breakpoint, where it would otherwise squeeze the brand link
+ * into wrapping, and the mobile nav drawer renders it instead.
  */
-export function AiQuotaBadge() {
+export function AiQuotaBadge({ className }: { className?: string }) {
   const { lang } = useLang();
   const { data } = useAiQuota();
 
@@ -47,10 +51,13 @@ export function AiQuotaBadge() {
   const low = !exhausted && remaining <= LOW_REMAINING;
   const reset = formatReset(resets_in_seconds, lang);
 
+  // Japanese sets no space between clauses or between a number and its
+  // counter, so the separator is itself translated rather than a literal " ".
+  const sep = t("aiQuota", "sep", lang);
   const scopeLabel = t("aiQuota", scope === "global" ? "sharedPool" : "yourQuota", lang);
   const description = exhausted
-    ? `${scopeLabel}: ${t("aiQuota", "exhausted", lang)} ${t("aiQuota", "resetsIn", lang)} ${reset}`
-    : `${scopeLabel}: ${remaining} ${t("aiQuota", "left", lang)}`;
+    ? `${scopeLabel}: ${t("aiQuota", "exhausted", lang)}${sep}${t("aiQuota", "resetsIn", lang)}${sep}${reset}`
+    : `${scopeLabel}: ${remaining}${sep}${t("aiQuota", "left", lang)}`;
 
   return (
     <span
@@ -62,6 +69,7 @@ export function AiQuotaBadge() {
           : low
             ? "border-amber-500/40 text-amber-700"
             : "border-transparent text-muted-foreground",
+        className,
       )}
     >
       <span aria-hidden="true">⚡</span>
