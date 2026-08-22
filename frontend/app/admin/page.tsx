@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useMe } from "@/hooks/useMe";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useConfirm } from "@/components/confirm-dialog-provider";
@@ -85,6 +86,31 @@ type Tab = "stats" | "users" | "culture" | "glossary";
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("stats");
+  const { data: me, isLoading: meLoading } = useMe();
+
+  // The backend already enforces this on every /admin route; this only
+  // replaces four separate "failed to load" panels with one clear answer.
+  if (meLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </div>
+    );
+  }
+
+  if (me?.user.role !== "admin") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+        <h1 className="text-xl font-semibold">Admin access required</h1>
+        <p className="text-sm text-muted-foreground">
+          Your account doesn&apos;t have permission to view this page.
+        </p>
+        <Link href="/dashboard/resumes" className="text-sm text-primary hover:underline">
+          ← Back to app
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/40">
