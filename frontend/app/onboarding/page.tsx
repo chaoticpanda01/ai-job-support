@@ -1,6 +1,14 @@
 "use client";
 
-import { cloneElement, isValidElement, useState, useEffect, useId, type ReactElement } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useState,
+  useEffect,
+  useId,
+  useRef,
+  type ReactElement,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,6 +75,7 @@ export default function OnboardingPage() {
   const { lang } = useLang();
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const didSyncStep = useRef(false);
 
   // If already completed, redirect
   useEffect(() => {
@@ -74,6 +83,24 @@ export default function OnboardingPage() {
       router.replace("/dashboard/resumes");
     }
   }, [me?.profile?.onboarding_completed, router]);
+
+  // Resume at the step after the last one saved, so a returning user isn't
+  // forced to re-walk the whole wizard. Runs once: after this, the user's own
+  // Back/Continue navigation owns `step`, and re-syncing would fight it.
+  //
+  // Exception: step 2 is the only place full_name is captured, so a user
+  // missing it starts there however far they previously got. Without this they
+  // would jump to step 5, finish it, flip the onboarding_completed generated
+  // column, and then be redirected away permanently by the guard above — with
+  // full_name still unset, leaving 履歴書 generation blocked and no route back.
+  useEffect(() => {
+    if (didSyncStep.current || !me) return;
+    didSyncStep.current = true;
+
+    const saved = me.profile?.onboarding_step ?? 0;
+    const next = Math.min(saved + 1, TOTAL_STEPS);
+    setStep(me.user.full_name ? next : Math.min(next, 2));
+  }, [me]);
 
   const stepLabel = t("onboarding", "stepOf", lang)
     .replace("{n}", String(step))
@@ -192,6 +219,16 @@ export default function OnboardingPage() {
         {step === 5 && (
           <Step5
             visaHeld={me?.profile?.visa_status === "held"}
+            defaults={{
+              name_kana: me?.profile?.name_kana ?? undefined,
+              date_of_birth: me?.profile?.date_of_birth ?? undefined,
+              gender: me?.profile?.gender ?? undefined,
+              phone_number: me?.profile?.phone_number ?? undefined,
+              mailing_address: me?.profile?.mailing_address ?? undefined,
+              residence_card_expiration:
+                me?.profile?.residence_card_expiration ?? undefined,
+              visa_category: me?.profile?.visa_category ?? undefined,
+            }}
             onNext={async (data) => {
               setError(null);
               try {
@@ -464,11 +501,18 @@ function Step4({
 
 function Step5({
   visaHeld,
+  defaults,
   onNext,
   onBack,
   loading,
 }: {
   visaHeld: boolean;
+  // Not Partial<Step5Data>: with exactOptionalPropertyTypes, an optional key
+  // from Partial<T> still requires T when present, so a caller that supplies
+  // `undefined` explicitly (as the page does, via `me?.profile?.x ?? undefined`)
+  // would fail to type-check. This mapped type allows the value itself to be
+  // undefined, not just the key to be omitted.
+  defaults: { [K in keyof Step5Data]?: Step5Data[K] | undefined };
   onNext: (data: Step5Data) => Promise<void>;
   onBack: () => void;
   loading: boolean;
@@ -485,7 +529,19 @@ function Step5({
     formState: { errors },
   } = useForm<Step5Data>({
     resolver: zodResolver(step5Schema),
-    defaultValues: { gender: "male" },
+    // Drop keys whose value is explicitly undefined first: with
+    // exactOptionalPropertyTypes, react-hook-form's defaultValues type accepts
+    // an omitted key but not one present with value `undefined`, and `defaults`
+    // (built from nullable profile fields via `?? undefined`) can contain those.
+    // Spread first, then fall back for gender specifically: a plain spread of
+    // an absent value would overwrite the fallback with undefined and leave
+    // the radio group unset.
+    defaultValues: {
+      ...(Object.fromEntries(
+        Object.entries(defaults).filter(([, v]) => v !== undefined),
+      ) as Partial<Step5Data>),
+      gender: defaults.gender ?? "male",
+    },
   });
 
   return (
