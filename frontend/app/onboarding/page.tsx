@@ -238,8 +238,7 @@ export default function OnboardingPage() {
               gender: me?.profile?.gender ?? undefined,
               phone_number: me?.profile?.phone_number ?? undefined,
               mailing_address: me?.profile?.mailing_address ?? undefined,
-              residence_card_expiration:
-                me?.profile?.residence_card_expiration ?? undefined,
+              residence_card_expiration: me?.profile?.residence_card_expiration ?? undefined,
               visa_category: me?.profile?.visa_category ?? undefined,
             }}
             onNext={async (data) => {
