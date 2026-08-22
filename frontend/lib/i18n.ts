@@ -1006,6 +1006,32 @@ export const translations = {
   },
 
   // ---------------------------------------------------------------------------
+  // AI quota badge — fragments, composed with numbers in ai-quota-badge.tsx
+  // ---------------------------------------------------------------------------
+  aiQuota: {
+    left: { en: "AI calls left", id: "panggilan AI tersisa", ja: "回のAI利用が可能" },
+    exhausted: {
+      en: "AI limit reached.",
+      id: "Batas AI tercapai.",
+      ja: "AI利用上限に達しました。",
+    },
+    resetsIn: { en: "Resets in", id: "Tersedia lagi dalam", ja: "回復まで" },
+    soon: { en: "under a minute", id: "kurang dari semenit", ja: "まもなく" },
+    hourUnit: { en: "h", id: "j", ja: "時間" },
+    minuteUnit: { en: "m", id: "m", ja: "分" },
+    sharedPool: {
+      en: "Shared demo limit",
+      id: "Batas demo bersama",
+      ja: "デモ全体の上限",
+    },
+    yourQuota: {
+      en: "Your 24-hour limit",
+      id: "Batas 24 jam kamu",
+      ja: "あなたの24時間の上限",
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Legacy dashboard section (kept for backward compat)
   // ---------------------------------------------------------------------------
   dashboard: {
