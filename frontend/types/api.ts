@@ -413,3 +413,19 @@ export interface GlossaryEntry {
   reading_romaji: string | null;
   definition_id: string;
 }
+
+// ---------------------------------------------------------------------------
+// AI quota
+// ---------------------------------------------------------------------------
+
+/** Mirrors backend AIQuotaResponse. Counts requests, not tokens. */
+export interface AIQuota {
+  /** "user" is the per-user fair-use cap; "global" the shared breaker. */
+  scope: "user" | "global";
+  used: number;
+  limit: number;
+  remaining: number;
+  window_hours: number;
+  resets_in_seconds: number;
+  exhausted: boolean;
+}
