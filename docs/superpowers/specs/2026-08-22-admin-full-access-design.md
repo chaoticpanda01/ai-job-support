@@ -90,7 +90,17 @@ negligible beside a multi-second Gemini call capped at 16/day.
 means clicking through 1→2→3→4 again.
 
 - Start step derives from `me.profile.onboarding_step` as `min(saved + 1, 5)`
-  (`saved = 4` → step 5; `saved = 0` → step 1; `saved = 5` → step 5, re-editable).
+  (`saved = 4` → step 5; `saved = 0` → step 1).
+- **Exception: if `user.full_name` is missing, start at step 2 regardless.** Step 2 is
+  the only place `full_name` is captured (Part C). Without this exception the live
+  account — `saved = 4`, `full_name = NULL` — would jump straight to step 5, complete it,
+  flip `onboarding_completed` to true, and then be permanently redirected away from
+  onboarding by the existing guard at `frontend/app/onboarding/page.tsx:72`, leaving
+  rirekisho blocked forever with no way back. The rule is therefore: start at
+  `min(saved + 1, 5)`, or step 2 if `full_name` is missing.
+- `saved = 5` needs no special handling: `onboarding_completed` is a generated column
+  (`onboarding_step = 5`), so the existing redirect fires first and sends the user to the
+  dashboard. The clamp at 5 is defensive only.
 - The sync runs **once**, guarded by a ref, so it does not yank the user forward when
   they deliberately navigate Back.
 - Step 5 prefills from existing profile values. Without this, re-visiting a completed
@@ -100,19 +110,35 @@ means clicking through 1→2→3→4 again.
 `ProfileRepository.advance_onboarding_step` already prevents the step from regressing,
 so re-walking earlier steps cannot undo progress.
 
-## Part C — `full_name` settable in-app
+## Part C — `full_name` is collected but silently discarded (bug fix)
 
-`full_name` lives on `users` and is currently written only by the Clerk `user.updated`
-webhook (`backend/app/api/v1/auth.py:94`). Svix cannot reach `localhost:8000` without a
-tunnel, so on a local machine there is no path to set it at all — while the rirekisho
-completeness check hard-requires it.
+Revised during planning after reading the code. This is **not** a missing feature — the
+UI already collects the field and throws it away, in two independent layers:
 
-- Add `full_name` to `ProfileUpdateRequest`. `update_me` pops it and updates the `User`
-  row; the endpoint already loads `user`, so this is a small change. `exclude_none=True`
-  means the field can be set but never cleared, which is the desired behavior.
-- Surface it in onboarding **step 5** as 氏名, directly above ふりがな. This mirrors the
-  real 履歴書, where the two sit in the same box, and means a single pass through step 5
-  satisfies the entire completeness check.
+1. `frontend/app/onboarding/page.tsx:19` — `step2Schema` requires
+   `full_name: z.string().min(1)`, and Step 2 renders an input for it (i18n key `s2Name`,
+   already labelled 氏名 in Japanese). The user fills it in and Zod validates it.
+2. Step 2's `onNext` then sends only `preferred_language` and `onboarding_step: 1`.
+   **`data.full_name` is never sent.**
+3. Even if it were, `ProfileUpdateRequest` has no `full_name` field, so the backend would
+   drop it as well.
+
+This fully explains why the live account has `full_name = NULL` despite having completed
+steps 1–4, and why the Clerk webhook (`backend/app/api/v1/auth.py:94`) is currently the
+only writer — a path unreachable on localhost, since svix cannot reach `localhost:8000`.
+
+**Fix, both layers:**
+
+- Add `full_name: str | None = None` to `ProfileUpdateRequest`. `update_me` pops it and
+  updates the `User` row; the endpoint already loads `user`, so this is small.
+  `exclude_none=True` means it can be set but never cleared, which is desired.
+- Pass `full_name: data.full_name` in Step 2's `onNext`.
+
+**Explicitly not doing:** surfacing 氏名 again in step 5. An earlier draft of this spec
+proposed that, but `RirekishoPersonal.name_kanji` is populated from `user.full_name` — the
+very same column step 2 collects. Adding it to step 5 would render one DB field twice in
+one wizard. Step 2 remains the single place it is captured. No new i18n is required, since
+`s2Name` already exists in en/id/ja.
 
 **Known conflict, accepted:** a later Clerk `user.updated` webhook overwrites an in-app
 edit. Last-writer-wins. Documented rather than reconciled — appropriate for a demo.
