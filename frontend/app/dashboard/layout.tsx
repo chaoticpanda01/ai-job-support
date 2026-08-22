@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { AiQuotaBadge } from "@/components/ai-quota-badge";
 import { useMe } from "@/hooks/useMe";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
@@ -58,6 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <AiQuotaBadge />
             <LanguageSwitcher />
             <UserButton afterSignOutUrl="/sign-in" />
             <button
