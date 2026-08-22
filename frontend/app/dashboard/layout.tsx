@@ -47,7 +47,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               🏠 Japan Job Support
             </Link>
-            <nav className="hidden gap-4 md:flex">
+            {/* lg, not md: at md the eight links fit only by leaving the header
+                with zero slack, and the wordmark starts losing width to them.
+                Below lg the drawer carries the nav instead. */}
+            <nav className="hidden gap-4 lg:flex">
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
@@ -64,16 +67,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {/* Only at lg+. Between md and lg the eight nav links already fill
-                the header exactly — measured, adding the badge there overflows
-                the page by ~78px. Below md the nav collapses and the drawer
-                carries the badge instead. */}
+            {/* Header at lg+, drawer below it — the same breakpoint the nav
+                uses, so the badge is reachable at every width. */}
             <AiQuotaBadge className="hidden lg:inline-flex" />
             <LanguageSwitcher />
             <UserButton afterSignOutUrl="/sign-in" />
             <button
               type="button"
-              className="text-lg leading-none text-muted-foreground hover:text-foreground md:hidden"
+              className="text-lg leading-none text-muted-foreground hover:text-foreground lg:hidden"
               aria-label={menuOpen ? t("nav", "closeMenu", lang) : t("nav", "openMenu", lang)}
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
@@ -84,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
         {menuOpen && (
-          <nav id="mobile-nav" className="border-t bg-background md:hidden">
+          <nav id="mobile-nav" className="border-t bg-background lg:hidden">
             <div className="container flex flex-col py-2">
               <AiQuotaBadge className="mb-1 self-start" />
               {NAV_ITEMS.map((item) => (
