@@ -230,3 +230,72 @@ async def test_list_users_allowed_for_admin() -> None:
 
     # 200 or 500 (DB not mocked) — just verify not 403
     assert resp.status_code != 403
+
+
+# ---------------------------------------------------------------------------
+# PUT /auth/me — full_name
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_me_saves_full_name() -> None:
+    """
+    full_name lives on users, not profiles, so it must be applied through
+    UserRepository rather than folded into the profile update.
+    """
+    user = make_user(full_name=None)
+    profile = make_profile(user_id=user.id)
+    user.profile = profile
+
+    user_update = AsyncMock(return_value=user)
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.UserRepository.get_with_profile", new=AsyncMock(return_value=user)),
+        patch("app.api.v1.auth.UserRepository.update", new=user_update),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.put(
+                "/api/v1/auth/me",
+                headers=_auth_headers(),
+                json={"full_name": "Budi Santoso", "preferred_language": "id"},
+            )
+
+    assert resp.status_code == 200
+    user_update.assert_awaited_once()
+    assert user_update.await_args.kwargs["full_name"] == "Budi Santoso"
+
+
+@pytest.mark.asyncio
+async def test_update_me_without_full_name_leaves_user_untouched() -> None:
+    """Omitting full_name must not clear it — exclude_none drops it entirely."""
+    user = make_user(full_name="Existing Name")
+    profile = make_profile(user_id=user.id)
+    user.profile = profile
+
+    user_update = AsyncMock(return_value=user)
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.UserRepository.get_with_profile", new=AsyncMock(return_value=user)),
+        patch("app.api.v1.auth.UserRepository.update", new=user_update),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.put(
+                "/api/v1/auth/me",
+                headers=_auth_headers(),
+                json={"preferred_language": "id"},
+            )
+
+    assert resp.status_code == 200
+    user_update.assert_not_awaited()

@@ -149,6 +149,14 @@ async def update_me(
     profile, _ = await profile_repo.get_or_create(current_user.user_id)
 
     update_data = body.model_dump(exclude_none=True)
+
+    # full_name lives on users, not profiles — apply it before the profile
+    # fields. exclude_none means an omitted full_name is absent here, so this
+    # can set the name but never clear it.
+    full_name = update_data.pop("full_name", None)
+    if full_name is not None:
+        user = await user_repo.update(user, full_name=full_name)
+
     if update_data:
         # onboarding_step can only advance, never go backward
         if "onboarding_step" in update_data:

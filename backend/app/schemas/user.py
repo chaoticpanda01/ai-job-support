@@ -60,6 +60,10 @@ class ProfileResponse(_Base):
 
 
 class ProfileUpdateRequest(_Base):
+    # full_name is the only field here that lives on `users`, not `profiles`.
+    # update_me applies it separately. It is the 氏名 shown on a generated
+    # 履歴書 (RirekishoPersonal.name_kanji reads users.full_name).
+    full_name: str | None = None
     nationality: str | None = None
     japanese_level: JapaneseLevel | None = None
     target_industry: list[str] | None = None
