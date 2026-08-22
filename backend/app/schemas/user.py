@@ -5,7 +5,7 @@ Pydantic request/response schemas for user and profile endpoints.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -108,6 +108,30 @@ class MeResponse(_Base):
 
     user: UserResponse
     profile: ProfileResponse | None
+
+
+# ---------------------------------------------------------------------------
+# AI quota
+# ---------------------------------------------------------------------------
+
+
+class AIQuotaResponse(_Base):
+    """
+    The *binding* AI call quota — whichever of the per-user or global cap has
+    the least headroom left. Counts requests, not tokens.
+
+    `scope` names which cap this is: "user" is the per-user fair-use quota,
+    "global" the shared circuit-breaker. Admins have no per-user cap, so theirs
+    is always "global".
+    """
+
+    scope: Literal["user", "global"]
+    used: int
+    limit: int
+    remaining: int
+    window_hours: int
+    resets_in_seconds: int
+    exhausted: bool
 
 
 # ---------------------------------------------------------------------------

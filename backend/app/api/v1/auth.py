@@ -22,6 +22,7 @@ from app.dependencies import AdminUser, AuthUser, DbSession, PaginationDep
 from app.models.user import User
 from app.repositories.user import ProfileRepository, UserRepository
 from app.schemas.user import (
+    AIQuotaResponse,
     ClerkWebhookEvent,
     ClerkWebhookUserData,
     MeResponse,
@@ -29,6 +30,7 @@ from app.schemas.user import (
     UserListResponse,
     UserResponse,
 )
+from app.services.ai.usage_tracker import usage_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +209,33 @@ async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
     return MeResponse(
         user=UserResponse.model_validate(user),
         profile=user.profile,
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI quota
+# ---------------------------------------------------------------------------
+
+
+@router.get("/me/ai-quota", response_model=AIQuotaResponse)
+async def get_my_ai_quota(current_user: AuthUser, db: DbSession) -> AIQuotaResponse:
+    """
+    Return the caller's binding AI call quota so the UI can warn *before* a
+    request is refused, rather than only surfacing the 429 afterwards.
+
+    Reads the same helper check_budget enforces with, so the number shown can
+    never drift from the number enforced. current_user.is_admin is already
+    resolved on the request, so this performs no role query of its own.
+    """
+    quota = await usage_tracker.get_quota_status(current_user.user_id, current_user.is_admin, db)
+    return AIQuotaResponse(
+        scope=quota.scope,
+        used=quota.used,
+        limit=quota.limit,
+        remaining=quota.remaining,
+        window_hours=quota.window_hours,
+        resets_in_seconds=quota.resets_in_seconds,
+        exhausted=quota.exhausted,
     )
 
 

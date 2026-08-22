@@ -17,6 +17,7 @@ import pytest
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import UserRole
+from app.services.ai.usage_tracker import QuotaStatus
 from httpx import ASGITransport, AsyncClient
 
 from tests.conftest import make_profile, make_user
@@ -299,3 +300,93 @@ async def test_update_me_without_full_name_leaves_user_untouched() -> None:
 
     assert resp.status_code == 200
     user_update.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# GET /auth/me/ai-quota
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_ai_quota_returns_binding_cap() -> None:
+    """
+    remaining and exhausted are @property on QuotaStatus, not stored fields.
+    Asserting the whole payload catches a mapping that silently drops them.
+    """
+    user = make_user(role=UserRole.user)
+    quota = QuotaStatus(scope="user", used=5, limit=8, window_hours=24, resets_in_seconds=12000)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.auth.usage_tracker.get_quota_status",
+            new=AsyncMock(return_value=quota),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/auth/me/ai-quota", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "scope": "user",
+        "used": 5,
+        "limit": 8,
+        "remaining": 3,
+        "window_hours": 24,
+        "resets_in_seconds": 12000,
+        "exhausted": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_ai_quota_passes_admin_flag_through() -> None:
+    """
+    The route must forward is_admin rather than re-querying the role, so an
+    admin resolves to the global scope (they have no per-user cap).
+    """
+    admin = make_user(role=UserRole.admin)
+    quota = QuotaStatus(scope="global", used=11, limit=16, window_hours=24, resets_in_seconds=0)
+    spy = AsyncMock(return_value=quota)
+
+    with (
+        _bypass_middleware(admin),
+        patch("app.api.v1.auth.usage_tracker.get_quota_status", new=spy),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/auth/me/ai-quota", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["scope"] == "global"
+    assert resp.json()["remaining"] == 5
+    # get_quota_status(user_id, is_admin, db) — positional, as check_budget calls it.
+    assert spy.await_args.args[1] is True
+
+
+@pytest.mark.asyncio
+async def test_get_ai_quota_exhausted_reports_zero_remaining() -> None:
+    """Usage can overshoot the cap under concurrency; remaining must clamp at 0."""
+    user = make_user(role=UserRole.user)
+    quota = QuotaStatus(scope="global", used=17, limit=16, window_hours=24, resets_in_seconds=600)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.auth.usage_tracker.get_quota_status",
+            new=AsyncMock(return_value=quota),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/auth/me/ai-quota", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["remaining"] == 0
+    assert resp.json()["exhausted"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_ai_quota_requires_authentication() -> None:
+    """Not in ClerkJWTMiddleware._BYPASS_PATHS, so an anonymous call is rejected."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/api/v1/auth/me/ai-quota")
+
+    assert resp.status_code == 401
