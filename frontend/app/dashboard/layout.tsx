@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useMe } from "@/hooks/useMe";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -13,16 +14,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { lang } = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { data: me } = useMe();
 
   const NAV_ITEMS = [
-    { href: "/dashboard/resumes", key: "resumes" },
-    { href: "/dashboard/documents", key: "documents" },
-    { href: "/dashboard/jobs", key: "jobs" },
-    { href: "/dashboard/interview", key: "interview" },
-    { href: "/dashboard/visa", key: "visa" },
-    { href: "/dashboard/culture", key: "culture" },
-    { href: "/dashboard/settings", key: "settings" },
-  ] as const;
+    { href: "/dashboard/resumes" as const, key: "resumes" as const },
+    { href: "/dashboard/documents" as const, key: "documents" as const },
+    { href: "/dashboard/jobs" as const, key: "jobs" as const },
+    { href: "/dashboard/interview" as const, key: "interview" as const },
+    { href: "/dashboard/visa" as const, key: "visa" as const },
+    { href: "/dashboard/culture" as const, key: "culture" as const },
+    { href: "/dashboard/settings" as const, key: "settings" as const },
+    // /admin sits outside /dashboard and 403s for non-admins, so it is only
+    // offered to those who can actually use it.
+    ...(me?.user.role === "admin" ? [{ href: "/admin" as const, key: "admin" as const }] : []),
+  ];
 
   function isActive(href: string) {
     return pathname === href || pathname?.startsWith(`${href}/`);
