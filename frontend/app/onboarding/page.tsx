@@ -122,6 +122,7 @@ export default function OnboardingPage() {
               setError(null);
               try {
                 await updateProfile.mutateAsync({
+                  full_name: data.full_name,
                   preferred_language: data.preferred_language,
                   onboarding_step: 1,
                 });

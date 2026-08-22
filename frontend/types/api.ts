@@ -53,6 +53,8 @@ export interface MeResponse {
 }
 
 export interface ProfileUpdateRequest {
+  // Lives on `users`, not `profiles` — the backend applies it separately.
+  full_name?: string;
   nationality?: string;
   japanese_level?: JapaneseLevel;
   target_industry?: string[];
