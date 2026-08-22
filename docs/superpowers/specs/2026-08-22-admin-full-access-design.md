@@ -183,6 +183,14 @@ so the route passes it straight through and performs no role query of its own.
 (`frontend/app/dashboard/layout.tsx:60`), before `LanguageSwitcher`. It lives in
 `frontend/components/ai-quota-badge.tsx` and reads `hooks/useAiQuota.ts`.
 
+*Revised after measuring in the browser:* the header badge renders at `lg` and above
+only. Between `md` and `lg` the eight nav links fill the header exactly — adding the
+badge there overflows the page by 78px — and below `md` the nav collapses, so the mobile
+drawer carries the badge instead. The component takes a `className` so each call site
+owns its own visibility. Making this measurable also exposed a latent bug: the wordmark
+link had no `whitespace-nowrap`, so flex squeezed it first and wrapped it onto three
+lines inside an `h-14` header; that is now fixed.
+
 | State | Chip | Style |
 |---|---|---|
 | loading / error | renders nothing | — |
@@ -222,8 +230,11 @@ API-level fallback.
 `t(section, key, lang)` takes no interpolation arguments (`lib/i18n.ts:1025`), so every
 string is assembled in the component from fragments: `left`, `exhausted`, `resetsIn`,
 `hourUnit` / `minuteUnit` (`h`/`m`, `j`/`m`, `時間`/`分`), `soon`, `sharedPool`,
-`yourQuota`. The chip needs no word for "of" — the `5/8` form carries that in every
-language. A local `formatReset(seconds, lang)` helper renders the reset
+`yourQuota`, plus `sep`. The chip needs no word for "of" — the `5/8` form carries that in
+every language. `sep` is the word separator, `" "` for en/id and `""` for ja: Japanese
+sets no space between clauses or between a number and its counter, so joining with a
+literal `" "` produces `AI利用上限に達しました。 回復まで 2時間30分` instead of
+`AI利用上限に達しました。回復まで2時間30分`. A local `formatReset(seconds, lang)` helper renders the reset
 duration; it is pure, roughly a dozen lines, and has exactly one consumer, so it lives in
 the badge file rather than becoming a shared utility. It intentionally does not reuse the
 backend's `_format_duration`, which emits English-only prose.
