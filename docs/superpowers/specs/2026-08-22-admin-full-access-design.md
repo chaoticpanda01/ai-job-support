@@ -220,9 +220,10 @@ works. The backend message stays as-is for the persisted `error_message` path an
 API-level fallback.
 
 `t(section, key, lang)` takes no interpolation arguments (`lib/i18n.ts:1025`), so every
-string is assembled in the component from fragments: `left`, `ofLimit`, `exhausted`,
-`resetsIn`, `hourUnit` / `minuteUnit` (`h`/`m`, `j`/`m`, `時間`/`分`), `soon`,
-`sharedPool`, `yourQuota`. A local `formatReset(seconds, lang)` helper renders the reset
+string is assembled in the component from fragments: `left`, `exhausted`, `resetsIn`,
+`hourUnit` / `minuteUnit` (`h`/`m`, `j`/`m`, `時間`/`分`), `soon`, `sharedPool`,
+`yourQuota`. The chip needs no word for "of" — the `5/8` form carries that in every
+language. A local `formatReset(seconds, lang)` helper renders the reset
 duration; it is pure, roughly a dozen lines, and has exactly one consumer, so it lives in
 the badge file rather than becoming a shared utility. It intentionally does not reuse the
 backend's `_format_duration`, which emits English-only prose.
