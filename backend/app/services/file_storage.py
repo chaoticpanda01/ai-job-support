@@ -46,10 +46,13 @@ def _get_client() -> Any:
                 retries={"max_attempts": 3, "mode": "standard"},
             ),
         }
-        # Cloudflare R2 / MinIO: set CLOUDFLARE_R2_ENDPOINT_URL in .env
-        endpoint_url = os.environ.get("CLOUDFLARE_R2_ENDPOINT_URL")
-        if endpoint_url:
-            kwargs["endpoint_url"] = endpoint_url
+        # Cloudflare R2 / Backblaze B2 / MinIO: set CLOUDFLARE_R2_ENDPOINT_URL in .env.
+        # Read from `settings`, not os.environ directly — pydantic-settings parses
+        # .env into its own model without exporting to the process environment, so
+        # a raw os.environ.get() here only ever sees this var in Docker/Render
+        # (which set real OS env vars), never in local dev.
+        if settings.cloudflare_r2_endpoint_url:
+            kwargs["endpoint_url"] = settings.cloudflare_r2_endpoint_url
 
         _s3_client = boto3.client(**kwargs)
     return _s3_client

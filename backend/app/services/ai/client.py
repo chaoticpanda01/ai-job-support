@@ -46,14 +46,21 @@ class AIClient:
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
             response_mime_type="application/json" if json_mode else "text/plain",
-            # Gemini 2.5 models default to a *dynamic* thinking budget, and
-            # those reasoning tokens count against max_output_tokens — on a
-            # hard input the model can burn most of the budget "thinking"
-            # and leave too little for the actual JSON, truncating it
+            # Gemini models default to a *dynamic* thinking budget, and those
+            # reasoning tokens count against max_output_tokens — on a hard
+            # input the model can burn most of the budget "thinking" and
+            # leave too little for the actual JSON, truncating it
             # (intermittently, since the thinking token spend varies per
             # call). These are structured extraction/scoring tasks, not
-            # tasks that benefit from extended reasoning, so disable it.
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            # tasks that benefit from extended reasoning, so keep the budget
+            # as close to disabled as this model generation allows.
+            #
+            # thinking_budget=0 was rejected outright by gemini-3.5-flash-lite
+            # (400 INVALID_ARGUMENT) even though it worked on 2.0/2.5 — verified
+            # directly against the API on 2026-08-22: 0 fails, 1/512/-1 all
+            # succeed. 1 is the smallest accepted value, so it's the closest
+            # equivalent to "disabled" this model will take.
+            thinking_config=types.ThinkingConfig(thinking_budget=1),
         )
         last_exc: Exception | None = None
 
@@ -131,11 +138,13 @@ class AIClient:
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             max_output_tokens=max_tokens,
-            # Disable the dynamic thinking budget (same as generate()): otherwise
-            # gemini-2.5-flash can spend the whole max_output_tokens on reasoning
-            # tokens and stream back no visible text, producing a silent empty
-            # response (e.g. an interview question that never appears).
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            # Keep the thinking budget as close to disabled as possible (same
+            # as generate(), see the comment there for why 0 itself is
+            # rejected on gemini-3.5-flash-lite): otherwise the model can spend
+            # the whole max_output_tokens on reasoning tokens and stream back
+            # no visible text, producing a silent empty response (e.g. an
+            # interview question that never appears).
+            thinking_config=types.ThinkingConfig(thinking_budget=1),
         )
 
         try:
