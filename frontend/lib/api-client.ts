@@ -25,6 +25,36 @@ export class ApiClientError extends Error {
   }
 }
 
+/**
+ * FastAPI's `detail` field is a plain string for HTTPException, but for a
+ * 422 request-validation failure it's an array of Pydantic error objects
+ * (each with a `msg` field) — not a string. Passing that array straight to
+ * Error()'s constructor coerces it via toString(), which renders as the
+ * literal text "[object Object]" instead of a readable message. Extract a
+ * real message from either shape here instead.
+ */
+function extractDetail(raw: unknown, fallback: string): string {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    const messages = raw
+      .map((item) =>
+        item && typeof item === "object" && "msg" in item
+          ? String((item as { msg: unknown }).msg)
+          : null,
+      )
+      .filter((m): m is string => m !== null);
+    if (messages.length > 0) return messages.join("; ");
+  }
+  if (raw != null) {
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      // fall through to fallback
+    }
+  }
+  return fallback;
+}
+
 interface RequestOptions {
   token?: string;
   signal?: AbortSignal;
@@ -55,7 +85,7 @@ async function request<T>(
     let detail = `HTTP ${response.status}`;
     try {
       const err = (await response.json()) as ApiError;
-      detail = err.detail ?? detail;
+      detail = extractDetail(err.detail, detail);
     } catch {
       // ignore — use the status code message
     }
@@ -92,7 +122,7 @@ async function upload<T>(
     let detail = `HTTP ${response.status}`;
     try {
       const err = (await response.json()) as ApiError;
-      detail = err.detail ?? detail;
+      detail = extractDetail(err.detail, detail);
     } catch {
       // ignore
     }

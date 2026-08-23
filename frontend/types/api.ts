@@ -132,7 +132,11 @@ export interface AnalyzeResponse {
 }
 
 export interface ApiError {
-  detail: string;
+  // A plain HTTPException detail is a string, but FastAPI's 422
+  // request-validation errors send an array of Pydantic error objects
+  // instead — see extractDetail() in lib/api-client.ts, which normalizes
+  // either shape into a readable message.
+  detail: unknown;
 }
 
 // ---------------------------------------------------------------------------

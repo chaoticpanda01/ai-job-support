@@ -8,6 +8,8 @@ import type { ResumeList } from "@/types/api";
 
 type Step = "resume" | "job" | "confirm";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface Props {
   resumeList: ResumeList | undefined;
   resumesLoading: boolean;
@@ -101,6 +103,8 @@ export function DocumentWizard({
   // Step 2 — optional job context
   // -----------------------------------------------------------------------
   if (step === "job") {
+    const jobIdInvalid = jobPostingId.trim() !== "" && !UUID_RE.test(jobPostingId.trim());
+
     return (
       <div className="space-y-4">
         <StepHeader current={2} total={3} title={t("documents", "wizStep2Title", lang)} />
@@ -112,8 +116,12 @@ export function DocumentWizard({
           value={jobPostingId}
           onChange={(e) => setJobPostingId(e.target.value)}
           placeholder={t("documents", "wizJobIdPlaceholder", lang)}
+          aria-invalid={jobIdInvalid}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
+        {jobIdInvalid && (
+          <p className="text-xs text-destructive">{t("documents", "wizJobIdInvalid", lang)}</p>
+        )}
 
         <div className="flex justify-between">
           <button
@@ -124,7 +132,8 @@ export function DocumentWizard({
           </button>
           <button
             onClick={() => setStep("confirm")}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            disabled={jobIdInvalid}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
           >
             {t("documents", "wizNext", lang)}
           </button>

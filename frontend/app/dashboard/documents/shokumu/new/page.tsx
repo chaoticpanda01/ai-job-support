@@ -7,6 +7,7 @@ import { useCreateDocument } from "@/hooks/useDocuments";
 import { DocumentWizard } from "@/components/documents/DocumentWizard";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { ApiClientError } from "@/lib/api-client";
 
 export default function NewShokumuPage() {
   const router = useRouter();
@@ -39,7 +40,13 @@ export default function NewShokumuPage() {
         resumeList={resumeList}
         resumesLoading={resumesLoading}
         isPending={createMutation.isPending}
-        error={createMutation.error instanceof Error ? createMutation.error.message : null}
+        error={
+          createMutation.error instanceof ApiClientError
+            ? createMutation.error.detail
+            : createMutation.error
+              ? t("documents", "createFailed", lang)
+              : null
+        }
         submitLabel={t("documents", "generateShokumu", lang)}
         onSubmit={handleSubmit}
       />
