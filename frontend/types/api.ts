@@ -52,9 +52,16 @@ export interface User {
   profile: Profile | null;
 }
 
+export interface RirekishoMissingField {
+  key: string;
+  label: string;
+}
+
 export interface MeResponse {
   user: User;
   profile: Profile | null;
+  rirekisho_ready: boolean;
+  rirekisho_missing_fields: RirekishoMissingField[];
 }
 
 export interface ProfileUpdateRequest {
