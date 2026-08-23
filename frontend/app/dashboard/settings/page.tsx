@@ -55,6 +55,23 @@ function missingFieldLabel(key: string, lang: Language): string {
   return t("settings", REQUIRED_FIELD_LABEL_KEYS[key] ?? key, lang);
 }
 
+// The two totals computeMissingRirekishoFields() can produce — read by
+// RirekishoInfoSection so the banner's "X of Y" denominator can never drift
+// from how many keys this function actually pushes.
+const BASE_REQUIRED_KEYS = [
+  "full_name",
+  "name_kana",
+  "date_of_birth",
+  "gender",
+  "phone_number",
+  "mailing_address",
+] as const;
+const VISA_HELD_REQUIRED_KEYS = ["visa_category", "residence_card_expiration"] as const;
+
+function totalRequiredCount(visaStatus: VisaStatus | undefined): number {
+  return BASE_REQUIRED_KEYS.length + (visaStatus === "held" ? VISA_HELD_REQUIRED_KEYS.length : 0);
+}
+
 /**
  * Deliberate, bounded duplication of a subset of
  * rirekisho_missing_fields() (backend/app/services/rirekisho_completeness.py):
@@ -77,7 +94,16 @@ function computeMissingRirekishoFields(
   if (!form.date_of_birth) {
     missing.push("date_of_birth");
   } else {
-    const dob = new Date(form.date_of_birth);
+    // date_of_birth is a "YYYY-MM-DD" date-only string. `new Date(str)`
+    // parses that as UTC midnight, but getMonth()/getDate() read it back in
+    // the browser's local timezone — in any timezone behind UTC this
+    // silently rolls the parsed date back a day, which can flip the age
+    // boundary a day early. Parsing the components directly keeps this in
+    // local time throughout, matching how <input type="date"> treats it.
+    // <input type="date"> always yields "YYYY-MM-DD"; the "0" fallbacks
+    // only satisfy noUncheckedIndexedAccess and are never actually hit.
+    const [dobYearStr = "0", dobMonthStr = "0", dobDayStr = "0"] = form.date_of_birth.split("-");
+    const dob = new Date(Number(dobYearStr), Number(dobMonthStr) - 1, Number(dobDayStr));
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     const hadBirthdayThisYear =
@@ -97,6 +123,39 @@ function computeMissingRirekishoFields(
   }
 
   return missing;
+}
+
+// Shared by RirekishoInfoSection and JobPreferencesSection, whose save
+// forms are otherwise independent (own state, own mutation) but end in an
+// identical error/submit-button/saved-indicator block.
+function SectionFormFooter({
+  error,
+  pending,
+  saved,
+  lang,
+}: {
+  error: string | null;
+  pending: boolean;
+  saved: boolean;
+  lang: Language;
+}) {
+  return (
+    <>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? t("common", "saving", lang) : t("common", "saveChanges", lang)}
+        </button>
+        {saved && !pending && (
+          <p className="text-sm text-green-600">{t("common", "saved", lang)}</p>
+        )}
+      </div>
+    </>
+  );
 }
 
 function focusField(key: string) {
@@ -224,7 +283,7 @@ function RirekishoInfoSection() {
   // computeMissingRirekishoFields.
   const visaStatus = me?.profile?.visa_status;
   const missingKeys = computeMissingRirekishoFields(form, visaStatus);
-  const totalRequired = visaStatus === "held" ? 8 : 6;
+  const totalRequired = totalRequiredCount(visaStatus);
   const requiredBadge = t("settings", "required", lang);
 
   return (
@@ -389,26 +448,17 @@ function RirekishoInfoSection() {
           />
         </Field>
 
-        {updateProfile.error && (
-          <p className="text-sm text-destructive">
-            {(updateProfile.error as { detail?: string }).detail ?? t("settings", "saveFail", lang)}
-          </p>
-        )}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={updateProfile.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {updateProfile.isPending
-              ? t("common", "saving", lang)
-              : t("common", "saveChanges", lang)}
-          </button>
-          {saved && !updateProfile.isPending && (
-            <p className="text-sm text-green-600">{t("common", "saved", lang)}</p>
-          )}
-        </div>
+        <SectionFormFooter
+          error={
+            updateProfile.error
+              ? ((updateProfile.error as { detail?: string }).detail ??
+                t("settings", "saveFail", lang))
+              : null
+          }
+          pending={updateProfile.isPending}
+          saved={saved}
+          lang={lang}
+        />
       </form>
     </section>
   );
@@ -601,26 +651,17 @@ function JobPreferencesSection() {
           </select>
         </Field>
 
-        {updateProfile.error && (
-          <p className="text-sm text-destructive">
-            {(updateProfile.error as { detail?: string }).detail ?? t("settings", "saveFail", lang)}
-          </p>
-        )}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={updateProfile.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {updateProfile.isPending
-              ? t("common", "saving", lang)
-              : t("common", "saveChanges", lang)}
-          </button>
-          {saved && !updateProfile.isPending && (
-            <p className="text-sm text-green-600">{t("common", "saved", lang)}</p>
-          )}
-        </div>
+        <SectionFormFooter
+          error={
+            updateProfile.error
+              ? ((updateProfile.error as { detail?: string }).detail ??
+                t("settings", "saveFail", lang))
+              : null
+          }
+          pending={updateProfile.isPending}
+          saved={saved}
+          lang={lang}
+        />
       </form>
     </section>
   );
