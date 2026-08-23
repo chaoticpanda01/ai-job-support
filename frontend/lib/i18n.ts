@@ -323,6 +323,29 @@ export const translations = {
       id: "Kategori visa (misalnya Insinyur/Spesialis Humaniora)",
       ja: "在留資格（例：技術・人文知識・国際業務）",
     },
+    s5GroupExtras: {
+      en: "Extras (optional)",
+      id: "Tambahan (opsional)",
+      ja: "その他（任意）",
+    },
+    s5Photo: { en: "Photo", id: "Foto", ja: "写真" },
+    s5PhotoHint: {
+      en: "Used on your generated rirekisho. You can add or change this later in Settings.",
+      id: "Digunakan pada rirekisho yang dihasilkan. Bisa ditambah/diganti nanti di Pengaturan.",
+      ja: "生成される履歴書に使用されます。後で設定からも追加・変更できます。",
+    },
+    s5Hobbies: { en: "Hobbies", id: "Hobi", ja: "趣味" },
+    s5SpecialSkills: { en: "Special skills", id: "Keahlian khusus", ja: "特技" },
+    s5PersonalRequests: {
+      en: "Requests to employer",
+      id: "Permintaan kepada perusahaan",
+      ja: "本人希望記入欄",
+    },
+    s5PersonalRequestsHint: {
+      en: "Leave as-is to use the standard phrase, or edit if you have a specific request.",
+      id: "Biarkan apa adanya untuk frasa standar, atau ubah jika punya permintaan khusus.",
+      ja: "標準の文言のままでも構いません。特に希望があれば編集してください。",
+    },
   },
 
   // ---------------------------------------------------------------------------

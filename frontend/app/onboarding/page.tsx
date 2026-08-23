@@ -17,6 +17,7 @@ import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
 import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { PhotoUploader } from "@/components/profile/PhotoUploader";
 import type { Gender, JapaneseLevel, VisaStatus } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,9 @@ const step5BaseSchema = z.object({
   mailing_address: z.string().min(1, "Mailing address is required"),
   residence_card_expiration: z.string().min(1, "Residence card expiration date is required"),
   visa_category: z.string().optional(),
+  hobbies: z.string().optional(),
+  special_skills: z.string().optional(),
+  personal_requests: z.string().optional(),
 });
 
 type Step2Data = z.infer<typeof step2Schema>;
@@ -240,6 +244,9 @@ export default function OnboardingPage() {
               mailing_address: me?.profile?.mailing_address ?? undefined,
               residence_card_expiration: me?.profile?.residence_card_expiration ?? undefined,
               visa_category: me?.profile?.visa_category ?? undefined,
+              hobbies: me?.profile?.hobbies ?? undefined,
+              special_skills: me?.profile?.special_skills ?? undefined,
+              personal_requests: me?.profile?.personal_requests ?? "貴社の規定に従います。",
             }}
             onNext={async (data) => {
               setError(null);
@@ -252,6 +259,9 @@ export default function OnboardingPage() {
                   mailing_address: data.mailing_address,
                   residence_card_expiration: data.residence_card_expiration,
                   ...(data.visa_category ? { visa_category: data.visa_category } : {}),
+                  ...(data.hobbies ? { hobbies: data.hobbies } : {}),
+                  ...(data.special_skills ? { special_skills: data.special_skills } : {}),
+                  ...(data.personal_requests ? { personal_requests: data.personal_requests } : {}),
                   onboarding_step: 5,
                 });
                 router.push("/dashboard/resumes");
@@ -605,6 +615,25 @@ function Step5({
         </Field>
       )}
 
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {t("onboarding", "s5GroupExtras", lang)}
+      </p>
+      <Field label={t("onboarding", "s5Photo", lang)} hint={t("onboarding", "s5PhotoHint", lang)}>
+        <PhotoUploader />
+      </Field>
+      <Field label={t("onboarding", "s5Hobbies", lang)}>
+        <input {...register("hobbies")} className={inputCls} />
+      </Field>
+      <Field label={t("onboarding", "s5SpecialSkills", lang)}>
+        <input {...register("special_skills")} className={inputCls} />
+      </Field>
+      <Field
+        label={t("onboarding", "s5PersonalRequests", lang)}
+        hint={t("onboarding", "s5PersonalRequestsHint", lang)}
+      >
+        <input {...register("personal_requests")} className={inputCls} />
+      </Field>
+
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className={secondaryBtnCls}>
           {t("common", "back", lang)}
@@ -621,20 +650,29 @@ function Step5({
 
 function Field({
   label,
+  hint,
   error,
   children,
 }: {
   label: string;
+  hint?: string;
   error?: string | undefined;
   children: React.ReactNode;
 }) {
   const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </label>
+      {hint && (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
       {isValidElement(children)
         ? cloneElement(
             children as ReactElement<{
@@ -645,7 +683,7 @@ function Field({
             {
               id,
               "aria-invalid": Boolean(error),
-              ...(errorId ? { "aria-describedby": errorId } : {}),
+              ...(describedBy ? { "aria-describedby": describedBy } : {}),
             },
           )
         : children}
