@@ -55,9 +55,12 @@ function missingFieldLabel(key: string, lang: Language): string {
   return t("settings", REQUIRED_FIELD_LABEL_KEYS[key] ?? key, lang);
 }
 
-// The two totals computeMissingRirekishoFields() can produce — read by
-// RirekishoInfoSection so the banner's "X of Y" denominator can never drift
-// from how many keys this function actually pushes.
+// The full set of keys computeMissingRirekishoFields() can report, split
+// into always-required and visa-held-only. totalRequiredCount() and
+// computeMissingRirekishoFields() both iterate these same arrays (via
+// isFieldMissing below), so the banner's "X of Y" denominator and the
+// missing-key list it's paired with can't drift from each other — there's
+// exactly one place each key's applicability is decided.
 const BASE_REQUIRED_KEYS = [
   "full_name",
   "name_kana",
@@ -68,8 +71,61 @@ const BASE_REQUIRED_KEYS = [
 ] as const;
 const VISA_HELD_REQUIRED_KEYS = ["visa_category", "residence_card_expiration"] as const;
 
+function applicableRequiredKeys(visaStatus: VisaStatus | undefined): readonly string[] {
+  return visaStatus === "held"
+    ? [...BASE_REQUIRED_KEYS, ...VISA_HELD_REQUIRED_KEYS]
+    : BASE_REQUIRED_KEYS;
+}
+
 function totalRequiredCount(visaStatus: VisaStatus | undefined): number {
-  return BASE_REQUIRED_KEYS.length + (visaStatus === "held" ? VISA_HELD_REQUIRED_KEYS.length : 0);
+  return applicableRequiredKeys(visaStatus).length;
+}
+
+/**
+ * date_of_birth is a "YYYY-MM-DD" date-only string. `new Date(str)` parses
+ * that as UTC midnight, but getMonth()/getDate() read it back in the
+ * browser's local timezone — in any timezone behind UTC this silently
+ * rolls the parsed date back a day, which can flip the 16/80 age boundary
+ * a day early. Parsing the components directly keeps this in local time
+ * throughout, matching how <input type="date"> treats it.
+ */
+function isDateOfBirthMissing(dateOfBirth: string | undefined): boolean {
+  if (!dateOfBirth) return true;
+
+  // <input type="date"> always yields "YYYY-MM-DD"; the "0" fallbacks
+  // only satisfy noUncheckedIndexedAccess and are never actually hit.
+  const [dobYearStr = "0", dobMonthStr = "0", dobDayStr = "0"] = dateOfBirth.split("-");
+  const dob = new Date(Number(dobYearStr), Number(dobMonthStr) - 1, Number(dobDayStr));
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const hadBirthdayThisYear =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!hadBirthdayThisYear) age -= 1;
+  return age < 16 || age > 80;
+}
+
+function isFieldMissing(key: string, form: ProfileUpdateRequest): boolean {
+  switch (key) {
+    case "full_name":
+      return !form.full_name;
+    case "name_kana":
+      return !form.name_kana;
+    case "date_of_birth":
+      return isDateOfBirthMissing(form.date_of_birth);
+    case "gender":
+      return !form.gender;
+    case "phone_number":
+      return !form.phone_number;
+    case "mailing_address":
+      return !form.mailing_address;
+    case "visa_category":
+      return !form.visa_category;
+    case "residence_card_expiration":
+      return !form.residence_card_expiration;
+    default:
+      return false;
+  }
 }
 
 /**
@@ -78,51 +134,16 @@ function totalRequiredCount(visaStatus: VisaStatus | undefined): number {
  * simple presence checks, the date-of-birth age-range rule, and the
  * visa-held conditional. Needed so the Settings banner can update as the
  * user types, without a network round-trip per keystroke. If the backend's
- * required-field set changes, this must be updated too — everywhere else
- * (the rirekisho generation wizard) reads the backend's computed answer
- * directly with no duplication at all.
+ * required-field set changes, both BASE_REQUIRED_KEYS/VISA_HELD_REQUIRED_KEYS
+ * above and isFieldMissing() must be updated too — everywhere else (the
+ * rirekisho generation wizard) reads the backend's computed answer directly
+ * with no duplication at all.
  */
 function computeMissingRirekishoFields(
   form: ProfileUpdateRequest,
   visaStatus: VisaStatus | undefined,
 ): string[] {
-  const missing: string[] = [];
-
-  if (!form.full_name) missing.push("full_name");
-  if (!form.name_kana) missing.push("name_kana");
-
-  if (!form.date_of_birth) {
-    missing.push("date_of_birth");
-  } else {
-    // date_of_birth is a "YYYY-MM-DD" date-only string. `new Date(str)`
-    // parses that as UTC midnight, but getMonth()/getDate() read it back in
-    // the browser's local timezone — in any timezone behind UTC this
-    // silently rolls the parsed date back a day, which can flip the age
-    // boundary a day early. Parsing the components directly keeps this in
-    // local time throughout, matching how <input type="date"> treats it.
-    // <input type="date"> always yields "YYYY-MM-DD"; the "0" fallbacks
-    // only satisfy noUncheckedIndexedAccess and are never actually hit.
-    const [dobYearStr = "0", dobMonthStr = "0", dobDayStr = "0"] = form.date_of_birth.split("-");
-    const dob = new Date(Number(dobYearStr), Number(dobMonthStr) - 1, Number(dobDayStr));
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const hadBirthdayThisYear =
-      today.getMonth() > dob.getMonth() ||
-      (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
-    if (!hadBirthdayThisYear) age -= 1;
-    if (age < 16 || age > 80) missing.push("date_of_birth");
-  }
-
-  if (!form.gender) missing.push("gender");
-  if (!form.phone_number) missing.push("phone_number");
-  if (!form.mailing_address) missing.push("mailing_address");
-
-  if (visaStatus === "held") {
-    if (!form.visa_category) missing.push("visa_category");
-    if (!form.residence_card_expiration) missing.push("residence_card_expiration");
-  }
-
-  return missing;
+  return applicableRequiredKeys(visaStatus).filter((key) => isFieldMissing(key, form));
 }
 
 // Shared by RirekishoInfoSection and JobPreferencesSection, whose save
