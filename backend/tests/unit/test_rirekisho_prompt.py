@@ -48,6 +48,16 @@ def test_system_prompt_includes_all_schema_fields() -> None:
         assert field in prompt
 
 
+def test_system_prompt_covers_mid_tenure_role_change() -> None:
+    prompt = build_system_prompt()
+    assert "same company" in prompt.lower() or "within the same company" in prompt.lower()
+
+
+def test_system_prompt_covers_undated_duty_description() -> None:
+    prompt = build_system_prompt()
+    assert "null" in prompt.lower()
+
+
 # ---------------------------------------------------------------------------
 # User prompt
 # ---------------------------------------------------------------------------
@@ -112,6 +122,12 @@ def test_rirekisho_entry_empty_entry_rejected() -> None:
         RirekishoEntry(year=2020, month=1, entry="")
 
 
+def test_rirekisho_entry_allows_null_year_month_for_duty_description() -> None:
+    entry = RirekishoEntry(year=None, month=None, entry="店長として、店舗経営業務を行う")
+    assert entry.year is None
+    assert entry.month is None
+
+
 # ---------------------------------------------------------------------------
 # RirekishoResult schema
 # ---------------------------------------------------------------------------
@@ -172,3 +188,40 @@ def test_rirekisho_visa_info_optional_fields_default_none() -> None:
     info = RirekishoVisaInfo(nationality="インドネシア")
     assert info.visa_category is None
     assert info.residence_card_expiration is None
+
+
+# ---------------------------------------------------------------------------
+# RirekishoPersonal — new Phase 1 fields
+# ---------------------------------------------------------------------------
+
+
+def test_rirekisho_personal_new_fields_default_none_except_requests() -> None:
+    personal = RirekishoPersonal(
+        name_kanji="山田 太郎",
+        name_kana="ヤマダ タロウ",
+        date_of_birth="令和6年3月",
+        age=30,
+        gender="男性",
+        address="東京都",
+        phone="090-0000-0000",
+        email="test@example.com",
+        personal_requests="貴社の規定に従います。",
+    )
+    assert personal.photo_data_uri is None
+    assert personal.hobbies is None
+    assert personal.special_skills is None
+    assert personal.personal_requests == "貴社の規定に従います。"
+
+
+def test_rirekisho_personal_requests_is_required() -> None:
+    with pytest.raises(ValidationError):
+        RirekishoPersonal(
+            name_kanji="山田 太郎",
+            name_kana="ヤマダ タロウ",
+            date_of_birth="令和6年3月",
+            age=30,
+            gender="男性",
+            address="東京都",
+            phone="090-0000-0000",
+            email="test@example.com",
+        )
