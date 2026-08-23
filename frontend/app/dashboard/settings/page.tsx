@@ -9,7 +9,9 @@ import { useDeleteAccount } from "@/hooks/useAccount";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
+import { PhotoUploader } from "@/components/profile/PhotoUploader";
 import type {
+  Gender,
   JapaneseLevel,
   PreferredLanguage,
   ProfileUpdateRequest,
@@ -72,7 +74,8 @@ function ProfileSection() {
   useEffect(() => {
     if (!me?.profile) return;
     const p = me.profile;
-    setForm({
+    const next = {
+      full_name: me.user.full_name ?? undefined,
       nationality: p.nationality ?? undefined,
       japanese_level: p.japanese_level,
       visa_status: p.visa_status,
@@ -80,8 +83,35 @@ function ProfileSection() {
       years_experience: p.years_experience ?? undefined,
       target_role: p.target_role ?? [],
       target_industry: p.target_industry ?? [],
-    });
-  }, [me]);
+      name_kana: p.name_kana ?? undefined,
+      date_of_birth: p.date_of_birth ?? undefined,
+      gender: p.gender ?? undefined,
+      phone_number: p.phone_number ?? undefined,
+      mailing_address: p.mailing_address ?? undefined,
+      residence_card_expiration: p.residence_card_expiration ?? undefined,
+      visa_category: p.visa_category ?? undefined,
+      hobbies: p.hobbies ?? undefined,
+      special_skills: p.special_skills ?? undefined,
+      personal_requests: p.personal_requests ?? "貴社の規定に従います。",
+    };
+    // Drop keys whose value is explicitly `undefined` before setForm: with
+    // exactOptionalPropertyTypes, ProfileUpdateRequest accepts an omitted key
+    // but not one present with value `undefined`, and nullable profile fields
+    // coalesced via `?? undefined` above can produce those (see the same
+    // pattern in app/onboarding/page.tsx's Step5 defaultValues).
+    setForm(
+      Object.fromEntries(
+        Object.entries(next).filter(([, v]) => v !== undefined),
+      ) as ProfileUpdateRequest,
+    );
+    // Depend on profile identity, not the `me` object reference: `me` changes
+    // reference whenever any cached mutation touches it (e.g. PhotoUploader's
+    // independent upload, or this form's own post-save cache update), and an
+    // unconditional re-sync on every reference change would silently discard
+    // unsaved edits to every other field. The profile's id only changes for a
+    // genuinely different profile (e.g. a different signed-in user).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.profile?.id]);
 
   function handleChange<K extends keyof ProfileUpdateRequest>(
     key: K,
@@ -115,6 +145,120 @@ function ProfileSection() {
       <h2 className="text-base font-semibold">{t("settings", "profile", lang)}</h2>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium">{t("settings", "rirekishoInfo", lang)}</h3>
+          <p className="text-xs text-muted-foreground">
+            {t("settings", "rirekishoInfoHint", lang)}
+          </p>
+        </div>
+
+        <Field label={t("settings", "fullName", lang)}>
+          <input
+            type="text"
+            value={form.full_name ?? ""}
+            onChange={(e) => handleChange("full_name", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "nameKana", lang)}>
+          <input
+            type="text"
+            value={form.name_kana ?? ""}
+            onChange={(e) => handleChange("name_kana", e.target.value || undefined)}
+            placeholder="ヤマダ タロウ"
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "dateOfBirth", lang)}>
+          <input
+            type="date"
+            value={form.date_of_birth ?? ""}
+            onChange={(e) => handleChange("date_of_birth", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "gender", lang)}>
+          <select
+            value={form.gender ?? ""}
+            onChange={(e) =>
+              handleChange("gender", (e.target.value || undefined) as Gender | undefined)
+            }
+            className={inputCls}
+          >
+            <option value="" disabled>
+              {t("settings", "genderSelect", lang)}
+            </option>
+            <option value="male">{t("settings", "genderMale", lang)}</option>
+            <option value="female">{t("settings", "genderFemale", lang)}</option>
+          </select>
+        </Field>
+
+        <Field label={t("settings", "phone", lang)}>
+          <input
+            type="tel"
+            value={form.phone_number ?? ""}
+            onChange={(e) => handleChange("phone_number", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "address", lang)}>
+          <input
+            type="text"
+            value={form.mailing_address ?? ""}
+            onChange={(e) => handleChange("mailing_address", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "visaExpiration", lang)}>
+          <input
+            type="date"
+            value={form.residence_card_expiration ?? ""}
+            onChange={(e) =>
+              handleChange("residence_card_expiration", e.target.value || undefined)
+            }
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "photo", lang)} hint={t("settings", "photoHint", lang)}>
+          <PhotoUploader />
+        </Field>
+
+        <Field label={t("settings", "hobbies", lang)}>
+          <input
+            type="text"
+            value={form.hobbies ?? ""}
+            onChange={(e) => handleChange("hobbies", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label={t("settings", "specialSkills", lang)}>
+          <input
+            type="text"
+            value={form.special_skills ?? ""}
+            onChange={(e) => handleChange("special_skills", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field
+          label={t("settings", "personalRequests", lang)}
+          hint={t("settings", "personalRequestsHint", lang)}
+        >
+          <input
+            type="text"
+            value={form.personal_requests ?? ""}
+            onChange={(e) => handleChange("personal_requests", e.target.value || undefined)}
+            className={inputCls}
+          />
+        </Field>
+
         <Field label={t("settings", "nationality", lang)}>
           <input
             type="text"
@@ -152,6 +296,17 @@ function ProfileSection() {
             ))}
           </select>
         </Field>
+
+        {form.visa_status === "held" && (
+          <Field label={t("settings", "visaCategory", lang)}>
+            <input
+              type="text"
+              value={form.visa_category ?? ""}
+              onChange={(e) => handleChange("visa_category", e.target.value || undefined)}
+              className={inputCls}
+            />
+          </Field>
+        )}
 
         <Field label={t("settings", "yearsExp", lang)} error={fieldErrors.years_experience}>
           <input
