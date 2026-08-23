@@ -36,6 +36,19 @@ function NewRirekishoPageInner() {
     router.push(`/dashboard/documents/${result.id}`);
   }
 
+  // Explicit, exhaustive status instead of three separate `{!meLoading &&
+  // me && ...}` guards — those two conditions being false simultaneously
+  // (meLoading finished, me still undefined, i.e. the /auth/me fetch
+  // failed) is a real, reachable state, not just a theoretical one. Naming
+  // it here means it can't silently render nothing.
+  const meStatus = meLoading
+    ? "loading"
+    : !me
+      ? "error"
+      : !me.rirekisho_ready
+        ? "incomplete"
+        : "ready";
+
   return (
     <div className="mx-auto max-w-lg space-y-8">
       <div>
@@ -49,9 +62,22 @@ function NewRirekishoPageInner() {
         <p className="mt-1 text-sm text-muted-foreground">{t("documents", "rirekishoSub", lang)}</p>
       </div>
 
-      {meLoading && <div className="h-40 animate-pulse rounded-lg bg-muted" />}
+      {meStatus === "loading" && (
+        <div className="space-y-4 rounded-lg border border-dashed p-6">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-full animate-pulse rounded bg-muted" />
+          <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-32 animate-pulse rounded-md bg-muted" />
+        </div>
+      )}
 
-      {!meLoading && me && !me.rirekisho_ready && (
+      {meStatus === "error" && (
+        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-destructive">
+          {t("documents", "profileLoadError", lang)}
+        </p>
+      )}
+
+      {meStatus === "incomplete" && me && (
         <div className="space-y-4 rounded-lg border border-dashed p-6">
           <p className="text-sm font-medium">{t("documents", "profileIncompleteTitle", lang)}</p>
           <p className="text-sm text-muted-foreground">
@@ -71,7 +97,7 @@ function NewRirekishoPageInner() {
         </div>
       )}
 
-      {!meLoading && me && me.rirekisho_ready && (
+      {meStatus === "ready" && (
         <DocumentWizard
           resumeList={resumeList}
           resumesLoading={resumesLoading}

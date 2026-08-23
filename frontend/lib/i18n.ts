@@ -851,6 +851,11 @@ export const translations = {
       ja: "履歴書を生成する前に、以下の入力が必要です：",
     },
     goToSettings: { en: "Go to Settings", id: "Buka Pengaturan", ja: "設定へ移動" },
+    profileLoadError: {
+      en: "Failed to load your profile. Please refresh.",
+      id: "Gagal memuat profil kamu. Coba muat ulang.",
+      ja: "プロフィールの読み込みに失敗しました。更新してください。",
+    },
     created: { en: "Created", id: "Dibuat", ja: "作成日" },
     statusPending: { en: "pending", id: "menunggu", ja: "待機中" },
     statusProcessing: { en: "processing", id: "diproses", ja: "処理中" },
