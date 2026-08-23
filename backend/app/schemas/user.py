@@ -95,6 +95,11 @@ class ProfileUpdateRequest(_Base):
     personal_requests: str | None = None
 
 
+class RirekishoMissingField(_Base):
+    key: str
+    label: str
+
+
 # ---------------------------------------------------------------------------
 # User
 # ---------------------------------------------------------------------------
@@ -120,6 +125,8 @@ class MeResponse(_Base):
 
     user: UserResponse
     profile: ProfileResponse | None
+    rirekisho_ready: bool
+    rirekisho_missing_fields: list[RirekishoMissingField]
 
 
 # ---------------------------------------------------------------------------

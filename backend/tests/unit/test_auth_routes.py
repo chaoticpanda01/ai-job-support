@@ -94,6 +94,56 @@ async def test_get_me_returns_404_when_user_missing() -> None:
     assert resp.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_get_me_reports_rirekisho_ready_when_profile_complete() -> None:
+    from datetime import date
+
+    from app.models.enums import Gender, VisaStatus
+
+    user = make_user(full_name="山田 太郎")
+    profile = make_profile(user_id=user.id)
+    profile.name_kana = "ヤマダ タロウ"
+    profile.date_of_birth = date(1990, 1, 15)
+    profile.gender = Gender.male
+    profile.phone_number = "090-1234-5678"
+    profile.mailing_address = "東京都渋谷区"
+    profile.visa_status = VisaStatus.none
+    user.profile = profile
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.UserRepository.get_with_profile", new=AsyncMock(return_value=user)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/auth/me", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["rirekisho_ready"] is True
+    assert data["rirekisho_missing_fields"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_me_reports_missing_fields_when_profile_incomplete() -> None:
+    user = make_user(full_name="山田 太郎")
+    profile = make_profile(user_id=user.id)  # defaults: name_kana, DOB, etc. all None
+    user.profile = profile
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.UserRepository.get_with_profile", new=AsyncMock(return_value=user)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/auth/me", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["rirekisho_ready"] is False
+    keys = [f["key"] for f in data["rirekisho_missing_fields"]]
+    assert "name_kana" in keys
+    assert "date_of_birth" in keys
+
+
 # ---------------------------------------------------------------------------
 # PUT /auth/me
 # ---------------------------------------------------------------------------

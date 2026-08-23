@@ -30,11 +30,13 @@ from app.schemas.user import (
     MeResponse,
     ProfileResponse,
     ProfileUpdateRequest,
+    RirekishoMissingField,
     UserListResponse,
     UserResponse,
 )
 from app.services.ai.usage_tracker import usage_tracker
 from app.services.file_storage import StorageError, file_storage, sanitize_filename
+from app.services.rirekisho_completeness import rirekisho_missing_fields
 
 logger = logging.getLogger(__name__)
 
@@ -135,10 +137,7 @@ async def get_me(current_user: AuthUser, db: DbSession) -> MeResponse:
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return MeResponse(
-        user=UserResponse.model_validate(user),
-        profile=_profile_response(user.profile),
-    )
+    return _build_me_response(user, user.profile)
 
 
 @router.put("/me", response_model=MeResponse)
@@ -183,10 +182,7 @@ async def update_me(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return MeResponse(
-        user=UserResponse.model_validate(user),
-        profile=_profile_response(profile),
-    )
+    return _build_me_response(user, profile)
 
 
 @router.post("/me/photo", response_model=MeResponse)
@@ -250,10 +246,7 @@ async def upload_my_photo(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return MeResponse(
-        user=UserResponse.model_validate(user),
-        profile=_profile_response(profile),
-    )
+    return _build_me_response(user, profile)
 
 
 # ---------------------------------------------------------------------------
@@ -280,10 +273,7 @@ async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return MeResponse(
-        user=UserResponse.model_validate(user),
-        profile=_profile_response(user.profile),
-    )
+    return _build_me_response(user, user.profile)
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +370,25 @@ def _profile_response(profile: Profile | None) -> ProfileResponse | None:
         except StorageError:
             logger.warning("Failed to presign photo URL for profile_id=%s", profile.id)
     return resp
+
+
+def _build_me_response(user: User, profile: Profile | None) -> MeResponse:
+    """
+    Build a MeResponse, computing rirekisho_ready/rirekisho_missing_fields
+    from the same rirekisho_missing_fields() check document_generator.py
+    uses at generation time — so the frontend's "is my profile ready"
+    signal can never drift from what will actually happen when the user
+    clicks Generate.
+    """
+    missing = rirekisho_missing_fields(user, profile)
+    return MeResponse(
+        user=UserResponse.model_validate(user),
+        profile=_profile_response(profile),
+        rirekisho_ready=not missing,
+        rirekisho_missing_fields=[
+            RirekishoMissingField(key=m["key"], label=m["label"]) for m in missing
+        ],
+    )
 
 
 def _extract_primary_email(data: ClerkWebhookUserData) -> str | None:
