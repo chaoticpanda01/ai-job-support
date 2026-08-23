@@ -28,6 +28,11 @@ export interface Profile {
   mailing_address: string | null;
   residence_card_expiration: string | null;
   visa_category: string | null;
+  photo_storage_key: string | null;
+  photo_url: string | null;
+  hobbies: string | null;
+  special_skills: string | null;
+  personal_requests: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +77,9 @@ export interface ProfileUpdateRequest {
   mailing_address?: string;
   residence_card_expiration?: string;
   visa_category?: string;
+  hobbies?: string;
+  special_skills?: string;
+  personal_requests?: string;
 }
 
 export interface Resume {

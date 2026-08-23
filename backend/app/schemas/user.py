@@ -55,6 +55,15 @@ class ProfileResponse(_Base):
     mailing_address: str | None
     residence_card_expiration: date | None
     visa_category: str | None
+    photo_storage_key: str | None
+    # Not an ORM column — a presigned S3 URL computed at request time by the
+    # route handler, since the storage bucket is private. The default is
+    # required: the ORM Profile object has no photo_url attribute, so without
+    # it from_attributes validation would raise on every request.
+    photo_url: str | None = None
+    hobbies: str | None
+    special_skills: str | None
+    personal_requests: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -81,6 +90,9 @@ class ProfileUpdateRequest(_Base):
     mailing_address: str | None = None
     residence_card_expiration: date | None = None
     visa_category: str | None = None
+    hobbies: str | None = None
+    special_skills: str | None = None
+    personal_requests: str | None = None
 
 
 # ---------------------------------------------------------------------------
