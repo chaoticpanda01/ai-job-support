@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   images: {
+    // These three hostnames are the full set of S3-compatible storage
+    // backends this app supports (backend/app/config.py's aws_*/
+    // cloudflare_r2_endpoint_url settings): AWS S3, Cloudflare R2, and
+    // Backblaze B2. If the storage provider changes again, add its
+    // hostname here AND to the img-src CSP directive below.
     remotePatterns: [
       {
         protocol: "https",
@@ -15,6 +20,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "**.r2.cloudflarestorage.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.backblazeb2.com",
       },
     ],
   },
@@ -34,7 +43,9 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://img.clerk.com https://*.amazonaws.com https://*.r2.cloudflarestorage.com",
+      // Keep this list in sync with images.remotePatterns above — same
+      // three supported storage backends (S3 / R2 / B2).
+      "img-src 'self' data: https://img.clerk.com https://*.amazonaws.com https://*.r2.cloudflarestorage.com https://*.backblazeb2.com",
       "font-src 'self' data:",
       "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com",
       "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
