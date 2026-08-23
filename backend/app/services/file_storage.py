@@ -106,6 +106,37 @@ class FileStorage:
         logger.info("Uploaded resume: key=%s size=%d", key, len(file_bytes))
         return key
 
+    def upload_photo(
+        self,
+        *,
+        file_bytes: bytes,
+        user_id: UUID,
+        original_filename: str,
+        mime_type: str,
+    ) -> str:
+        """
+        Upload a rirekisho photo to S3. Returns the S3 object key, stored in
+        profiles.photo_storage_key.
+        Key structure: photos/{user_id}/{uuid}.{ext}
+        """
+        ext = _extension_for(mime_type, original_filename)
+        key = f"photos/{user_id}/{uuid4().hex}{ext}"
+
+        try:
+            _get_client().put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=file_bytes,
+                ContentType=mime_type,
+                ACL="private",
+            )
+        except (BotoCoreError, ClientError) as exc:
+            logger.error("S3 upload failed: key=%s error=%s", key, exc)
+            raise StorageError(f"Upload failed: {exc}") from exc
+
+        logger.info("Uploaded photo: key=%s size=%d", key, len(file_bytes))
+        return key
+
     def upload_document(
         self,
         *,
