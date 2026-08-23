@@ -2,14 +2,13 @@
 Pure completeness check for rirekisho (履歴書) generation.
 
 Single source of truth for "what does a profile need before a rirekisho can
-be generated". Used today by:
+be generated". Used by:
   - document_generator.py, which raises DocumentGenerationError with the
     joined labels before spending any AI budget on a doomed generation.
-
-Designed to also be reused by the /auth/me* routes (a planned follow-up),
-which will expose the same missing-field list to the frontend (Settings
-page live banner, and the rirekisho generation wizard's pre-flight gate)
-so the UI never has to guess or duplicate this logic.
+  - the /auth/me* routes (via _build_me_response in api/v1/auth.py), which
+    expose the same missing-field list to the frontend (Settings page live
+    banner, and the rirekisho generation wizard's pre-flight gate) so the
+    UI never has to guess or duplicate this logic.
 """
 
 from __future__ import annotations
