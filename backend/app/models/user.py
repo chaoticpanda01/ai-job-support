@@ -181,6 +181,11 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     mailing_address: Mapped[str | None] = mapped_column(Text)
     residence_card_expiration: Mapped[date | None] = mapped_column(Date)
     visa_category: Mapped[str | None] = mapped_column(String(255))
+    # --- Phase 1 rirekisho completeness fields ---
+    photo_storage_key: Mapped[str | None] = mapped_column(String(500))
+    hobbies: Mapped[str | None] = mapped_column(Text)
+    special_skills: Mapped[str | None] = mapped_column(Text)
+    personal_requests: Mapped[str | None] = mapped_column(Text)
 
     # --- Relationships ---
     user: Mapped["User"] = relationship("User", back_populates="profile")
