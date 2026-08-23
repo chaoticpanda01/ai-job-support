@@ -250,6 +250,27 @@ def test_render_rirekisho_shows_photo_when_present() -> None:
     assert "写真をはる位置" not in html
 
 
+def test_render_rirekisho_with_photo_actually_embeds_image_in_pdf() -> None:
+    """
+    Regression test: WeasyPrint silently drops a percentage-sized <img>
+    inside a flex-centered container (a real bug this project hit) —
+    string-matching the HTML for an <img> tag doesn't catch that, since
+    WeasyPrint can silently omit it from the rendered PDF with no error.
+    This test renders through the real PDF pipeline to catch that class
+    of regression.
+    """
+    from app.utils.pdf_generator import html_to_pdf
+
+    content = _rirekisho_render_content()
+    content["personal"]["photo_data_uri"] = (
+        "data:image/jpeg;base64,"
+        "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+    )
+    html = _render_rirekisho(content)
+    pdf_bytes = html_to_pdf(html)
+    assert b"/Subtype /Image" in pdf_bytes or b"/Subtype/Image" in pdf_bytes
+
+
 def test_render_rirekisho_shows_hobbies_and_skills() -> None:
     html = _render_rirekisho(_rirekisho_render_content())
     assert "スノーボード" in html

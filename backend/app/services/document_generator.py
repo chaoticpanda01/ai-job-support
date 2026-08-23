@@ -449,11 +449,25 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
 
     photo_data_uri = p.get("photo_data_uri")
     if photo_data_uri:
+        # WeasyPrint silently drops a percentage-sized <img> when its
+        # container uses flexbox centering (align-items/justify-content) —
+        # a known limitation with replaced elements in flex layouts. Use
+        # plain block sizing here instead; flex centering is only safe for
+        # the text-only placeholder case below.
+        photo_box_style = (
+            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; "
+            "overflow:hidden;"
+        )
         photo_box_inner = (
             f'<img src="{_esc(photo_data_uri)}" '
-            'style="width:100%; height:100%; object-fit:cover;" />'
+            'style="width:100%; height:100%; object-fit:cover; display:block;" />'
         )
     else:
+        photo_box_style = (
+            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; "
+            "display:flex; align-items:center; justify-content:center; "
+            "text-align:center; font-size:8pt; padding:2px;"
+        )
         photo_box_inner = (
             "写真をはる位置<br>1.縦36〜40mm<br>横24〜30mm"
             "<br>2.本人単身胸から上<br>3.裏面のりづけ"
@@ -494,9 +508,7 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
         <td colspan="3">{_esc(visa_line)}</td>
       </tr>
     </table>
-    <div style="width:30mm; height:40mm; flex-shrink:0; border:1px solid #333;
-      display:flex; align-items:center; justify-content:center;
-      text-align:center; font-size:8pt; padding:2px;">
+    <div style="{photo_box_style}">
       {photo_box_inner}
     </div>
   </div>
