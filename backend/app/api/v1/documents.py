@@ -7,11 +7,13 @@ GET    /documents                    — list user's generated documents
                                         (?type=rirekisho|shokumukeirekisho)
 GET    /documents/{id}               — poll status (lightweight)
 GET    /documents/{id}/download      — get detail with presigned download URL
+DELETE /documents/{id}               — delete a generated document + its file
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
@@ -238,3 +240,36 @@ async def download_document(
         content=doc.content,
         download_url=download_url,
     )
+
+
+# ---------------------------------------------------------------------------
+# Delete
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_200_OK)
+async def delete_document(
+    document_id: UUID,
+    current_user: AuthUser,
+    db: DbSession,
+) -> dict[str, Any]:
+    doc = await _owned_doc(document_id, current_user.user_id, db)
+
+    repo = DocumentRepository(db)
+    file_url = doc.file_url
+    await repo.delete(doc)
+
+    # Best-effort storage deletion — DB row is already removed. Unlike
+    # resumes (which always have a file), a document may have no file yet
+    # (pending/processing/failed generation never produced one).
+    if file_url:
+        try:
+            file_storage.delete(file_url)
+        except StorageError as exc:
+            logger.warning(
+                "Storage delete failed for document file_url=%s: %s — DB row already removed",
+                file_url,
+                exc,
+            )
+
+    return {"detail": "Document deleted"}

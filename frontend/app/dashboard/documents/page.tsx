@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useDocuments } from "@/hooks/useDocuments";
+import { useDocuments, useDeleteDocument } from "@/hooks/useDocuments";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { Document, DocumentStatus, DocumentType } from "@/types/api";
@@ -97,8 +99,30 @@ export default function DocumentsPage() {
 
 function DocumentCard({ doc }: { doc: Document }) {
   const { lang } = useLang();
+  const deleteMutation = useDeleteDocument();
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
   const label = doc.document_type === "rirekisho" ? "履歴書" : "職務経歴書";
   const createdAt = new Date(doc.created_at).toLocaleDateString();
+
+  async function handleDelete() {
+    const ok = await confirmDialog({
+      title: t("documents", "confirmDelete", lang),
+      variant: "destructive",
+      confirmLabel: t("common", "delete", lang),
+      cancelLabel: t("common", "cancel", lang),
+    });
+    if (!ok) return;
+
+    deleteMutation.mutate(doc.id, {
+      onSuccess: () => {
+        toast({ variant: "success", description: t("common", "deleted", lang) });
+      },
+      onError: () => {
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
+      },
+    });
+  }
 
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
@@ -122,6 +146,13 @@ function DocumentCard({ doc }: { doc: Document }) {
         >
           {t("common", "view", lang)} →
         </Link>
+        <button
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+          className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+        >
+          {t("common", "delete", lang)}
+        </button>
       </div>
     </li>
   );

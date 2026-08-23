@@ -326,3 +326,83 @@ async def test_download_document_not_found_returns_404() -> None:
             )
 
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /documents/{id}
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_document_happy_path() -> None:
+    user = make_user()
+    doc = _mock_document(user_id=user.id)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)
+        ),
+        patch("app.api.v1.documents.DocumentRepository.delete", new=AsyncMock()),
+        patch("app.api.v1.documents.file_storage.delete"),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.delete(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json() == {"detail": "Document deleted"}
+
+
+@pytest.mark.asyncio
+async def test_delete_document_storage_failure_still_succeeds() -> None:
+    user = make_user()
+    doc = _mock_document(user_id=user.id)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)
+        ),
+        patch("app.api.v1.documents.DocumentRepository.delete", new=AsyncMock()),
+        patch("app.api.v1.documents.file_storage.delete", side_effect=StorageError("boom")),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.delete(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_document_not_found_returns_404() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=None)
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.delete(f"/api/v1/documents/{uuid.uuid4()}", headers=_auth_headers())
+
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_document_with_no_file_url_skips_storage_delete() -> None:
+    user = make_user()
+    doc = _mock_document(user_id=user.id, file_url=None)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)
+        ),
+        patch("app.api.v1.documents.DocumentRepository.delete", new=AsyncMock()),
+        patch("app.api.v1.documents.file_storage.delete") as mock_storage_delete,
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.delete(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    mock_storage_delete.assert_not_called()

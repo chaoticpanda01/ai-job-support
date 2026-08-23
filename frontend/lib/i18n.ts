@@ -835,6 +835,11 @@ export const translations = {
       id: "Gagal memuat dokumen. Coba muat ulang.",
       ja: "書類の読み込みに失敗しました。更新してください。",
     },
+    confirmDelete: {
+      en: "Delete this document?",
+      id: "Hapus dokumen ini?",
+      ja: "この書類を削除しますか？",
+    },
     createFailed: {
       en: "Failed to start generation. Please try again.",
       id: "Gagal memulai pembuatan. Coba lagi.",
