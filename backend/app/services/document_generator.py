@@ -544,12 +544,28 @@ def _render_shokumu(c: dict[str, Any]) -> str:
 
     companies_html = ""
     for company in c.get("companies", []):
-        responsibilities = "".join(
-            f"<li>{_esc(r)}</li>" for r in company.get("responsibilities", [])
-        )
-        achievements = (
-            "".join(f"<li>{_esc(a)}</li>" for a in company.get("achievements", [])) or "<li>―</li>"
-        )
+        roles_html = ""
+        for role in company.get("roles", []):
+            responsibilities = "".join(
+                f"<li>{_esc(r)}</li>" for r in role.get("responsibilities", [])
+            )
+            achievements = (
+                "".join(f"<li>{_esc(a)}</li>" for a in role.get("achievements", [])) or "<li>―</li>"
+            )
+            roles_html += f"""
+  <table style="margin-bottom:4px;">
+    <tr>
+      <th style="width:20%;">役職・職種</th>
+      <td style="width:46%; font-weight:bold;">{_esc(role.get("role", ""))}</td>
+      <th style="width:14%;">在籍期間</th>
+      <td>{_esc(role.get("period_start", ""))} 〜 {_esc(role.get("period_end", ""))}</td>
+    </tr>
+  </table>
+  <p class="label">【業務内容】</p>
+  <ul style="padding-left:1.2em; margin:2px 0 6px;">{responsibilities}</ul>
+  <p class="label">【実績・成果】</p>
+  <ul style="padding-left:1.2em; margin:2px 0;">{achievements}</ul>
+"""
         companies_html += f"""
 <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #ccc;">
   <table style="margin-bottom:4px;">
@@ -561,19 +577,10 @@ def _render_shokumu(c: dict[str, Any]) -> str:
     </tr>
     <tr>
       <th>従業員数</th>
-      <td>{_esc(company.get("employee_count", ""))}</td>
-      <th>在籍期間</th>
-      <td>{_esc(company.get("period_start", ""))} 〜 {_esc(company.get("period_end", ""))}</td>
-    </tr>
-    <tr>
-      <th>役職・職種</th>
-      <td colspan="3">{_esc(company.get("role", ""))}</td>
+      <td colspan="3">{_esc(company.get("employee_count", ""))}</td>
     </tr>
   </table>
-  <p class="label">【業務内容】</p>
-  <ul style="padding-left:1.2em; margin:2px 0 6px;">{responsibilities}</ul>
-  <p class="label">【実績・成果】</p>
-  <ul style="padding-left:1.2em; margin:2px 0;">{achievements}</ul>
+  {roles_html}
 </div>
 """
 

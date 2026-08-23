@@ -6,6 +6,10 @@ It goes into detail about each role: responsibilities, achievements, skills,
 and a narrative self-PR. Unlike the rigid 履歴書, there is creative latitude
 in presentation while still following Japanese professional writing conventions.
 
+A company with a promotion, transfer, or duty change during one tenure
+should produce multiple entries in that company's "roles" list — one per
+distinct role/period — rather than merging them into a single role.
+
 Each function returns a plain string. AIClient wraps user_prompt in
 <user_content> tags automatically — do NOT add them here.
 
@@ -17,11 +21,22 @@ Output schema (stored in generated_documents.content):
       "company_name":   "株式会社○○",
       "industry":       "情報通信業",
       "employee_count": "500名",
-      "period_start":   "2012年4月",
-      "period_end":     "2018年3月",
-      "role":           "システムエンジニア",
-      "responsibilities": ["…", "…"],
-      "achievements":     ["…", "…"]
+      "roles": [
+        {
+          "role":             "システムエンジニア",
+          "period_start":     "2012年4月",
+          "period_end":       "2016年3月",
+          "responsibilities": ["…", "…"],
+          "achievements":     ["…", "…"]
+        },
+        {
+          "role":             "プロジェクトリーダー",
+          "period_start":     "2016年4月",
+          "period_end":       "2018年3月",
+          "responsibilities": ["…", "…"],
+          "achievements":     ["…", "…"]
+        }
+      ]
     }
   ],
   "skills": {
@@ -45,15 +60,19 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 
+class ShokumuRolePeriod(BaseModel):
+    role: str
+    period_start: str
+    period_end: str
+    responsibilities: list[str] = Field(min_length=1)
+    achievements: list[str]
+
+
 class ShokumuCompany(BaseModel):
     company_name: str
     industry: str
     employee_count: str
-    period_start: str
-    period_end: str
-    role: str
-    responsibilities: list[str] = Field(min_length=1)
-    achievements: list[str]
+    roles: list[ShokumuRolePeriod] = Field(min_length=1)
 
 
 class ShokumuSkills(BaseModel):
@@ -87,20 +106,29 @@ candidate's source resume. Follow these rules strictly:
 
 1. All text fields must be written in natural, professional Japanese (日本語).
 2. companies must be in reverse chronological order (most recent first).
-3. For each company, responsibilities should be 3–6 bullet points describing \
+3. If the candidate had a promotion, transfer, or change of duties while \
+staying at the same employer (same company), represent it as multiple \
+entries in that company's "roles" list (one per distinct role/period), not \
+as a separate company entry and not merged into one role's responsibilities. \
+Each role within a company must be in chronological order (oldest first). \
+Only split into multiple roles when the source resume actually describes a \
+promotion, transfer, or duty change — never invent a role split, title, or \
+period that isn't stated in the source.
+4. For each role, responsibilities should be 3–6 bullet points describing \
 daily duties using concise action phrases (〜を担当、〜を実施、〜を管理).
-4. achievements should be 1–4 bullet points with quantified results where \
+5. achievements should be 1–4 bullet points with quantified results where \
 possible (例：売上20%向上、チーム5名をリード). If no numbers are available, \
-describe the qualitative impact.
-5. summary: 2–3 sentences giving a high-level career overview emphasising \
+describe the qualitative impact. An empty list is acceptable if the source \
+resume gives no achievements for that role.
+6. summary: 2–3 sentences giving a high-level career overview emphasising \
 cross-cultural adaptability and any Japan-relevant strengths.
-6. skills.languages must include Japanese with the JLPT level if known.
-7. self_pr: 4–6 sentences. Highlight: cross-cultural communication, \
+7. skills.languages must include Japanese with the JLPT level if known.
+8. self_pr: 4–6 sentences. Highlight: cross-cultural communication, \
 adaptability, specific technical strengths, and commitment to growth in Japan.
-8. motivation: 4–6 sentences tailored to the target role/company if provided. \
+9. motivation: 4–6 sentences tailored to the target role/company if provided. \
 Explain why Japan specifically, and what value the candidate brings.
-9. employee_count: estimate if not given (e.g. "不明" if truly unknown).
-10. period_end: use "現在" if the candidate is still employed there.
+10. employee_count: estimate if not given (e.g. "不明" if truly unknown).
+11. period_end: use "現在" for the candidate's current role if still employed there.
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
 
@@ -111,11 +139,16 @@ Return ONLY a JSON object matching this exact schema — no prose before or afte
       "company_name":     <string>,
       "industry":         <string in Japanese>,
       "employee_count":   <string e.g. "約500名">,
-      "period_start":     <string e.g. "2012年4月">,
-      "period_end":       <string e.g. "2018年3月" | "現在">,
-      "role":             <string in Japanese>,
-      "responsibilities": [<string>, ...],
-      "achievements":     [<string>, ...]
+      "roles": [
+        {
+          "role":             <string in Japanese>,
+          "period_start":     <string e.g. "2012年4月">,
+          "period_end":       <string e.g. "2018年3月" | "現在">,
+          "responsibilities": [<string>, ...],
+          "achievements":     [<string>, ...]
+        },
+        ...
+      ]
     },
     ...
   ],

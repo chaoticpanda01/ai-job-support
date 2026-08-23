@@ -143,11 +143,15 @@ def _shokumu_content() -> dict:
                 "company_name": "株式会社ABC",
                 "industry": "情報通信業",
                 "employee_count": "約500名",
-                "period_start": "2015年4月",
-                "period_end": "現在",
-                "role": "ソフトウェアエンジニア",
-                "responsibilities": ["バックエンド開発を担当"],
-                "achievements": ["レスポンス速度を30%改善"],
+                "roles": [
+                    {
+                        "role": "ソフトウェアエンジニア",
+                        "period_start": "2015年4月",
+                        "period_end": "現在",
+                        "responsibilities": ["バックエンド開発を担当"],
+                        "achievements": ["レスポンス速度を30%改善"],
+                    }
+                ],
             }
         ],
         "skills": {
@@ -298,9 +302,33 @@ def test_render_rirekisho_escapes_html() -> None:
 
 def test_render_shokumu_handles_empty_achievements() -> None:
     content = _shokumu_content()
-    content["companies"][0]["achievements"] = []
+    content["companies"][0]["roles"][0]["achievements"] = []
     html = _render_shokumu(content)
     assert "職務経歴書" in html  # should not crash
+
+
+def test_render_shokumu_shows_multiple_roles_for_one_company() -> None:
+    content = _shokumu_content()
+    content["companies"][0]["roles"] = [
+        {
+            "role": "技術派遣エンジニア",
+            "period_start": "2020年9月",
+            "period_end": "2022年6月",
+            "responsibilities": ["基地局設計を担当"],
+            "achievements": [],
+        },
+        {
+            "role": "設計契約管理担当",
+            "period_start": "2022年7月",
+            "period_end": "現在",
+            "responsibilities": ["契約管理業務を担当"],
+            "achievements": [],
+        },
+    ]
+    html = _render_shokumu(content)
+    assert "技術派遣エンジニア" in html
+    assert "設計契約管理担当" in html
+    assert html.count("株式会社ABC") == 1  # company name shown once, not per role
 
 
 # ---------------------------------------------------------------------------
