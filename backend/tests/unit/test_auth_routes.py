@@ -250,7 +250,9 @@ async def test_upload_photo_deletes_old_photo_on_replace() -> None:
             return_value="photos/user123/new.png",
         ),
         patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
-        patch("app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"),
+        patch(
+            "app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"
+        ),
         patch("app.api.v1.auth.file_storage.delete") as mock_delete,
         patch(
             "app.api.v1.auth.UserRepository.get_with_profile",
@@ -287,7 +289,9 @@ async def test_upload_photo_succeeds_even_if_old_photo_delete_fails() -> None:
             return_value="photos/user123/new.jpg",
         ),
         patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
-        patch("app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"),
+        patch(
+            "app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"
+        ),
         patch("app.api.v1.auth.file_storage.delete", side_effect=StorageError("boom")),
         patch(
             "app.api.v1.auth.UserRepository.get_with_profile",

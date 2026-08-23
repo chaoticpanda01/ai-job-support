@@ -430,8 +430,7 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
         # plain block sizing here instead; flex centering is only safe for
         # the text-only placeholder case below.
         photo_box_style = (
-            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; "
-            "overflow:hidden;"
+            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; overflow:hidden;"
         )
         photo_box_inner = (
             f'<img src="{_esc(photo_data_uri)}" '
@@ -444,8 +443,7 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
             "text-align:center; font-size:8pt; padding:2px;"
         )
         photo_box_inner = (
-            "写真をはる位置<br>1.縦36〜40mm<br>横24〜30mm"
-            "<br>2.本人単身胸から上<br>3.裏面のりづけ"
+            "写真をはる位置<br>1.縦36〜40mm<br>横24〜30mm<br>2.本人単身胸から上<br>3.裏面のりづけ"
         )
 
     return f"""
