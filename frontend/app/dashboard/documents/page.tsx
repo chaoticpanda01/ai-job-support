@@ -104,6 +104,11 @@ function DocumentCard({ doc }: { doc: Document }) {
   const { toast } = useToast();
   const label = doc.document_type === "rirekisho" ? "履歴書" : "職務経歴書";
   const createdAt = new Date(doc.created_at).toLocaleDateString();
+  // Matches the backend's own rule (documents.py's delete route rejects
+  // pending/processing with 409): only a finished generation is safe to
+  // delete, since the background task may still be about to write to or
+  // upload a file for this row.
+  const canDelete = doc.status === "completed" || doc.status === "failed";
 
   async function handleDelete() {
     const ok = await confirmDialog({
@@ -146,13 +151,15 @@ function DocumentCard({ doc }: { doc: Document }) {
         >
           {t("common", "view", lang)} →
         </Link>
-        <button
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
-        >
-          {t("common", "delete", lang)}
-        </button>
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+          >
+            {t("common", "delete", lang)}
+          </button>
+        )}
       </div>
     </li>
   );

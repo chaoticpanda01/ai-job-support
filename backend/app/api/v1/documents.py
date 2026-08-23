@@ -255,6 +255,18 @@ async def delete_document(
 ) -> dict[str, Any]:
     doc = await _owned_doc(document_id, current_user.user_id, db)
 
+    if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
+        # The background generation task (_run_generation) may still be
+        # running and hasn't looked up this row for the last time yet.
+        # Deleting now would let it finish generating, upload a file to
+        # storage, and then silently no-op on the now-missing row —
+        # orphaning that file with nothing left to clean it up. Terminal
+        # statuses (completed/failed) are the only safe states to delete.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete a document while it's still being generated.",
+        )
+
     repo = DocumentRepository(db)
     file_url = doc.file_url
     await repo.delete(doc)
