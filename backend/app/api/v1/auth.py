@@ -1,10 +1,11 @@
 """
 Authentication routes.
 
-POST /auth/webhook  — Clerk webhook: create/update user on Clerk events
-GET  /auth/me       — return authenticated user + profile
-PUT  /auth/me       — update profile fields
-GET  /auth/users    — list all users (admin only)
+POST /auth/webhook   — Clerk webhook: create/update user on Clerk events
+GET  /auth/me        — return authenticated user + profile
+PUT  /auth/me        — update profile fields
+POST /auth/me/photo  — upload/replace the rirekisho photo
+GET  /auth/users     — list all users (admin only)
 """
 
 from __future__ import annotations
@@ -13,28 +14,34 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+import magic
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 from sqlalchemy import func, select
 from svix.webhooks import Webhook, WebhookVerificationError
 
 from app.config import settings
 from app.dependencies import AdminUser, AuthUser, DbSession, PaginationDep
-from app.models.user import User
+from app.models.user import Profile, User
 from app.repositories.user import ProfileRepository, UserRepository
 from app.schemas.user import (
     AIQuotaResponse,
     ClerkWebhookEvent,
     ClerkWebhookUserData,
     MeResponse,
+    ProfileResponse,
     ProfileUpdateRequest,
     UserListResponse,
     UserResponse,
 )
 from app.services.ai.usage_tracker import usage_tracker
+from app.services.file_storage import StorageError, file_storage, sanitize_filename
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_ALLOWED_PHOTO_MIME = frozenset(["image/jpeg", "image/png"])
+_MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +137,7 @@ async def get_me(current_user: AuthUser, db: DbSession) -> MeResponse:
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=user.profile,
+        profile=_profile_response(user.profile),
     )
 
 
@@ -178,7 +185,74 @@ async def update_me(
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=profile,
+        profile=_profile_response(profile),
+    )
+
+
+@router.post("/me/photo", response_model=MeResponse)
+async def upload_my_photo(
+    file: UploadFile,
+    current_user: AuthUser,
+    db: DbSession,
+) -> MeResponse:
+    """
+    Upload/replace the rirekisho photo for the current user. Stores it in S3
+    (private bucket) and saves the key on the user's profile. Any previously
+    uploaded photo is deleted afterward (best-effort).
+    """
+    too_large = HTTPException(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        detail=f"File exceeds maximum size of {_MAX_PHOTO_SIZE // 1024 // 1024} MB",
+    )
+    file_bytes = await file.read(_MAX_PHOTO_SIZE + 1)
+    if len(file_bytes) > _MAX_PHOTO_SIZE:
+        raise too_large
+
+    detected_mime = magic.from_buffer(file_bytes[:2048], mime=True)
+    if detected_mime not in _ALLOWED_PHOTO_MIME:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only JPEG and PNG images are accepted",
+        )
+
+    profile_repo = ProfileRepository(db)
+    profile, _ = await profile_repo.get_or_create(current_user.user_id)
+    old_key = profile.photo_storage_key
+
+    try:
+        new_key = file_storage.upload_photo(
+            file_bytes=file_bytes,
+            user_id=current_user.user_id,
+            original_filename=sanitize_filename(file.filename or "photo"),
+            mime_type=detected_mime,
+        )
+    except StorageError as exc:
+        logger.error("Photo upload failed for user=%s: %s", current_user.user_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Photo upload failed. Please try again.",
+        ) from exc
+
+    profile = await profile_repo.update(profile, photo_storage_key=new_key)
+    # Belt-and-suspenders: update() already sets this via setattr on the same
+    # object, but making it explicit here means _profile_response doesn't
+    # depend on that mutation being visible through the call's return value.
+    profile.photo_storage_key = new_key
+
+    if old_key:
+        try:
+            file_storage.delete(old_key)
+        except StorageError as exc:
+            logger.warning("Failed to delete old photo key=%s: %s", old_key, exc)
+
+    user_repo = UserRepository(db)
+    user = await user_repo.get_with_profile(current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return MeResponse(
+        user=UserResponse.model_validate(user),
+        profile=_profile_response(profile),
     )
 
 
@@ -208,7 +282,7 @@ async def record_consent(current_user: AuthUser, db: DbSession) -> MeResponse:
 
     return MeResponse(
         user=UserResponse.model_validate(user),
-        profile=user.profile,
+        profile=_profile_response(user.profile),
     )
 
 
@@ -287,6 +361,25 @@ async def get_user(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _profile_response(profile: Profile | None) -> ProfileResponse | None:
+    """
+    Build a ProfileResponse from an ORM Profile, filling in photo_url — a
+    presigned S3 URL — since photo_storage_key alone isn't fetchable by a
+    browser (the bucket is private).
+    """
+    if profile is None:
+        return None
+    resp = ProfileResponse.model_validate(profile)
+    if profile.photo_storage_key:
+        try:
+            resp = resp.model_copy(
+                update={"photo_url": file_storage.presigned_url(profile.photo_storage_key)}
+            )
+        except StorageError:
+            logger.warning("Failed to presign photo URL for profile_id=%s", profile.id)
+    return resp
 
 
 def _extract_primary_email(data: ClerkWebhookUserData) -> str | None:

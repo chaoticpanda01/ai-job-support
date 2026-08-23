@@ -18,6 +18,7 @@ from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import UserRole
 from app.services.ai.usage_tracker import QuotaStatus
+from app.services.file_storage import StorageError
 from httpx import ASGITransport, AsyncClient
 
 from tests.conftest import make_profile, make_user
@@ -127,6 +128,156 @@ async def test_update_me_returns_updated_profile() -> None:
             )
 
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# POST /auth/me/photo
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_saves_key_and_returns_presigned_url() -> None:
+    user = make_user()
+    profile = make_profile(user_id=user.id)
+    user.profile = profile
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.magic.from_buffer", return_value="image/jpeg"),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch(
+            "app.api.v1.auth.file_storage.upload_photo",
+            return_value="photos/user123/abc.jpg",
+        ),
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+        patch(
+            "app.api.v1.auth.file_storage.presigned_url",
+            return_value="https://s3.example.com/signed-photo-url",
+        ),
+        patch(
+            "app.api.v1.auth.UserRepository.get_with_profile",
+            new=AsyncMock(return_value=user),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.jpg", b"fake jpeg bytes", "image/jpeg")},
+            )
+
+    assert resp.status_code == 200
+    assert resp.json()["profile"]["photo_url"] == "https://s3.example.com/signed-photo-url"
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_deletes_old_photo_on_replace() -> None:
+    user = make_user()
+    profile = make_profile(user_id=user.id)
+    profile.photo_storage_key = "photos/user123/old.jpg"
+    user.profile = profile
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.magic.from_buffer", return_value="image/png"),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch(
+            "app.api.v1.auth.file_storage.upload_photo",
+            return_value="photos/user123/new.png",
+        ),
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+        patch("app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"),
+        patch("app.api.v1.auth.file_storage.delete") as mock_delete,
+        patch(
+            "app.api.v1.auth.UserRepository.get_with_profile",
+            new=AsyncMock(return_value=user),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.png", b"fake png bytes", "image/png")},
+            )
+
+    assert resp.status_code == 200
+    mock_delete.assert_called_once_with("photos/user123/old.jpg")
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_succeeds_even_if_old_photo_delete_fails() -> None:
+    user = make_user()
+    profile = make_profile(user_id=user.id)
+    profile.photo_storage_key = "photos/user123/old.jpg"
+    user.profile = profile
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.magic.from_buffer", return_value="image/jpeg"),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch(
+            "app.api.v1.auth.file_storage.upload_photo",
+            return_value="photos/user123/new.jpg",
+        ),
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+        patch("app.api.v1.auth.file_storage.presigned_url", return_value="https://s3.example.com/x"),
+        patch("app.api.v1.auth.file_storage.delete", side_effect=StorageError("boom")),
+        patch(
+            "app.api.v1.auth.UserRepository.get_with_profile",
+            new=AsyncMock(return_value=user),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.jpg", b"fake jpeg bytes", "image/jpeg")},
+            )
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_rejects_disallowed_mime() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.magic.from_buffer", return_value="application/pdf"),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.pdf", b"fake pdf bytes", "application/pdf")},
+            )
+
+    assert resp.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_too_large_returns_413() -> None:
+    user = make_user()
+    oversized = b"x" * (5 * 1024 * 1024 + 1)
+
+    with _bypass_middleware(user):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.jpg", oversized, "image/jpeg")},
+            )
+
+    assert resp.status_code == 413
 
 
 # ---------------------------------------------------------------------------
