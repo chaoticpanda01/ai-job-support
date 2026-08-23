@@ -26,6 +26,7 @@ that failed partial runs can be recorded cleanly.
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import time
 from dataclasses import dataclass
@@ -286,6 +287,8 @@ class DocumentGenerator:
 # hallucination risk for fields that are just a verbatim copy.
 # ---------------------------------------------------------------------------
 
+_DEFAULT_PERSONAL_REQUESTS = "貴社の規定に従います。"
+
 
 def _check_rirekisho_profile_complete(user: User, profile: Profile | None) -> None:
     """
@@ -345,6 +348,18 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
     age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
     gender_ja = "男性" if profile.gender == Gender.male else "女性"
 
+    photo_data_uri: str | None = None
+    if profile.photo_storage_key:
+        try:
+            photo_bytes = file_storage.download(profile.photo_storage_key)
+            ext = profile.photo_storage_key.rsplit(".", 1)[-1].lower()
+            mime = "image/png" if ext == "png" else "image/jpeg"
+            photo_data_uri = f"data:{mime};base64,{base64.b64encode(photo_bytes).decode('ascii')}"
+        except StorageError:
+            logger.warning(
+                "Failed to fetch rirekisho photo for user_id=%s; rendering without it", user.id
+            )
+
     try:
         personal = RirekishoPersonal(
             name_kanji=user.full_name or "",
@@ -355,6 +370,10 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
             address=profile.mailing_address or "",
             phone=profile.phone_number or "",
             email=user.email,
+            photo_data_uri=photo_data_uri,
+            hobbies=profile.hobbies or None,
+            special_skills=profile.special_skills or None,
+            personal_requests=profile.personal_requests or _DEFAULT_PERSONAL_REQUESTS,
         )
     except ValidationError as exc:
         raise DocumentGenerationError(f"Invalid personal info for rirekisho: {exc}") from exc
@@ -408,14 +427,15 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
 
     from app.utils.japanese_date import format_wareki_date
 
-    education_rows = "".join(
-        f"<tr><td>{format_wareki_date(e['year'], e['month'])}</td><td>{_esc(e['entry'])}</td></tr>"
-        for e in c.get("education", [])
-    )
-    work_rows = "".join(
-        f"<tr><td>{format_wareki_date(w['year'], w['month'])}</td><td>{_esc(w['entry'])}</td></tr>"
-        for w in c.get("work_history", [])
-    )
+    def _entry_row(entry: dict[str, Any]) -> str:
+        year, month = entry.get("year"), entry.get("month")
+        date_cell = (
+            format_wareki_date(year, month) if year is not None and month is not None else ""
+        )
+        return f"<tr><td>{date_cell}</td><td>{_esc(entry['entry'])}</td></tr>"
+
+    education_rows = "".join(_entry_row(e) for e in c.get("education", []))
+    work_rows = "".join(_entry_row(w) for w in c.get("work_history", []))
     qualifications = "".join(f"<li>{_esc(q)}</li>" for q in c.get("qualifications", []))
 
     visa_category = v.get("visa_category")
@@ -427,40 +447,59 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
     else:
         visa_line = v.get("nationality", "")
 
+    photo_data_uri = p.get("photo_data_uri")
+    if photo_data_uri:
+        photo_box_inner = (
+            f'<img src="{_esc(photo_data_uri)}" '
+            'style="width:100%; height:100%; object-fit:cover;" />'
+        )
+    else:
+        photo_box_inner = (
+            "写真をはる位置<br>1.縦36〜40mm<br>横24〜30mm"
+            "<br>2.本人単身胸から上<br>3.裏面のりづけ"
+        )
+
     return f"""
 <div style="max-width:170mm; margin:0 auto;">
   <h1 style="text-align:center; font-size:16pt; letter-spacing:0.3em; margin-bottom:8px;">
     履　歴　書
   </h1>
 
-  <table style="margin-bottom:6px;">
-    <tr>
-      <th style="width:16%;">ふりがな</th>
-      <td style="width:42%;">{_esc(p.get("name_kana", ""))}</td>
-      <th style="width:12%;">性別</th>
-      <td style="width:30%;">{_esc(p.get("gender", ""))}</td>
-    </tr>
-    <tr>
-      <th>氏名</th>
-      <td style="font-size:13pt; font-weight:bold;">{_esc(p.get("name_kanji", ""))}</td>
-      <th>生年月日</th>
-      <td>{_esc(p.get("date_of_birth", ""))}（満{p.get("age", "")}歳）</td>
-    </tr>
-    <tr>
-      <th>住所</th>
-      <td colspan="3">{_esc(p.get("address", ""))}</td>
-    </tr>
-    <tr>
-      <th>電話番号</th>
-      <td>{_esc(p.get("phone", ""))}</td>
-      <th>メール</th>
-      <td>{_esc(p.get("email", ""))}</td>
-    </tr>
-    <tr>
-      <th>国籍・ビザ</th>
-      <td colspan="3">{_esc(visa_line)}</td>
-    </tr>
-  </table>
+  <div style="display:flex; gap:8px; align-items:flex-start; margin-bottom:6px;">
+    <table style="flex:1;">
+      <tr>
+        <th style="width:16%;">ふりがな</th>
+        <td style="width:42%;">{_esc(p.get("name_kana", ""))}</td>
+        <th style="width:12%;">性別</th>
+        <td style="width:30%;">{_esc(p.get("gender", ""))}</td>
+      </tr>
+      <tr>
+        <th>氏名</th>
+        <td style="font-size:13pt; font-weight:bold;">{_esc(p.get("name_kanji", ""))}</td>
+        <th>生年月日</th>
+        <td>{_esc(p.get("date_of_birth", ""))}（満{p.get("age", "")}歳）</td>
+      </tr>
+      <tr>
+        <th>住所</th>
+        <td colspan="3">{_esc(p.get("address", ""))}</td>
+      </tr>
+      <tr>
+        <th>電話番号</th>
+        <td>{_esc(p.get("phone", ""))}</td>
+        <th>メール</th>
+        <td>{_esc(p.get("email", ""))}</td>
+      </tr>
+      <tr>
+        <th>国籍・ビザ</th>
+        <td colspan="3">{_esc(visa_line)}</td>
+      </tr>
+    </table>
+    <div style="width:30mm; height:40mm; flex-shrink:0; border:1px solid #333;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; font-size:8pt; padding:2px;">
+      {photo_box_inner}
+    </div>
+  </div>
 
   <p class="section-title">学歴・職歴</p>
   <table>
@@ -479,11 +518,20 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
   <p class="section-title">資格・免許</p>
   <ul style="padding-left:1.2em; margin:4px 0;">{qualifications}</ul>
 
+  <p class="section-title">特技・趣味</p>
+  <div style="padding:4px; font-size:10pt;">
+    <p style="margin:2px 0;"><strong>趣味：</strong>{_esc(p.get("hobbies") or "")}</p>
+    <p style="margin:2px 0;"><strong>特技：</strong>{_esc(p.get("special_skills") or "")}</p>
+  </div>
+
   <p class="section-title">自己PR</p>
   <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("self_pr", ""))}</p>
 
   <p class="section-title">志望動機</p>
   <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("motivation", ""))}</p>
+
+  <p class="section-title">本人希望記入欄</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(p.get("personal_requests", ""))}</p>
 </div>
 """
 

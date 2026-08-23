@@ -22,6 +22,7 @@ from app.services.document_generator import (
     _render_rirekisho,
     _render_shokumu,
 )
+from app.services.file_storage import StorageError
 from app.utils.pdf_generator import PDFGenerationError
 
 # ---------------------------------------------------------------------------
@@ -82,6 +83,10 @@ def _mock_profile() -> MagicMock:
     p.visa_status = VisaStatus.none
     p.visa_category = None
     p.residence_card_expiration = None
+    p.photo_storage_key = None
+    p.hobbies = None
+    p.special_skills = None
+    p.personal_requests = None
     return p
 
 
@@ -117,6 +122,10 @@ def _rirekisho_render_content() -> dict:
         "address": "東京都渋谷区",
         "phone": "090-1234-5678",
         "email": "test@example.com",
+        "photo_data_uri": None,
+        "hobbies": "スノーボード",
+        "special_skills": "Python",
+        "personal_requests": "貴社の規定に従います。",
     }
     content["visa_info"] = {
         "nationality": "インドネシア",
@@ -223,6 +232,45 @@ def test_render_rirekisho_shows_nationality_only_when_not_held() -> None:
     assert "有効期限" not in html
 
 
+def test_render_rirekisho_shows_empty_photo_box_when_no_photo() -> None:
+    html = _render_rirekisho(_rirekisho_render_content())
+    assert "写真をはる位置" in html
+    assert "<img" not in html
+
+
+def test_render_rirekisho_shows_photo_when_present() -> None:
+    content = _rirekisho_render_content()
+    content["personal"]["photo_data_uri"] = "data:image/jpeg;base64,ZmFrZQ=="
+    html = _render_rirekisho(content)
+    assert '<img src="data:image/jpeg;base64,ZmFrZQ=="' in html
+    assert "写真をはる位置" not in html
+
+
+def test_render_rirekisho_shows_hobbies_and_skills() -> None:
+    html = _render_rirekisho(_rirekisho_render_content())
+    assert "スノーボード" in html
+    assert "Python" in html
+    assert "特技・趣味" in html
+
+
+def test_render_rirekisho_shows_personal_requests() -> None:
+    html = _render_rirekisho(_rirekisho_render_content())
+    assert "貴社の規定に従います。" in html
+    assert "本人希望記入欄" in html
+
+
+def test_render_rirekisho_handles_blank_date_entry() -> None:
+    content = _rirekisho_render_content()
+    content["work_history"].append(
+        {"year": None, "month": None, "entry": "店長として、店舗経営業務を行う"}
+    )
+    html = _render_rirekisho(content)
+    assert "店長として、店舗経営業務を行う" in html
+    # Should not crash trying to format a null date, and the row should
+    # render with an empty date cell rather than "None年None月".
+    assert "None" not in html
+
+
 def test_render_shokumu_contains_key_fields() -> None:
     html = _render_shokumu(_shokumu_content())
     assert "職務経歴書" in html
@@ -253,6 +301,81 @@ def test_render_shokumu_handles_empty_achievements() -> None:
     content["companies"][0]["achievements"] = []
     html = _render_shokumu(content)
     assert "職務経歴書" in html  # should not crash
+
+
+# ---------------------------------------------------------------------------
+# _build_rirekisho_personal — photo, hobbies, personal_requests assembly
+# ---------------------------------------------------------------------------
+
+
+def test_build_rirekisho_personal_defaults_personal_requests() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.photo_storage_key = None
+    profile.hobbies = None
+    profile.special_skills = None
+    profile.personal_requests = None
+
+    personal = _build_rirekisho_personal(user, profile)
+    assert personal["personal_requests"] == "貴社の規定に従います。"
+    assert personal["photo_data_uri"] is None
+    assert personal["hobbies"] is None
+
+
+def test_build_rirekisho_personal_uses_custom_personal_requests() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.photo_storage_key = None
+    profile.hobbies = "スノーボード"
+    profile.special_skills = "Python"
+    profile.personal_requests = "リモートワークを希望します。"
+
+    personal = _build_rirekisho_personal(user, profile)
+    assert personal["personal_requests"] == "リモートワークを希望します。"
+    assert personal["hobbies"] == "スノーボード"
+    assert personal["special_skills"] == "Python"
+
+
+def test_build_rirekisho_personal_embeds_photo_as_data_uri() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.photo_storage_key = "photos/u1/abc.jpg"
+    profile.hobbies = None
+    profile.special_skills = None
+    profile.personal_requests = None
+
+    with patch(
+        "app.services.document_generator.file_storage.download",
+        return_value=b"fake-jpeg-bytes",
+    ):
+        personal = _build_rirekisho_personal(user, profile)
+
+    assert personal["photo_data_uri"] == "data:image/jpeg;base64,ZmFrZS1qcGVnLWJ5dGVz"
+
+
+def test_build_rirekisho_personal_photo_download_failure_omits_photo() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.photo_storage_key = "photos/u1/abc.jpg"
+    profile.hobbies = None
+    profile.special_skills = None
+    profile.personal_requests = None
+
+    with patch(
+        "app.services.document_generator.file_storage.download",
+        side_effect=StorageError("boom"),
+    ):
+        personal = _build_rirekisho_personal(user, profile)
+
+    assert personal["photo_data_uri"] is None
 
 
 # ---------------------------------------------------------------------------
