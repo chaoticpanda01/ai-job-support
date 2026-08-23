@@ -218,9 +218,7 @@ function ProfileSection() {
           <input
             type="date"
             value={form.residence_card_expiration ?? ""}
-            onChange={(e) =>
-              handleChange("residence_card_expiration", e.target.value || undefined)
-            }
+            onChange={(e) => handleChange("residence_card_expiration", e.target.value || undefined)}
             className={inputCls}
           />
         </Field>
