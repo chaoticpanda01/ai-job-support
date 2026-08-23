@@ -46,6 +46,7 @@ from app.services.ai.response_parser import ResponseParseError, parse_response
 from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 from app.services.file_storage import StorageError, file_storage
 from app.services.resume_parser import ParseError, extract_text
+from app.services.rirekisho_completeness import rirekisho_missing_fields
 from app.utils.pdf_generator import PDFGenerationError, html_to_pdf
 
 if TYPE_CHECKING:
@@ -297,37 +298,11 @@ def _check_rirekisho_profile_complete(user: User, profile: Profile | None) -> No
     so a doomed generation fails fast and cheaply, with a message that lets
     the user fix everything in one pass instead of one field at a time.
     """
-    missing: list[str] = []
-    if not user.full_name:
-        missing.append("full name")
-    if profile is None:
-        missing.append("personal info (complete your profile)")
-    else:
-        if not profile.name_kana:
-            missing.append("name in kana (ふりがな)")
-        if profile.date_of_birth is None:
-            missing.append("date of birth")
-        else:
-            today = date.today()
-            dob = profile.date_of_birth
-            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-            if not (16 <= age <= 80):
-                missing.append("a valid date of birth (age must be between 16 and 80)")
-        if profile.gender is None:
-            missing.append("gender")
-        if not profile.phone_number:
-            missing.append("phone number")
-        if not profile.mailing_address:
-            missing.append("mailing address")
-        if profile.visa_status == VisaStatus.held:
-            if not profile.visa_category:
-                missing.append("visa category")
-            if profile.residence_card_expiration is None:
-                missing.append("residence card expiration date")
-
+    missing = rirekisho_missing_fields(user, profile)
     if missing:
+        labels = [m["label"] for m in missing]
         raise DocumentGenerationError(
-            "Complete your profile before generating a 履歴書. Missing: " + ", ".join(missing) + "."
+            "Complete your profile before generating a 履歴書. Missing: " + ", ".join(labels) + "."
         )
 
 
