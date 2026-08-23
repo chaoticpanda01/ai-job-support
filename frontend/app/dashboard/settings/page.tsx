@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useMe, useUpdateProfile } from "@/hooks/useMe";
 import { useDeleteAccount } from "@/hooks/useAccount";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { t, type Language } from "@/lib/i18n";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
 import { PhotoUploader } from "@/components/profile/PhotoUploader";
 import type {
@@ -37,6 +37,118 @@ const LANGUAGES: { value: PreferredLanguage; label: string }[] = [
   { value: "ja", label: "Japanese (日本語)" },
 ];
 
+// Keys mirror rirekisho_missing_fields()'s "key" values in
+// backend/app/services/rirekisho_completeness.py — kept in sync manually,
+// see the comment on computeMissingRirekishoFields below.
+const REQUIRED_FIELD_LABEL_KEYS: Record<string, string> = {
+  full_name: "fullName",
+  name_kana: "nameKana",
+  date_of_birth: "dateOfBirth",
+  gender: "gender",
+  phone_number: "phone",
+  mailing_address: "address",
+  visa_category: "visaCategory",
+  residence_card_expiration: "visaExpiration",
+};
+
+function missingFieldLabel(key: string, lang: Language): string {
+  return t("settings", REQUIRED_FIELD_LABEL_KEYS[key] ?? key, lang);
+}
+
+/**
+ * Deliberate, bounded duplication of a subset of
+ * rirekisho_missing_fields() (backend/app/services/rirekisho_completeness.py):
+ * simple presence checks, the date-of-birth age-range rule, and the
+ * visa-held conditional. Needed so the Settings banner can update as the
+ * user types, without a network round-trip per keystroke. If the backend's
+ * required-field set changes, this must be updated too — everywhere else
+ * (the rirekisho generation wizard) reads the backend's computed answer
+ * directly with no duplication at all.
+ */
+function computeMissingRirekishoFields(
+  form: ProfileUpdateRequest,
+  visaStatus: VisaStatus | undefined,
+): string[] {
+  const missing: string[] = [];
+
+  if (!form.full_name) missing.push("full_name");
+  if (!form.name_kana) missing.push("name_kana");
+
+  if (!form.date_of_birth) {
+    missing.push("date_of_birth");
+  } else {
+    const dob = new Date(form.date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const hadBirthdayThisYear =
+      today.getMonth() > dob.getMonth() ||
+      (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+    if (!hadBirthdayThisYear) age -= 1;
+    if (age < 16 || age > 80) missing.push("date_of_birth");
+  }
+
+  if (!form.gender) missing.push("gender");
+  if (!form.phone_number) missing.push("phone_number");
+  if (!form.mailing_address) missing.push("mailing_address");
+
+  if (visaStatus === "held") {
+    if (!form.visa_category) missing.push("visa_category");
+    if (!form.residence_card_expiration) missing.push("residence_card_expiration");
+  }
+
+  return missing;
+}
+
+function focusField(key: string) {
+  const el = document.getElementById(`rirekisho-field-${key}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
+  }
+}
+
+function RirekishoCompletenessBanner({
+  missingKeys,
+  totalRequired,
+}: {
+  missingKeys: string[];
+  totalRequired: number;
+}) {
+  const { lang } = useLang();
+
+  if (missingKeys.length === 0) {
+    return (
+      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950 dark:text-green-400">
+        {t("settings", "rirekishoReady", lang)}
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+      <p>
+        {t("settings", "rirekishoMissingCount", lang)
+          .replace("{n}", String(missingKeys.length))
+          .replace("{m}", String(totalRequired))}
+      </p>
+      <p className="mt-1 space-x-1">
+        {missingKeys.map((key, i) => (
+          <span key={key}>
+            <button
+              type="button"
+              onClick={() => focusField(key)}
+              className="underline hover:no-underline"
+            >
+              {missingFieldLabel(key, lang)}
+            </button>
+            {i < missingKeys.length - 1 ? "," : ""}
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { lang } = useLang();
   return (
@@ -46,43 +158,30 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("settings", "sub", lang)}</p>
       </div>
 
-      <ProfileSection />
+      <RirekishoInfoSection />
+      <JobPreferencesSection />
       <DangerZone />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Profile edit form
+// Rirekisho info — required-for-generation fields, saved independently
 // ---------------------------------------------------------------------------
 
-function ProfileSection() {
+function RirekishoInfoSection() {
   const { data: me, isLoading } = useMe();
   const updateProfile = useUpdateProfile();
   const { lang } = useLang();
 
-  const VISA_STATUSES: { value: VisaStatus; label: string }[] = [
-    { value: "none", label: t("settings", "visaNone", lang) },
-    { value: "pending", label: t("settings", "visaPending", lang) },
-    { value: "held", label: t("settings", "visaHeld", lang) },
-  ];
-
   const [form, setForm] = useState<ProfileUpdateRequest>({});
   const [saved, setSaved] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
 
   useEffect(() => {
     if (!me?.profile) return;
     const p = me.profile;
     const next = {
       full_name: me.user.full_name ?? undefined,
-      nationality: p.nationality ?? undefined,
-      japanese_level: p.japanese_level,
-      visa_status: p.visa_status,
-      preferred_language: p.preferred_language,
-      years_experience: p.years_experience ?? undefined,
-      target_role: p.target_role ?? [],
-      target_industry: p.target_industry ?? [],
       name_kana: p.name_kana ?? undefined,
       date_of_birth: p.date_of_birth ?? undefined,
       gender: p.gender ?? undefined,
@@ -94,22 +193,11 @@ function ProfileSection() {
       special_skills: p.special_skills ?? undefined,
       personal_requests: p.personal_requests ?? "貴社の規定に従います。",
     };
-    // Drop keys whose value is explicitly `undefined` before setForm: with
-    // exactOptionalPropertyTypes, ProfileUpdateRequest accepts an omitted key
-    // but not one present with value `undefined`, and nullable profile fields
-    // coalesced via `?? undefined` above can produce those (see the same
-    // pattern in app/onboarding/page.tsx's Step5 defaultValues).
     setForm(
       Object.fromEntries(
         Object.entries(next).filter(([, v]) => v !== undefined),
       ) as ProfileUpdateRequest,
     );
-    // Depend on profile identity, not the `me` object reference: `me` changes
-    // reference whenever any cached mutation touches it (e.g. PhotoUploader's
-    // independent upload, or this form's own post-save cache update), and an
-    // unconditional re-sync on every reference change would silently discard
-    // unsaved edits to every other field. The profile's id only changes for a
-    // genuinely different profile (e.g. a different signed-in user).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.profile?.id]);
 
@@ -118,41 +206,42 @@ function ProfileSection() {
     value: ProfileUpdateRequest[K],
   ) {
     setSaved(false);
-    if (key === "years_experience") setFieldErrors({ years_experience: undefined });
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    const result = profileFormSchema.safeParse(form);
-    if (!result.success) {
-      const errors = result.error.flatten().fieldErrors;
-      setFieldErrors({ years_experience: errors.years_experience?.[0] });
-      setSaved(false);
-      return;
-    }
-    setFieldErrors({});
-
     await updateProfile.mutateAsync(form);
     setSaved(true);
   }
 
   if (isLoading) return <SectionSkeleton />;
 
+  // visa_status is edited in JobPreferencesSection, not here — this reads
+  // the last-saved value (both sections share the ["me"] query cache), so
+  // the visa-conditional fields below only react after that section is
+  // saved, not on every keystroke there. See the module comment above
+  // computeMissingRirekishoFields.
+  const visaStatus = me?.profile?.visa_status;
+  const missingKeys = computeMissingRirekishoFields(form, visaStatus);
+  const totalRequired = visaStatus === "held" ? 8 : 6;
+  const requiredBadge = t("settings", "required", lang);
+
   return (
-    <section className="space-y-6">
-      <h2 className="text-base font-semibold">{t("settings", "profile", lang)}</h2>
+    <section className="space-y-6" id="rirekisho-info">
+      <div className="space-y-1">
+        <h2 className="text-base font-semibold">{t("settings", "rirekishoInfo", lang)}</h2>
+        <p className="text-xs text-muted-foreground">{t("settings", "rirekishoInfoHint", lang)}</p>
+      </div>
+
+      <RirekishoCompletenessBanner missingKeys={missingKeys} totalRequired={totalRequired} />
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{t("settings", "rirekishoInfo", lang)}</h3>
-          <p className="text-xs text-muted-foreground">
-            {t("settings", "rirekishoInfoHint", lang)}
-          </p>
-        </div>
-
-        <Field label={t("settings", "fullName", lang)}>
+        <Field
+          id="rirekisho-field-full_name"
+          label={t("settings", "fullName", lang)}
+          badge={requiredBadge}
+        >
           <input
             type="text"
             value={form.full_name ?? ""}
@@ -161,7 +250,11 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "nameKana", lang)}>
+        <Field
+          id="rirekisho-field-name_kana"
+          label={t("settings", "nameKana", lang)}
+          badge={requiredBadge}
+        >
           <input
             type="text"
             value={form.name_kana ?? ""}
@@ -171,7 +264,11 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "dateOfBirth", lang)}>
+        <Field
+          id="rirekisho-field-date_of_birth"
+          label={t("settings", "dateOfBirth", lang)}
+          badge={requiredBadge}
+        >
           <input
             type="date"
             value={form.date_of_birth ?? ""}
@@ -180,7 +277,11 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "gender", lang)}>
+        <Field
+          id="rirekisho-field-gender"
+          label={t("settings", "gender", lang)}
+          badge={requiredBadge}
+        >
           <select
             value={form.gender ?? ""}
             onChange={(e) =>
@@ -196,7 +297,11 @@ function ProfileSection() {
           </select>
         </Field>
 
-        <Field label={t("settings", "phone", lang)}>
+        <Field
+          id="rirekisho-field-phone_number"
+          label={t("settings", "phone", lang)}
+          badge={requiredBadge}
+        >
           <input
             type="tel"
             value={form.phone_number ?? ""}
@@ -205,7 +310,11 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "address", lang)}>
+        <Field
+          id="rirekisho-field-mailing_address"
+          label={t("settings", "address", lang)}
+          badge={requiredBadge}
+        >
           <input
             type="text"
             value={form.mailing_address ?? ""}
@@ -214,7 +323,11 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "visaExpiration", lang)}>
+        <Field
+          id="rirekisho-field-residence_card_expiration"
+          label={t("settings", "visaExpiration", lang)}
+          badge={visaStatus === "held" ? requiredBadge : undefined}
+        >
           <input
             type="date"
             value={form.residence_card_expiration ?? ""}
@@ -223,7 +336,26 @@ function ProfileSection() {
           />
         </Field>
 
-        <Field label={t("settings", "photo", lang)} hint={t("settings", "photoHint", lang)}>
+        {visaStatus === "held" && (
+          <Field
+            id="rirekisho-field-visa_category"
+            label={t("settings", "visaCategory", lang)}
+            badge={requiredBadge}
+          >
+            <input
+              type="text"
+              value={form.visa_category ?? ""}
+              onChange={(e) => handleChange("visa_category", e.target.value || undefined)}
+              className={inputCls}
+            />
+          </Field>
+        )}
+
+        <Field
+          label={t("settings", "photo", lang)}
+          hint={t("settings", "photoHint", lang)}
+          badge={t("settings", "recommended", lang)}
+        >
           <PhotoUploader />
         </Field>
 
@@ -257,6 +389,105 @@ function ProfileSection() {
           />
         </Field>
 
+        {updateProfile.error && (
+          <p className="text-sm text-destructive">
+            {(updateProfile.error as { detail?: string }).detail ?? t("settings", "saveFail", lang)}
+          </p>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={updateProfile.isPending}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {updateProfile.isPending
+              ? t("common", "saving", lang)
+              : t("common", "saveChanges", lang)}
+          </button>
+          {saved && !updateProfile.isPending && (
+            <p className="text-sm text-green-600">{t("common", "saved", lang)}</p>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Job preferences — used for AI prompt enrichment, never required
+// ---------------------------------------------------------------------------
+
+function JobPreferencesSection() {
+  const { data: me, isLoading } = useMe();
+  const updateProfile = useUpdateProfile();
+  const { lang } = useLang();
+
+  const VISA_STATUSES: { value: VisaStatus; label: string }[] = [
+    { value: "none", label: t("settings", "visaNone", lang) },
+    { value: "pending", label: t("settings", "visaPending", lang) },
+    { value: "held", label: t("settings", "visaHeld", lang) },
+  ];
+
+  const [form, setForm] = useState<ProfileUpdateRequest>({});
+  const [saved, setSaved] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    const p = me.profile;
+    const next = {
+      nationality: p.nationality ?? undefined,
+      japanese_level: p.japanese_level,
+      visa_status: p.visa_status,
+      preferred_language: p.preferred_language,
+      years_experience: p.years_experience ?? undefined,
+      target_role: p.target_role ?? [],
+      target_industry: p.target_industry ?? [],
+    };
+    setForm(
+      Object.fromEntries(
+        Object.entries(next).filter(([, v]) => v !== undefined),
+      ) as ProfileUpdateRequest,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.profile?.id]);
+
+  function handleChange<K extends keyof ProfileUpdateRequest>(
+    key: K,
+    value: ProfileUpdateRequest[K],
+  ) {
+    setSaved(false);
+    if (key === "years_experience") setFieldErrors({ years_experience: undefined });
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const result = profileFormSchema.safeParse(form);
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      setFieldErrors({ years_experience: errors.years_experience?.[0] });
+      setSaved(false);
+      return;
+    }
+    setFieldErrors({});
+
+    await updateProfile.mutateAsync(form);
+    setSaved(true);
+  }
+
+  if (isLoading) return <SectionSkeleton />;
+
+  return (
+    <section className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-base font-semibold">{t("settings", "jobPreferences", lang)}</h2>
+        <p className="text-xs text-muted-foreground">{t("settings", "jobPreferencesHint", lang)}</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
         <Field label={t("settings", "nationality", lang)}>
           <input
             type="text"
@@ -294,17 +525,6 @@ function ProfileSection() {
             ))}
           </select>
         </Field>
-
-        {form.visa_status === "held" && (
-          <Field label={t("settings", "visaCategory", lang)}>
-            <input
-              type="text"
-              value={form.visa_category ?? ""}
-              onChange={(e) => handleChange("visa_category", e.target.value || undefined)}
-              className={inputCls}
-            />
-          </Field>
-        )}
 
         <Field label={t("settings", "yearsExp", lang)} error={fieldErrors.years_experience}>
           <input
@@ -502,24 +722,34 @@ function DangerZone() {
 // ---------------------------------------------------------------------------
 
 function Field({
+  id: idProp,
   label,
   hint,
   error,
+  badge,
   children,
 }: {
+  id?: string;
   label: string;
   hint?: string;
   error?: string | undefined;
+  badge?: string | undefined;
   children: React.ReactNode;
 }) {
-  const id = useId();
+  const generatedId = useId();
+  const id = idProp ?? generatedId;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
+      <label htmlFor={id} className="flex items-center gap-2 text-sm font-medium">
         {label}
+        {badge && (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {badge}
+          </span>
+        )}
       </label>
       {hint && (
         <p id={hintId} className="text-xs text-muted-foreground">
