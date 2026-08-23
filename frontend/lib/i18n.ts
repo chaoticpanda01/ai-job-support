@@ -465,6 +465,29 @@ export const translations = {
     },
     translateLink: { en: "Translate a posting", id: "Terjemahkan lowongan", ja: "求人を翻訳する" },
     toGetStarted: { en: "to get started.", id: "untuk memulai.", ja: "して始めましょう。" },
+    jobId: { en: "Job ID", id: "ID Lowongan", ja: "求人ID" },
+    jobIdHint: {
+      en: 'Paste this into the "Job posting ID" field when generating a document to tailor it to this role.',
+      id: 'Tempel ini ke kolom "ID lowongan kerja" saat membuat dokumen agar disesuaikan dengan posisi ini.',
+      ja: "書類を生成する際に「求人ID」欄へ貼り付けると、この求人向けに最適化されます。",
+    },
+    copy: { en: "Copy", id: "Salin", ja: "コピー" },
+    copied: { en: "Copied!", id: "Disalin!", ja: "コピーしました！" },
+    generateForThisJob: {
+      en: "Generate for this job",
+      id: "Buat untuk lowongan ini",
+      ja: "この求人向けに生成",
+    },
+    generateRirekishoForJob: {
+      en: "Generate 履歴書",
+      id: "Buat 履歴書",
+      ja: "履歴書を生成",
+    },
+    generateShokumuForJob: {
+      en: "Generate 職務経歴書",
+      id: "Buat 職務経歴書",
+      ja: "職務経歴書を生成",
+    },
     loadError: {
       en: "Failed to load job postings. Please refresh.",
       id: "Gagal memuat lowongan kerja. Coba muat ulang.",
@@ -898,9 +921,9 @@ export const translations = {
       ja: "求人コンテキスト（任意）",
     },
     wizStep2Sub: {
-      en: "To tailor the document to a specific role, open that job posting from your Jobs list and copy its ID from the page URL. Leave this blank to generate a general-purpose document.",
-      id: "Untuk menyesuaikan dokumen dengan posisi tertentu, buka lowongan tersebut dari daftar Jobs dan salin ID-nya dari URL halaman. Kosongkan untuk membuat dokumen umum.",
-      ja: "特定の職種向けに書類を最適化するには、求人一覧からその求人を開き、ページのURLからIDをコピーしてください。空欄のままにすると汎用書類が生成されます。",
+      en: 'To tailor the document to a specific role, open that job posting from your Jobs list and copy the Job ID shown there — or just click "Generate for this job" on the job\'s page instead. Leave this blank to generate a general-purpose document.',
+      id: 'Untuk menyesuaikan dokumen dengan posisi tertentu, buka lowongan tersebut dari daftar Jobs dan salin Job ID yang ditampilkan di sana — atau langsung klik "Buat untuk lowongan ini" di halaman lowongan tersebut. Kosongkan untuk membuat dokumen umum.',
+      ja: "特定の職種向けに書類を最適化するには、求人一覧からその求人を開き、表示されている求人IDをコピーしてください。または求人ページの「この求人向けに生成」をクリックしても構いません。空欄のままにすると汎用書類が生成されます。",
     },
     wizJobIdPlaceholder: {
       en: "Job posting ID (optional) — not a job title",

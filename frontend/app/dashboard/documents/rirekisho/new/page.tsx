@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
@@ -10,7 +11,17 @@ import { t } from "@/lib/i18n";
 import { ApiClientError } from "@/lib/api-client";
 
 export default function NewRirekishoPage() {
+  return (
+    <Suspense>
+      <NewRirekishoPageInner />
+    </Suspense>
+  );
+}
+
+function NewRirekishoPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialJobPostingId = searchParams.get("job") ?? undefined;
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
   const createMutation = useCreateDocument("rirekisho");
   const { lang } = useLang();
@@ -39,6 +50,7 @@ export default function NewRirekishoPage() {
       <DocumentWizard
         resumeList={resumeList}
         resumesLoading={resumesLoading}
+        {...(initialJobPostingId ? { initialJobPostingId } : {})}
         isPending={createMutation.isPending}
         error={
           createMutation.error instanceof ApiClientError

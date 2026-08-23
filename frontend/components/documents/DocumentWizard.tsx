@@ -13,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 interface Props {
   resumeList: ResumeList | undefined;
   resumesLoading: boolean;
+  initialJobPostingId?: string;
   isPending: boolean;
   error: string | null;
   submitLabel: string;
@@ -22,6 +23,7 @@ interface Props {
 export function DocumentWizard({
   resumeList,
   resumesLoading,
+  initialJobPostingId,
   isPending,
   error,
   submitLabel,
@@ -29,7 +31,7 @@ export function DocumentWizard({
 }: Props) {
   const [step, setStep] = useState<Step>("resume");
   const [resumeId, setResumeId] = useState<string>("");
-  const [jobPostingId, setJobPostingId] = useState<string>("");
+  const [jobPostingId, setJobPostingId] = useState<string>(initialJobPostingId ?? "");
   const { lang } = useLang();
 
   const resumes = resumeList?.items ?? [];

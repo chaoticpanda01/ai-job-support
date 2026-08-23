@@ -47,6 +47,7 @@ export default function JobDetailPage({ params }: Props) {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          <JobIdCard jobId={id} />
           <ScoreCard score={job.foreigner_friendliness_score} />
           <MatchSection jobId={id} />
         </div>
@@ -195,6 +196,54 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function JobIdCard({ jobId }: { jobId: string }) {
+  const { lang } = useLang();
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(jobId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-card p-4">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t("jobs", "jobId", lang)}
+        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 text-xs">
+            {jobId}
+          </code>
+          <button
+            onClick={handleCopy}
+            className="shrink-0 rounded-md border px-2 py-1 text-xs hover:bg-accent"
+          >
+            {copied ? t("jobs", "copied", lang) : t("jobs", "copy", lang)}
+          </button>
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">{t("jobs", "jobIdHint", lang)}</p>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t pt-3">
+        <Link
+          href={`/dashboard/documents/rirekisho/new?job=${jobId}`}
+          className="rounded-md bg-primary px-3 py-2 text-center text-xs font-medium text-primary-foreground hover:opacity-90"
+        >
+          {t("jobs", "generateRirekishoForJob", lang)}
+        </Link>
+        <Link
+          href={`/dashboard/documents/shokumu/new?job=${jobId}`}
+          className="rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-accent"
+        >
+          {t("jobs", "generateShokumuForJob", lang)}
+        </Link>
+      </div>
     </div>
   );
 }
