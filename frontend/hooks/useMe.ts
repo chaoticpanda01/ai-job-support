@@ -21,6 +21,20 @@ export function useUpdateProfile() {
   });
 }
 
+export function useUploadPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return apiClient.upload<MeResponse>("/auth/me/photo", form);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["me"], updated);
+    },
+  });
+}
+
 export function useRecordConsent() {
   const queryClient = useQueryClient();
   return useMutation<MeResponse, Error>({
