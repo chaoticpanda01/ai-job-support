@@ -178,6 +178,10 @@ async def test_update_me_returns_updated_profile() -> None:
             )
 
     assert resp.status_code == 200
+    # rirekisho_ready must come from _build_me_response(user, profile) here,
+    # not a stale user.profile — default make_profile() has no rirekisho
+    # fields set, so this should read as not ready.
+    assert resp.json()["rirekisho_ready"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +224,11 @@ async def test_upload_photo_saves_key_and_returns_presigned_url() -> None:
             )
 
     assert resp.status_code == 200
-    assert resp.json()["profile"]["photo_url"] == "https://s3.example.com/signed-photo-url"
+    data = resp.json()
+    assert data["profile"]["photo_url"] == "https://s3.example.com/signed-photo-url"
+    # Same check as the PUT /auth/me test above — confirms upload_my_photo's
+    # call to _build_me_response(user, profile) also reports correctly.
+    assert data["rirekisho_ready"] is False
 
 
 @pytest.mark.asyncio
