@@ -26,17 +26,18 @@ This is Phase 1 of a larger roadmap the user approved (in order): (1) this compl
 
 ## A. Data model
 
-Add three nullable columns to `Profile` (`backend/app/models/user.py`), following the precedent set by migration `0005_add_rirekisho_personal_info.py`:
+Add four nullable columns to `Profile` (`backend/app/models/user.py`), following the precedent set by migration `0005_add_rirekisho_personal_info.py`:
 
 | Column | Type | Nullable | Notes |
 |---|---|---|---|
 | `photo_storage_key` | `String(500)` | yes | S3/B2 object key, same convention as `resumes/{user_id}/{uuid}{ext}` |
 | `hobbies` | `Text` | yes | Free text, user-entered, never AI-generated |
 | `special_skills` | `Text` | yes | Free text, user-entered, never AI-generated |
+| `personal_requests` | `Text` | yes | Free text, user-entered, never AI-generated. `NULL`/empty means "use the default boilerplate" — see F |
 
 New migration `backend/migrations/versions/0006_add_photo_hobbies_skills.py`, matching house style: zero-padded sequential revision id, docstring linking to this spec, idempotent `DO $$ ... EXCEPTION WHEN duplicate_object THEN NULL; END $$;` DDL block (see `0005` for the exact pattern to copy).
 
-None of these three fields are added to `_check_rirekisho_profile_complete()` — generation must still succeed with all three empty.
+None of these four fields are added to `_check_rirekisho_profile_complete()` — generation must still succeed with all four empty.
 
 ## B. Photo upload
 
@@ -48,9 +49,11 @@ None of these three fields are added to `_check_rirekisho_profile_complete()` �
 
 **PDF embedding:** at render time, `document_generator.py` downloads the photo bytes via the existing `FileStorage.download()` (already used elsewhere in this file) and inlines them as a base64 `data:` URI in the `<img>` tag — not a live URL fetch — so PDF rendering has no runtime dependency on network access to the storage bucket.
 
-## C. Hobbies & skills fields
+## C. Hobbies, skills & personal-requests fields
 
-Two plain `<textarea>` fields, `hobbies` and `special_skills`, added to onboarding step 5's form and to Settings, using the same form-field pattern already used for the other rirekisho text fields (e.g. `mailing_address`). No AI involvement — these are exactly what the user types, verbatim, same trust model as the rest of the personal-info block.
+Three plain `<textarea>` fields — `hobbies`, `special_skills`, and `personal_requests` — added to onboarding step 5's form and to Settings, using the same form-field pattern already used for the other rirekisho text fields (e.g. `mailing_address`). No AI involvement — these are exactly what the user types, verbatim, same trust model as the rest of the personal-info block.
+
+`personal_requests` is optional and defaults to the standard boilerplate (`貴社の規定に従います。`) when left blank — see F for the exact fallback behavior. The frontend should show this default text as placeholder/pre-filled content so the field visibly represents what will actually appear on the document, and let the user clear or edit it if they have an actual request (salary, remote work, start date, etc.).
 
 ## D. Rirekisho work-history schema & prompt fix
 
@@ -76,7 +79,7 @@ In `document_generator.py:_render_rirekisho()` (currently lines ~405–488):
 
 - **Photo box:** positioned per the traditional layout (top-right of the personal-info header block). If `photo_storage_key` is set, render the actual image (base64-inlined, see B). If not, render an empty bordered box with the standard placement guide text (dimensions, "本人単身胸から上," etc. — match the wording visible in the user's original template) so a physical photo can be glued in by hand, which is normal practice.
 - **特技・趣味 box:** two labeled lists, 趣味 (hobbies) and 特技 (special skills), sourced verbatim from the new `Profile.hobbies`/`Profile.special_skills` fields. If both are empty, render the box with just the header and blank space (matches a physical blank template — do not hide the section entirely, since a hiring agent expects to see the section present even if unfilled).
-- **本人希望記入欄 box:** fixed boilerplate text, always `貴社の規定に従います。` — no new input, no conditional logic.
+- **本人希望記入欄 box:** renders `Profile.personal_requests` if the user has set it, otherwise falls back to the standard boilerplate `貴社の規定に従います。`. Same fallback pattern as the empty-photo and empty-hobbies cases — the section is always present, just defaults to the conventional text when the user hasn't specified anything else.
 
 The existing personal-info header table and the unified 学歴・職歴 table keep their current structure — both already match the standard format correctly; only the work-history *content* (D above) needs to change, not this table's layout.
 
