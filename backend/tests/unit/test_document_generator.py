@@ -215,8 +215,10 @@ def test_render_rirekisho_contains_key_fields() -> None:
 
 def test_render_rirekisho_title_uses_navy_accent() -> None:
     html = _render_rirekisho(_rirekisho_render_content())
-    assert '<h1 style="text-align:center; font-size:16pt; letter-spacing:0.3em;' in html
-    assert "color:#1e3a5f" in html
+    assert (
+        '<h1 style="text-align:center; font-size:16pt; letter-spacing:0.3em; '
+        'margin-bottom:8px; color:#1e3a5f;">' in html
+    )
 
 
 def test_render_rirekisho_shows_man_age_prefix() -> None:

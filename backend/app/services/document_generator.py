@@ -451,10 +451,13 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
             '<div style="font-size:7pt;">写真<br>(縦40×横30mm)</div>'
         )
 
+    rirekisho_title_style = (
+        "text-align:center; font-size:16pt; letter-spacing:0.3em; margin-bottom:8px; color:#1e3a5f;"
+    )
+
     return f"""
 <div style="max-width:170mm; margin:0 auto;">
-  <h1 style="text-align:center; font-size:16pt; letter-spacing:0.3em;
-             margin-bottom:8px; color:#1e3a5f;">
+  <h1 style="{rirekisho_title_style}">
     履　歴　書
   </h1>
 
@@ -575,10 +578,14 @@ def _render_shokumu(c: dict[str, Any]) -> str:
 </div>
 """
 
+    shokumu_title_style = (
+        "font-size:15pt; border-bottom:3px solid #1e3a5f; "
+        "padding-bottom:4px; margin-bottom:8px; color:#1e3a5f;"
+    )
+
     return f"""
 <div style="max-width:170mm; margin:0 auto;">
-  <h1 style="font-size:15pt; border-bottom:3px solid #1e3a5f;
-             padding-bottom:4px; margin-bottom:8px; color:#1e3a5f;">
+  <h1 style="{shokumu_title_style}">
     職務経歴書
   </h1>
 
