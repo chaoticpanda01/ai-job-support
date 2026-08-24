@@ -429,16 +429,14 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
         # a known limitation with replaced elements in flex layouts. Use
         # plain block sizing here instead; flex centering is only safe for
         # the icon+text placeholder case below.
-        photo_box_style = (
-            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #1e3a5f; overflow:hidden;"
-        )
+        photo_box_style = "width:30mm; height:40mm; border:1px solid #1e3a5f; overflow:hidden;"
         photo_box_inner = (
             f'<img src="{_esc(photo_data_uri)}" '
             'style="width:100%; height:100%; object-fit:cover; display:block;" />'
         )
     else:
         photo_box_style = (
-            "width:30mm; height:40mm; flex-shrink:0; border:1.5px dashed #1e3a5f; "
+            "width:30mm; height:40mm; border:1.5px dashed #1e3a5f; "
             "overflow:hidden; display:flex; flex-direction:column; align-items:center; "
             "justify-content:center; text-align:center; gap:2mm; color:#1e3a5f; padding:2px;"
         )
@@ -461,39 +459,45 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
     履　歴　書
   </h1>
 
-  <div style="display:flex; gap:8px; align-items:flex-start; margin-bottom:6px;">
-    <table style="flex:1;">
-      <tr>
-        <th style="width:16%;">ふりがな</th>
-        <td style="width:42%;">{_esc(p.get("name_kana", ""))}</td>
-        <th style="width:12%;">性別</th>
-        <td style="width:30%;">{_esc(p.get("gender", ""))}</td>
-      </tr>
-      <tr>
-        <th>氏名</th>
-        <td style="font-size:13pt; font-weight:bold;">{_esc(p.get("name_kanji", ""))}</td>
-        <th>生年月日</th>
-        <td>{_esc(p.get("date_of_birth", ""))}（満{p.get("age", "")}歳）</td>
-      </tr>
-      <tr>
-        <th>住所</th>
-        <td colspan="3">{_esc(p.get("address", ""))}</td>
-      </tr>
-      <tr>
-        <th>電話番号</th>
-        <td>{_esc(p.get("phone", ""))}</td>
-        <th>メール</th>
-        <td>{_esc(p.get("email", ""))}</td>
-      </tr>
-      <tr>
-        <th>国籍・ビザ</th>
-        <td colspan="3">{_esc(visa_line)}</td>
-      </tr>
-    </table>
-    <div style="{photo_box_style}">
-      {photo_box_inner}
-    </div>
-  </div>
+  <table style="margin-bottom:6px;">
+    <tr>
+      <td style="border:none; padding:0; vertical-align:top;">
+        <table>
+          <tr>
+            <th style="width:16%;">ふりがな</th>
+            <td style="width:42%;">{_esc(p.get("name_kana", ""))}</td>
+            <th style="width:12%;">性別</th>
+            <td style="width:30%;">{_esc(p.get("gender", ""))}</td>
+          </tr>
+          <tr>
+            <th>氏名</th>
+            <td style="font-size:13pt; font-weight:bold;">{_esc(p.get("name_kanji", ""))}</td>
+            <th>生年月日</th>
+            <td>{_esc(p.get("date_of_birth", ""))}（満{p.get("age", "")}歳）</td>
+          </tr>
+          <tr>
+            <th>住所</th>
+            <td colspan="3">{_esc(p.get("address", ""))}</td>
+          </tr>
+          <tr>
+            <th>電話番号</th>
+            <td>{_esc(p.get("phone", ""))}</td>
+            <th>メール</th>
+            <td>{_esc(p.get("email", ""))}</td>
+          </tr>
+          <tr>
+            <th>国籍・ビザ</th>
+            <td colspan="3">{_esc(visa_line)}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="border:none; padding:0 0 0 8px; width:30mm; vertical-align:top;">
+        <div style="{photo_box_style}">
+          {photo_box_inner}
+        </div>
+      </td>
+    </tr>
+  </table>
 
   <p class="section-title">学歴・職歴</p>
   <table>

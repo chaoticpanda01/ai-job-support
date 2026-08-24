@@ -290,6 +290,90 @@ def test_render_rirekisho_with_photo_actually_embeds_image_in_pdf() -> None:
     assert b"/Subtype /Image" in pdf_bytes or b"/Subtype/Image" in pdf_bytes
 
 
+def test_render_rirekisho_photo_box_does_not_overlap_personal_info_table() -> None:
+    """
+    Regression test: the personal-info table and the photo box used to sit
+    side by side in a `display:flex` row (`<table style="flex:1;">` next to
+    a fixed 30mm-wide photo box). WeasyPrint does not correctly negotiate a
+    <table>'s width as a flex item: instead of shrinking the table to the
+    space actually remaining after the fixed-width sibling, it computes the
+    table's percentage-width columns against the *full* row width. The
+    table's rightmost columns (生年月日, メール, 国籍・ビザ values) then
+    render further right than the photo box's own left edge, so the opaque
+    photo box -- painted after the table in document order -- visually
+    covers real user data (confirmed by rendering through the real PDF
+    pipeline and measuring rect coordinates in the PDF content stream: the
+    table computed its width as ~170mm, the full content width, instead of
+    the ~138mm actually available next to a 30mm photo box).
+
+    HTML string-matching can't catch this class of layout bug -- same
+    rationale as test_render_rirekisho_with_photo_actually_embeds_image_in_pdf
+    above. This test renders through the real (unmocked) PDF pipeline and
+    geometrically verifies nothing extends past where the photo box begins.
+    """
+    import io
+    import re
+
+    import pypdf
+    from app.utils.pdf_generator import html_to_pdf
+
+    content = _rirekisho_render_content()
+    content["personal"]["photo_data_uri"] = (
+        "data:image/jpeg;base64,"
+        "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+    )
+    html = _render_rirekisho(content)
+    pdf_bytes = html_to_pdf(html)
+
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    raw = reader.pages[0].get_contents().get_data().decode("latin-1")
+
+    # WeasyPrint's content stream opens with a `0.75 0 0 0.75 0 0 cm` matrix
+    # (the CSS-px-to-PDF-pt scale, 72/96) that applies to every rect drawn
+    # afterward -- must be included in the pt-to-mm conversion below, or the
+    # measured coordinates are wrong by that same 0.75 factor.
+    scale = 0.75
+    pt_to_mm = 25.4 / 72
+    rects = [
+        (
+            float(x) * scale * pt_to_mm,
+            float(y) * scale * pt_to_mm,
+            float(w) * scale * pt_to_mm,
+            float(h) * scale * pt_to_mm,
+        )
+        for x, y, w, h in re.findall(r"([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re", raw)
+    ]
+    assert rects, "no rects found in PDF content stream -- pdf_generator's output format changed"
+
+    # The photo box is the only ~30mm x ~40mm rect in the page.
+    photo_box_candidates = [(x, y, w, h) for x, y, w, h in rects if 28 <= w <= 32 and 38 <= h <= 42]
+    assert photo_box_candidates, "could not locate the photo box's rect in the PDF"
+    photo_box_left_edge = min(x for x, _y, _w, _h in photo_box_candidates)
+    photo_box_top = min(y for _x, y, _w, _h in photo_box_candidates)
+    photo_box_bottom = max(y + h for _x, y, _w, h in photo_box_candidates)
+
+    # Only compare against content in the same vertical band as the photo
+    # box (the personal-info table rows) -- content further down the page
+    # (e.g. the full-width 学歴・職歴 table) is legitimately full-width and
+    # isn't part of this row, so it must be excluded or it produces a false
+    # positive.
+    def vertically_overlaps_photo_box(y: float, h: float) -> bool:
+        return y < photo_box_bottom and y + h > photo_box_top
+
+    other_right_edges = [
+        x + w
+        for x, y, w, h in rects
+        if not (28 <= w <= 32 and 38 <= h <= 42) and vertically_overlaps_photo_box(y, h)
+    ]
+    assert other_right_edges, "no personal-info table rects found to compare against"
+    max_other_right_edge = max(other_right_edges)
+    assert max_other_right_edge <= photo_box_left_edge + 1, (
+        f"table content extends to {max_other_right_edge:.1f}mm, past the photo "
+        f"box's left edge at {photo_box_left_edge:.1f}mm -- the personal-info "
+        "table is overlapping the photo box"
+    )
+
+
 def test_render_rirekisho_shows_hobbies_and_skills() -> None:
     html = _render_rirekisho(_rirekisho_render_content())
     assert "スノーボード" in html
