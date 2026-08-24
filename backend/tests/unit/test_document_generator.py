@@ -258,7 +258,7 @@ def test_render_rirekisho_shows_photo_when_present() -> None:
     content["personal"]["photo_data_uri"] = "data:image/jpeg;base64,ZmFrZQ=="
     html = _render_rirekisho(content)
     assert '<img src="data:image/jpeg;base64,ZmFrZQ=="' in html
-    assert "写真をはる位置" not in html
+    assert "(縦40×横30mm)" not in html
 
 
 def test_render_rirekisho_with_photo_actually_embeds_image_in_pdf() -> None:
