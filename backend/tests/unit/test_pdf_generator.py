@@ -124,6 +124,41 @@ def test_html_wraps_body_fragment() -> None:
     assert captured_css_kwargs[0].get("font_config") is not None
 
 
+def test_base_css_uses_navy_accent_palette() -> None:
+    """
+    Regression test for the navy-accent visual polish pass: table borders,
+    header cells, section titles, and labels use the shared accent color
+    instead of the old flat grays. Applies to both rirekisho and shokumu
+    since they share _BASE_CSS.
+    """
+    captured_css: list[str] = []
+
+    mock_html_cls = MagicMock()
+    mock_instance = MagicMock()
+    mock_instance.write_pdf.return_value = b"pdf"
+    mock_html_cls.return_value = mock_instance
+
+    mock_css_cls = MagicMock()
+
+    def capture_css(**kwargs: object) -> MagicMock:
+        captured_css.append(str(kwargs.get("string", "")))
+        return MagicMock()
+
+    mock_css_cls.side_effect = capture_css
+    fake_modules = _fake_weasyprint_modules(mock_html_cls, mock_css_cls)
+
+    with patch.dict("sys.modules", fake_modules):
+        html_to_pdf("<p>test</p>")
+
+    css = captured_css[0]
+    assert "#1e3a5f" in css  # header/section-title accent
+    assert "#c8d4e0" in css  # table border tint
+    assert "#eef3f8" in css  # header cell background tint
+    assert "#5a7a9a" in css  # .label muted accent
+    assert "#999" not in css
+    assert "#f0f0f0" not in css
+
+
 # ---------------------------------------------------------------------------
 # verify_fonts
 # ---------------------------------------------------------------------------

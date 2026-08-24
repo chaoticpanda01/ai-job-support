@@ -68,24 +68,26 @@ table {
     width: 100%;
 }
 th, td {
-    border: 1px solid #999;
+    border: 1px solid #c8d4e0;
     padding: 4px 6px;
     vertical-align: top;
 }
 th {
-    background-color: #f0f0f0;
+    background-color: #eef3f8;
+    color: #1e3a5f;
     font-weight: 700;
     white-space: nowrap;
 }
 .section-title {
     font-size: 11pt;
     font-weight: 700;
-    border-bottom: 2px solid #333;
+    color: #1e3a5f;
+    border-bottom: 2px solid #1e3a5f;
     margin: 12px 0 6px;
     padding-bottom: 2px;
 }
 .label {
-    color: #555;
+    color: #5a7a9a;
     font-size: 9pt;
 }
 """
