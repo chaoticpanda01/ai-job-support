@@ -238,8 +238,19 @@ def test_render_rirekisho_shows_nationality_only_when_not_held() -> None:
 
 def test_render_rirekisho_shows_empty_photo_box_when_no_photo() -> None:
     html = _render_rirekisho(_rirekisho_render_content())
-    assert "写真をはる位置" in html
+    assert "写真" in html
+    assert "(縦40×横30mm)" in html
     assert "<img" not in html
+
+
+def test_render_rirekisho_photo_placeholder_has_no_overflow() -> None:
+    """
+    Regression test for the overlap bug: the empty-photo placeholder box
+    must clip its content, since the box is only 30x40mm and WeasyPrint
+    does not clip overflowing content by default.
+    """
+    html = _render_rirekisho(_rirekisho_render_content())
+    assert "overflow:hidden" in html
 
 
 def test_render_rirekisho_shows_photo_when_present() -> None:

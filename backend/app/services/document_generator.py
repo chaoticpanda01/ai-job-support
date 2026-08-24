@@ -428,9 +428,10 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
         # container uses flexbox centering (align-items/justify-content) —
         # a known limitation with replaced elements in flex layouts. Use
         # plain block sizing here instead; flex centering is only safe for
-        # the text-only placeholder case below.
+        # the icon+text placeholder case below.
         photo_box_style = (
-            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; overflow:hidden;"
+            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #1e3a5f; "
+            "overflow:hidden;"
         )
         photo_box_inner = (
             f'<img src="{_esc(photo_data_uri)}" '
@@ -438,12 +439,17 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
         )
     else:
         photo_box_style = (
-            "width:30mm; height:40mm; flex-shrink:0; border:1px solid #333; "
-            "display:flex; align-items:center; justify-content:center; "
-            "text-align:center; font-size:8pt; padding:2px;"
+            "width:30mm; height:40mm; flex-shrink:0; border:1.5px dashed #1e3a5f; "
+            "overflow:hidden; display:flex; flex-direction:column; align-items:center; "
+            "justify-content:center; text-align:center; gap:2mm; color:#1e3a5f; padding:2px;"
         )
         photo_box_inner = (
-            "写真をはる位置<br>1.縦36〜40mm<br>横24〜30mm<br>2.本人単身胸から上<br>3.裏面のりづけ"
+            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" '
+            'stroke="#1e3a5f" stroke-width="1.5">'
+            '<rect x="3" y="6" width="18" height="14" rx="2"/>'
+            '<circle cx="12" cy="13" r="3.5"/>'
+            '<path d="M9 6l1-2h4l1 2"/></svg>'
+            '<div style="font-size:7pt;">写真<br>(縦40×横30mm)</div>'
         )
 
     return f"""
