@@ -213,6 +213,12 @@ def test_render_rirekisho_contains_key_fields() -> None:
     assert "チームワーク" in html
 
 
+def test_render_rirekisho_title_uses_navy_accent() -> None:
+    html = _render_rirekisho(_rirekisho_render_content())
+    assert '<h1 style="text-align:center; font-size:16pt; letter-spacing:0.3em; ' in html
+    assert "color:#1e3a5f" in html
+
+
 def test_render_rirekisho_shows_man_age_prefix() -> None:
     html = _render_rirekisho(_rirekisho_render_content())
     assert "満35歳" in html
@@ -315,6 +321,12 @@ def test_render_shokumu_contains_key_fields() -> None:
     assert "レスポンス速度を30%改善" in html
     assert "Python" in html
     assert "日本語（N3）" in html
+
+
+def test_render_shokumu_title_uses_navy_accent() -> None:
+    html = _render_shokumu(_shokumu_content())
+    assert "border-bottom:3px solid #1e3a5f;" in html
+    assert "color:#1e3a5f" in html
 
 
 def test_render_html_dispatches_by_type() -> None:
