@@ -301,15 +301,23 @@ def test_render_rirekisho_photo_box_does_not_overlap_personal_info_table() -> No
     table's rightmost columns (生年月日, メール, 国籍・ビザ values) then
     render further right than the photo box's own left edge, so the opaque
     photo box -- painted after the table in document order -- visually
-    covers real user data (confirmed by rendering through the real PDF
-    pipeline and measuring rect coordinates in the PDF content stream: the
-    table computed its width as ~170mm, the full content width, instead of
-    the ~138mm actually available next to a 30mm photo box).
+    covers real user data.
 
-    HTML string-matching can't catch this class of layout bug -- same
-    rationale as test_render_rirekisho_with_photo_actually_embeds_image_in_pdf
-    above. This test renders through the real (unmocked) PDF pipeline and
-    geometrically verifies nothing extends past where the photo box begins.
+    This is verified by rendering through the real (unmocked) PDF pipeline
+    and measuring the table's own cell BORDER lines in the PDF content
+    stream, not by looking for filled rects: every <th>/<td> in this table
+    has a `border` (from the shared _BASE_CSS), but only <th> cells get a
+    `background-color` -- <td> *value* cells (where 生年月日/メール/
+    国籍・ビザ's actual text lives) never emit a filled rect at all, only
+    border-stroke line segments. An earlier version of this test measured
+    filled rects instead and passed unchanged against the pre-fix buggy
+    code (verified by checking out the parent commit and re-running it) --
+    it could only see the narrow <th> label columns, which never reach far
+    enough right to collide even when the table itself is badly oversized.
+    Border lines exist for every cell (labels and values alike), so the
+    rightmost vertical border line in the table's row band is a reliable
+    proxy for how wide WeasyPrint actually computed the table, regardless
+    of which specific cell holds the overflowing content.
     """
     import io
     import re
@@ -326,14 +334,20 @@ def test_render_rirekisho_photo_box_does_not_overlap_personal_info_table() -> No
     pdf_bytes = html_to_pdf(html)
 
     reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-    raw = reader.pages[0].get_contents().get_data().decode("latin-1")
+    contents = reader.pages[0].get_contents()
+    assert contents is not None, "rendered PDF page has no content stream"
+    raw = contents.get_data().decode("latin-1")
 
     # WeasyPrint's content stream opens with a `0.75 0 0 0.75 0 0 cm` matrix
-    # (the CSS-px-to-PDF-pt scale, 72/96) that applies to every rect drawn
-    # afterward -- must be included in the pt-to-mm conversion below, or the
-    # measured coordinates are wrong by that same 0.75 factor.
+    # (the CSS-px-to-PDF-pt scale, 72/96) that applies to every coordinate
+    # drawn afterward -- must be included in the pt-to-mm conversion below,
+    # or the measured coordinates are wrong by that same 0.75 factor.
     scale = 0.75
     pt_to_mm = 25.4 / 72
+
+    # The photo box is drawn as a single filled rect at its declared 30x40mm
+    # size -- this part of the measurement is reliable since the box always
+    # has an explicit background/border, unlike the table's <td> cells.
     rects = [
         (
             float(x) * scale * pt_to_mm,
@@ -343,34 +357,46 @@ def test_render_rirekisho_photo_box_does_not_overlap_personal_info_table() -> No
         )
         for x, y, w, h in re.findall(r"([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re", raw)
     ]
-    assert rects, "no rects found in PDF content stream -- pdf_generator's output format changed"
-
-    # The photo box is the only ~30mm x ~40mm rect in the page.
     photo_box_candidates = [(x, y, w, h) for x, y, w, h in rects if 28 <= w <= 32 and 38 <= h <= 42]
     assert photo_box_candidates, "could not locate the photo box's rect in the PDF"
     photo_box_left_edge = min(x for x, _y, _w, _h in photo_box_candidates)
     photo_box_top = min(y for _x, y, _w, _h in photo_box_candidates)
     photo_box_bottom = max(y + h for _x, y, _w, h in photo_box_candidates)
 
-    # Only compare against content in the same vertical band as the photo
-    # box (the personal-info table rows) -- content further down the page
-    # (e.g. the full-width 学歴・職歴 table) is legitimately full-width and
-    # isn't part of this row, so it must be excluded or it produces a false
-    # positive.
-    def vertically_overlaps_photo_box(y: float, h: float) -> bool:
-        return y < photo_box_bottom and y + h > photo_box_top
-
-    other_right_edges = [
-        x + w
-        for x, y, w, h in rects
-        if not (28 <= w <= 32 and 38 <= h <= 42) and vertically_overlaps_photo_box(y, h)
+    # Vertical border-stroke line segments: `x1 y1 m` (moveto) immediately
+    # followed by `x2 y2 l` (lineto) with x1 == x2. These exist for every
+    # table cell's left/right border, labels and values alike.
+    line_pairs = re.findall(r"([\d.]+) ([\d.]+) m\s*\n([\d.]+) ([\d.]+) l", raw)
+    vertical_borders_mm = [
+        (
+            float(x1) * scale * pt_to_mm,
+            min(float(y1), float(y2)) * scale * pt_to_mm,
+            max(float(y1), float(y2)) * scale * pt_to_mm,
+        )
+        for x1, y1, x2, y2 in line_pairs
+        if abs(float(x1) - float(x2)) < 0.01
     ]
-    assert other_right_edges, "no personal-info table rects found to compare against"
-    max_other_right_edge = max(other_right_edges)
-    assert max_other_right_edge <= photo_box_left_edge + 1, (
-        f"table content extends to {max_other_right_edge:.1f}mm, past the photo "
-        f"box's left edge at {photo_box_left_edge:.1f}mm -- the personal-info "
-        "table is overlapping the photo box"
+    assert vertical_borders_mm, "no vertical border lines found -- pdf_generator's output changed"
+
+    # Only compare against border lines in the same vertical band as the
+    # photo box (the personal-info table's rows) -- content further down
+    # the page (e.g. the full-width 学歴・職歴 table) is legitimately
+    # full-width and isn't part of this row, so it must be excluded or it
+    # produces a false positive.
+    def vertically_overlaps_photo_box(y_top: float, y_bottom: float) -> bool:
+        return y_top < photo_box_bottom and y_bottom > photo_box_top
+
+    borders_in_band = [
+        x
+        for x, y_top, y_bottom in vertical_borders_mm
+        if vertically_overlaps_photo_box(y_top, y_bottom)
+    ]
+    assert borders_in_band, "no personal-info table border lines found to compare against"
+    max_table_border_x = max(borders_in_band)
+    assert max_table_border_x <= photo_box_left_edge + 1, (
+        f"personal-info table's rightmost border reaches {max_table_border_x:.1f}mm, "
+        f"past the photo box's left edge at {photo_box_left_edge:.1f}mm -- the table "
+        "is overlapping the photo box"
     )
 
 
