@@ -327,8 +327,10 @@ def test_render_shokumu_contains_key_fields() -> None:
 
 def test_render_shokumu_title_uses_navy_accent() -> None:
     html = _render_shokumu(_shokumu_content())
-    assert "border-bottom:3px solid #1e3a5f;" in html
-    assert "color:#1e3a5f" in html
+    assert (
+        '<h1 style="font-size:15pt; border-bottom:3px solid #1e3a5f; '
+        'padding-bottom:4px; margin-bottom:8px; color:#1e3a5f;">' in html
+    )
 
 
 def test_render_html_dispatches_by_type() -> None:
