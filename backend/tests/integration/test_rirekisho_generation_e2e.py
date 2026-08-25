@@ -242,3 +242,34 @@ async def test_generate_rirekisho_without_photo_end_to_end() -> None:
         assert b"/Subtype /Image" not in pdf_bytes and b"/Subtype/Image" not in pdf_bytes
     finally:
         await _cleanup_user(user.id)
+
+
+@pytest.mark.asyncio
+async def test_generate_rirekisho_with_photo_end_to_end() -> None:
+    user, resume, photo_key = await _seed_complete_profile_user(with_photo=True)
+    try:
+        with (
+            _bypass_middleware(user),
+            patch.object(ai_client, "generate", new=_mock_ai_generate()),
+            patch.object(file_storage, "download", new=_mock_file_storage_download(photo_key)),
+            patch("app.services.document_generator.extract_text", return_value="resume text"),
+            patch.object(file_storage, "upload_document") as mock_upload,
+        ):
+            mock_upload.return_value = "documents/e2e-test/rirekisho/fake.pdf"
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                document_id = await _create_and_await_completion(client, resume.id)
+
+        document_row = await _fetch_document_row(uuid.UUID(document_id))
+        assert document_row is not None
+        assert document_row.status == DocumentStatus.completed
+        assert document_row.file_url is not None
+
+        assert mock_upload.called
+        pdf_bytes = mock_upload.call_args.kwargs["file_bytes"]
+        assert pdf_bytes.startswith(b"%PDF-")
+        assert b"/Subtype /Image" in pdf_bytes or b"/Subtype/Image" in pdf_bytes
+    finally:
+        await _cleanup_user(user.id)
