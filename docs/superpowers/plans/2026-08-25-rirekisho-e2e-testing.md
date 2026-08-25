@@ -438,7 +438,10 @@ Expected: no output from either command (the Step 1 revert used `git checkout --
 
 - [ ] **Step 4: Full backend test suite**
 
-Run: `cd backend && .venv/bin/python -m pytest tests/unit tests/integration -q`
+Run: `cd backend && .venv/bin/python -m pytest -q` (bare invocation, no explicit path arguments — `pyproject.toml`'s `testpaths = ["tests"]` picks up both `tests/unit` and `tests/integration` automatically, matching exactly what CI runs).
+
+Do NOT run `pytest tests/unit tests/integration -q` (unit directory listed first as an explicit argument) — this ordering triggers a real but unrelated pytest-asyncio/asyncpg issue (`RuntimeError: Event loop is closed`, from a connection-close callback trying to schedule a task on an event loop that a later, differently-scoped test already tore down). It's a pre-existing event-loop-lifecycle interaction between the many function-scoped async unit tests and the module-level DB engine singleton — not a defect introduced by this test's code — and it does not occur with the bare `pytest` invocation (or with `tests/integration` listed before `tests/unit`), which is what CI actually runs. If you hit this, don't debug it as if it were a real regression — just use the bare `pytest -q` invocation instead.
+
 Expected: all tests pass, including the 2 new E2E tests, with no regressions in the rest of the suite.
 
 No commit for this task — it's verification only, and Step 3 confirms nothing was left uncommitted.
