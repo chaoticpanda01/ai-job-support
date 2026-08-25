@@ -11,6 +11,18 @@ from the repo root before running this file locally. CI already provisions
 this via its `postgres` service container. If the database isn't reachable,
 this test fails loudly with a connection error rather than skipping --
 that's deliberate, so a broken DB connection is never silently hidden.
+
+NOTE: usage_tracker.check_budget()/record() are deliberately NOT mocked
+(only ai_client.generate and file_storage are), so every real pass through
+this pipeline consumes a slot in the app's actual, shared, global AI-call
+budget (AI_GLOBAL_CALL_LIMIT in app/services/ai/usage_tracker.py -- 16
+calls per rolling 24h, shared across everything hitting this database, not
+per-test or per-user). Running this file repeatedly in quick succession
+during local development can exhaust that budget against your local dev
+DB, causing AIBudgetError failures unrelated to any code defect -- that's
+expected, not a regression, and clears on its own once the rolling window
+ages out. Do not "fix" it by mocking usage_tracker or by deleting rows
+from ai_usage_logs.
 """
 
 from __future__ import annotations
@@ -192,7 +204,7 @@ async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID
         json={"resume_id": str(resume_id)},
     )
     assert create_resp.status_code == 202
-    document_id = create_resp.json()["id"]
+    document_id: str = create_resp.json()["id"]
 
     status = create_resp.json()["status"]
     for _ in range(_MAX_POLL_ATTEMPTS):
