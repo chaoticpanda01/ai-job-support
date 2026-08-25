@@ -50,6 +50,8 @@ _TEST_JPEG_BASE64 = (
 )
 _TEST_JPEG_BYTES = base64.b64decode(_TEST_JPEG_BASE64)
 
+_MAX_POLL_ATTEMPTS = 5
+
 
 def _auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer valid_token"}
@@ -175,6 +177,42 @@ def _mock_file_storage_download(photo_key: str | None) -> MagicMock:
     return MagicMock(side_effect=_download)
 
 
+async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID) -> str:
+    """
+    POSTs to create a rirekisho, polls until it completes (or the poll bound
+    is exhausted), and confirms the download endpoint reports it ready.
+    Returns the document_id. BackgroundTasks execute synchronously as part
+    of the same ASGI call when driven through ASGITransport, so the very
+    first poll already reflects the final status in practice -- the bound
+    is defensive, not a real eventual-consistency wait.
+    """
+    create_resp = await client.post(
+        "/api/v1/documents/rirekisho",
+        headers=_auth_headers(),
+        json={"resume_id": str(resume_id)},
+    )
+    assert create_resp.status_code == 202
+    document_id = create_resp.json()["id"]
+
+    status = create_resp.json()["status"]
+    for _ in range(_MAX_POLL_ATTEMPTS):
+        if status == DocumentStatus.completed.value:
+            break
+        poll_resp = await client.get(f"/api/v1/documents/{document_id}", headers=_auth_headers())
+        status = poll_resp.json()["status"]
+    assert status == DocumentStatus.completed.value, (
+        f"generation did not complete, final status={status!r}"
+    )
+
+    download_resp = await client.get(
+        f"/api/v1/documents/{document_id}/download", headers=_auth_headers()
+    )
+    assert download_resp.status_code == 200
+    assert download_resp.json()["download_url"] is not None
+
+    return document_id
+
+
 @pytest.mark.asyncio
 async def test_generate_rirekisho_without_photo_end_to_end() -> None:
     user, resume, _photo_key = await _seed_complete_profile_user(with_photo=False)
@@ -191,31 +229,7 @@ async def test_generate_rirekisho_without_photo_end_to_end() -> None:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as client:
-                create_resp = await client.post(
-                    "/api/v1/documents/rirekisho",
-                    headers=_auth_headers(),
-                    json={"resume_id": str(resume.id)},
-                )
-                assert create_resp.status_code == 202
-                document_id = create_resp.json()["id"]
-
-                status = create_resp.json()["status"]
-                for _ in range(5):
-                    if status == DocumentStatus.completed.value:
-                        break
-                    poll_resp = await client.get(
-                        f"/api/v1/documents/{document_id}", headers=_auth_headers()
-                    )
-                    status = poll_resp.json()["status"]
-                assert status == DocumentStatus.completed.value, (
-                    f"generation did not complete, final status={status!r}"
-                )
-
-                download_resp = await client.get(
-                    f"/api/v1/documents/{document_id}/download", headers=_auth_headers()
-                )
-                assert download_resp.status_code == 200
-                assert download_resp.json()["download_url"] is not None
+                document_id = await _create_and_await_completion(client, resume.id)
 
         document_row = await _fetch_document_row(uuid.UUID(document_id))
         assert document_row is not None
