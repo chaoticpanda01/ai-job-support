@@ -287,7 +287,7 @@ git commit -m "Add E2E test infra + no-photo rirekisho generation test"
 **Files:**
 - Modify: `backend/tests/integration/test_rirekisho_generation_e2e.py`
 
-**Context:** Reuses every helper from Task 1. The only differences: seed with `with_photo=True`, mock `file_storage.download` to serve real JPEG bytes for the photo key, and invert the image-presence assertion.
+**Context:** Reuses every helper from Task 1 — including `_create_and_await_completion` (the shared create/poll/download helper extracted from Task 1's code-quality review, which post-dates this plan's original draft; use it, don't re-inline the create/poll/download sequence). The only differences from the first test: seed with `with_photo=True`, mock `file_storage.download` to serve real JPEG bytes for the photo key, and invert the image-presence assertion.
 
 - [ ] **Step 1: Add the second test**
 
@@ -308,31 +308,7 @@ async def test_generate_rirekisho_with_photo_end_to_end() -> None:
             mock_upload.return_value = "documents/e2e-test/rirekisho/fake.pdf"
 
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                create_resp = await client.post(
-                    "/api/v1/documents/rirekisho",
-                    headers=_auth_headers(),
-                    json={"resume_id": str(resume.id)},
-                )
-                assert create_resp.status_code == 202
-                document_id = create_resp.json()["id"]
-
-                status = create_resp.json()["status"]
-                for _ in range(5):
-                    if status == DocumentStatus.completed.value:
-                        break
-                    poll_resp = await client.get(
-                        f"/api/v1/documents/{document_id}", headers=_auth_headers()
-                    )
-                    status = poll_resp.json()["status"]
-                assert status == DocumentStatus.completed.value, (
-                    f"generation did not complete, final status={status!r}"
-                )
-
-                download_resp = await client.get(
-                    f"/api/v1/documents/{document_id}/download", headers=_auth_headers()
-                )
-                assert download_resp.status_code == 200
-                assert download_resp.json()["download_url"] is not None
+                document_id = await _create_and_await_completion(client, resume.id)
 
         document_row = await _fetch_document_row(uuid.UUID(document_id))
         assert document_row is not None
