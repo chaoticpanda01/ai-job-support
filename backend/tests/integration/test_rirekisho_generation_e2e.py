@@ -226,7 +226,7 @@ async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("with_photo", [False, True])
+@pytest.mark.parametrize("with_photo", [False, True], ids=["without_photo", "with_photo"])
 async def test_generate_rirekisho_end_to_end(with_photo: bool) -> None:
     user, resume, photo_key = await _seed_complete_profile_user(with_photo=with_photo)
     try:
