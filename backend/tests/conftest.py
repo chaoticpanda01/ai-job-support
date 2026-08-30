@@ -7,6 +7,21 @@ that is rolled back after each test, keeping tests isolated without truncating t
 
 from __future__ import annotations
 
+import os
+
+# Force APP_ENV=test (unless the real shell environment already set one
+# explicitly) before any app module is imported below. app/database.py reads
+# settings.is_test at import time to pick NullPool (test) vs the pooled,
+# pool_pre_ping=True engine (dev/prod) -- the latter binds connections to
+# whichever asyncio event loop first used them, which crashes
+# ("attached to a different loop") once a second real-DB async test runs
+# under pytest-asyncio's function-scoped event loops. Local dev's .env sets
+# APP_ENV=development (correct for `docker compose up backend`), so without
+# this override, any local run of 2+ real-DB integration tests together
+# fails in a way that only reproduces here, not in CI -- CI's workflow sets
+# APP_ENV: test directly as a job env var, bypassing .env entirely.
+os.environ.setdefault("APP_ENV", "test")
+
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
