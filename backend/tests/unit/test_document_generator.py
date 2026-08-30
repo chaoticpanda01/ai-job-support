@@ -20,6 +20,7 @@ from app.services.document_generator import (
     _feature_name,
     _render_html,
     _render_rirekisho,
+    _render_rirekisho_landscape,
     _render_shokumu,
 )
 from app.services.file_storage import StorageError
@@ -426,6 +427,137 @@ def test_render_rirekisho_handles_blank_date_entry() -> None:
     # Should not crash trying to format a null date, and the row should
     # render with an empty date cell rather than "None年None月".
     assert "None" not in html
+
+
+# ---------------------------------------------------------------------------
+# _render_rirekisho_landscape
+# ---------------------------------------------------------------------------
+
+
+def test_render_rirekisho_landscape_contains_key_fields() -> None:
+    html = _render_rirekisho_landscape(_rirekisho_render_content())
+    assert "履　歴　書" in html
+    assert "山田 太郎" in html
+    assert "○○大学 卒業" in html
+    assert "株式会社ABC 入社" in html
+    assert "日本語能力試験N3" in html
+
+
+def test_render_rirekisho_landscape_page_break_lands_after_education_work_history() -> None:
+    """
+    Regression guard for the hard page-break requirement: 学歴・職歴 content
+    must appear before the page-break marker, and page-2-only sections
+    (資格・免許 onward) must appear after it.
+    """
+    html = _render_rirekisho_landscape(_rirekisho_render_content())
+    break_index = html.index("page-break-before:always")
+    education_index = html.index("学歴・職歴")
+    qualifications_index = html.index("資格・免許")
+    assert education_index < break_index < qualifications_index
+
+
+def test_render_rirekisho_landscape_shows_commute_time_and_dependents_when_set() -> None:
+    content = _rirekisho_render_content()
+    content["personal"]["commute_time"] = "電車で約45分"
+    content["personal"]["dependents"] = "2名"
+    html = _render_rirekisho_landscape(content)
+    assert "通勤時間" in html
+    assert "電車で約45分" in html
+    assert "扶養家族" in html
+    assert "2名" in html
+
+
+def test_render_rirekisho_landscape_omits_commute_time_and_dependents_when_blank() -> None:
+    html = _render_rirekisho_landscape(_rirekisho_render_content())
+    assert "通勤時間" not in html
+    assert "扶養家族" not in html
+
+
+def test_render_rirekisho_landscape_pdf_has_exactly_two_pages() -> None:
+    import io
+
+    import pypdf
+    from app.utils.pdf_generator import html_to_pdf
+
+    html = _render_rirekisho_landscape(_rirekisho_render_content())
+    pdf_bytes = html_to_pdf(html, landscape=True)
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    assert len(reader.pages) == 2
+
+
+def test_render_rirekisho_landscape_photo_box_does_not_overlap_personal_info_table() -> None:
+    """
+    Same regression class as
+    test_render_rirekisho_photo_box_does_not_overlap_personal_info_table,
+    applied to the landscape layout's own (differently-sized) personal-info
+    table. See that test's docstring for why border-stroke lines are used
+    instead of filled rects, and why the 0.75 content-stream scale factor
+    matters for the pt-to-mm conversion.
+    """
+    import io
+    import re
+
+    import pypdf
+    from app.utils.pdf_generator import html_to_pdf
+
+    content = _rirekisho_render_content()
+    content["personal"]["photo_data_uri"] = (
+        "data:image/jpeg;base64,"
+        "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+    )
+    html = _render_rirekisho_landscape(content)
+    pdf_bytes = html_to_pdf(html, landscape=True)
+
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    contents = reader.pages[0].get_contents()
+    assert contents is not None, "rendered PDF page has no content stream"
+    raw = contents.get_data().decode("latin-1")
+
+    scale = 0.75
+    pt_to_mm = 25.4 / 72
+
+    rects = [
+        (
+            float(x) * scale * pt_to_mm,
+            float(y) * scale * pt_to_mm,
+            float(w) * scale * pt_to_mm,
+            float(h) * scale * pt_to_mm,
+        )
+        for x, y, w, h in re.findall(r"([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re", raw)
+    ]
+    photo_box_candidates = [(x, y, w, h) for x, y, w, h in rects if 28 <= w <= 32 and 38 <= h <= 42]
+    assert photo_box_candidates, "could not locate the photo box's rect in the PDF"
+    photo_box_left_edge = min(x for x, _y, _w, _h in photo_box_candidates)
+    photo_box_top = min(y for _x, y, _w, _h in photo_box_candidates)
+    photo_box_bottom = max(y + h for _x, y, _w, h in photo_box_candidates)
+
+    line_pairs = re.findall(r"([\d.]+) ([\d.]+) m\s*\n([\d.]+) ([\d.]+) l", raw)
+    vertical_borders_mm = [
+        (
+            float(x1) * scale * pt_to_mm,
+            min(float(y1), float(y2)) * scale * pt_to_mm,
+            max(float(y1), float(y2)) * scale * pt_to_mm,
+        )
+        for x1, y1, x2, y2 in line_pairs
+        if abs(float(x1) - float(x2)) < 0.01
+    ]
+    assert vertical_borders_mm, "no vertical border lines found -- pdf_generator's output changed"
+
+    def vertically_overlaps_photo_box(y_top: float, y_bottom: float) -> bool:
+        return y_top < photo_box_bottom and y_bottom > photo_box_top
+
+    borders_in_band = [
+        x
+        for x, y_top, y_bottom in vertical_borders_mm
+        if vertically_overlaps_photo_box(y_top, y_bottom)
+    ]
+    assert borders_in_band, "no personal-info table border lines found to compare against"
+    max_table_border_x = max(borders_in_band)
+    assert max_table_border_x <= photo_box_left_edge + 1, (
+        f"personal-info table's rightmost border reaches {max_table_border_x:.1f}mm, "
+        f"past the photo box's left edge at {photo_box_left_edge:.1f}mm -- the table "
+        "is overlapping the photo box"
+    )
 
 
 def test_render_shokumu_contains_key_fields() -> None:
