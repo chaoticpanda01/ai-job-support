@@ -47,6 +47,7 @@ from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 from app.services.file_storage import StorageError, file_storage
 from app.services.resume_parser import ParseError, extract_text
 from app.services.rirekisho_completeness import rirekisho_missing_fields
+from app.utils.japanese_date import format_wareki_date
 from app.utils.pdf_generator import PDFGenerationError, html_to_pdf
 
 if TYPE_CHECKING:
@@ -396,36 +397,37 @@ def _render_html(document_type: DocumentType, content: dict[str, Any]) -> str:
     return _render_shokumu(content)
 
 
-def _render_rirekisho(c: dict[str, Any]) -> str:
-    p = c.get("personal", {})
-    v = c.get("visa_info", {})
+def _entry_row(entry: dict[str, Any]) -> str:
+    year, month = entry.get("year"), entry.get("month")
+    date_cell = format_wareki_date(year, month) if year is not None and month is not None else ""
+    return f"<tr><td>{date_cell}</td><td>{_esc(entry['entry'])}</td></tr>"
 
-    from app.utils.japanese_date import format_wareki_date
 
-    def _entry_row(entry: dict[str, Any]) -> str:
-        year, month = entry.get("year"), entry.get("month")
-        date_cell = (
-            format_wareki_date(year, month) if year is not None and month is not None else ""
-        )
-        return f"<tr><td>{date_cell}</td><td>{_esc(entry['entry'])}</td></tr>"
-
+def _education_work_rows(c: dict[str, Any]) -> tuple[str, str]:
     education_rows = "".join(_entry_row(e) for e in c.get("education", []))
     work_rows = "".join(_entry_row(w) for w in c.get("work_history", []))
-    qualifications = "".join(f"<li>{_esc(q)}</li>" for q in c.get("qualifications", []))
+    return education_rows, work_rows
 
+
+def _qualifications_list_items(c: dict[str, Any]) -> str:
+    return "".join(f"<li>{_esc(q)}</li>" for q in c.get("qualifications", []))
+
+
+def _visa_line(v: dict[str, Any]) -> str:
     visa_category = v.get("visa_category")
     if visa_category:
-        visa_line = (
+        return (
             f"{v.get('nationality', '')}（{visa_category}）"
             f"　有効期限：{v.get('residence_card_expiration', '')}"
         )
-    else:
-        visa_line = v.get("nationality", "")
+    return v.get("nationality", "")
 
-    photo_data_uri = p.get("photo_data_uri")
+
+def _photo_box_html(photo_data_uri: str | None) -> tuple[str, str]:
+    """Returns (photo_box_style, photo_box_inner)."""
     if photo_data_uri:
         # WeasyPrint silently drops a percentage-sized <img> when its
-        # container uses flexbox centering (align-items/justify-content) —
+        # container uses flexbox centering (align-items/justify-content) --
         # a known limitation with replaced elements in flex layouts. Use
         # plain block sizing here instead; flex centering is only safe for
         # the icon+text placeholder case below.
@@ -448,6 +450,17 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
             '<path d="M9 6l1-2h4l1 2"/></svg>'
             '<div style="font-size:7pt;">写真<br>(縦40×横30mm)</div>'
         )
+    return photo_box_style, photo_box_inner
+
+
+def _render_rirekisho(c: dict[str, Any]) -> str:
+    p = c.get("personal", {})
+    v = c.get("visa_info", {})
+
+    education_rows, work_rows = _education_work_rows(c)
+    qualifications = _qualifications_list_items(c)
+    visa_line = _visa_line(v)
+    photo_box_style, photo_box_inner = _photo_box_html(p.get("photo_data_uri"))
 
     rirekisho_title_style = (
         "text-align:center; font-size:16pt; letter-spacing:0.3em; margin-bottom:8px; color:#1e3a5f;"
