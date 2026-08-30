@@ -10,6 +10,7 @@ import { DocumentWizard } from "@/components/documents/DocumentWizard";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { ApiClientError } from "@/lib/api-client";
+import type { DocumentOrientation } from "@/types/api";
 
 export default function NewRirekishoPage() {
   return (
@@ -28,10 +29,15 @@ function NewRirekishoPageInner() {
   const createMutation = useCreateDocument("rirekisho");
   const { lang } = useLang();
 
-  async function handleSubmit(resumeId: string, jobPostingId?: string) {
+  async function handleSubmit(
+    resumeId: string,
+    jobPostingId?: string,
+    orientation?: DocumentOrientation,
+  ) {
     const result = await createMutation.mutateAsync({
       resume_id: resumeId,
       ...(jobPostingId ? { job_posting_id: jobPostingId } : {}),
+      ...(orientation ? { orientation } : {}),
     });
     router.push(`/dashboard/documents/${result.id}`);
   }
@@ -111,6 +117,7 @@ function NewRirekishoPageInner() {
                 : null
           }
           submitLabel={t("documents", "generateRirekisho", lang)}
+          showOrientation
           onSubmit={handleSubmit}
         />
       )}

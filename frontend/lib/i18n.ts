@@ -956,6 +956,13 @@ export const translations = {
       id: "Itu bukan format ID lowongan. Cari ID-nya di URL halaman lowongan, atau kosongkan kolom ini.",
       ja: "求人IDの形式ではないようです。求人ページのURLで確認するか、空欄のままにしてください。",
     },
+    wizOrientationLabel: {
+      en: "Layout",
+      id: "Tata letak",
+      ja: "レイアウト",
+    },
+    wizOrientationPortrait: { en: "Portrait", id: "Potret", ja: "縦書き" },
+    wizOrientationLandscape: { en: "Landscape", id: "Lanskap", ja: "横書き" },
     wizStep3Title: { en: "Confirm and generate", id: "Konfirmasi dan buat", ja: "確認して生成" },
     wizResumeLabel: { en: "Resume", id: "Resume", ja: "履歴書" },
     wizJobLabel: { en: "Job context", id: "Konteks pekerjaan", ja: "求人コンテキスト" },

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { ResumeList } from "@/types/api";
+import type { DocumentOrientation, ResumeList } from "@/types/api";
 
 type Step = "resume" | "job" | "confirm";
 
@@ -17,7 +17,12 @@ interface Props {
   isPending: boolean;
   error: string | null;
   submitLabel: string;
-  onSubmit: (resumeId: string, jobPostingId?: string) => Promise<void>;
+  showOrientation?: boolean;
+  onSubmit: (
+    resumeId: string,
+    jobPostingId?: string,
+    orientation?: DocumentOrientation,
+  ) => Promise<void>;
 }
 
 export function DocumentWizard({
@@ -27,11 +32,13 @@ export function DocumentWizard({
   isPending,
   error,
   submitLabel,
+  showOrientation = false,
   onSubmit,
 }: Props) {
   const [step, setStep] = useState<Step>("resume");
   const [resumeId, setResumeId] = useState<string>("");
   const [jobPostingId, setJobPostingId] = useState<string>(initialJobPostingId ?? "");
+  const [orientation, setOrientation] = useState<DocumentOrientation>("portrait");
   const { lang } = useLang();
 
   const resumes = resumeList?.items ?? [];
@@ -125,6 +132,36 @@ export function DocumentWizard({
           <p className="text-xs text-destructive">{t("documents", "wizJobIdInvalid", lang)}</p>
         )}
 
+        {showOrientation && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("documents", "wizOrientationLabel", lang)}</p>
+            <div className="flex gap-3">
+              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-card p-3 text-sm has-[:checked]:border-primary">
+                <input
+                  type="radio"
+                  name="orientation"
+                  value="portrait"
+                  checked={orientation === "portrait"}
+                  onChange={() => setOrientation("portrait")}
+                  className="accent-primary"
+                />
+                {t("documents", "wizOrientationPortrait", lang)}
+              </label>
+              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-card p-3 text-sm has-[:checked]:border-primary">
+                <input
+                  type="radio"
+                  name="orientation"
+                  value="landscape"
+                  checked={orientation === "landscape"}
+                  onChange={() => setOrientation("landscape")}
+                  className="accent-primary"
+                />
+                {t("documents", "wizOrientationLandscape", lang)}
+              </label>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between">
           <button
             onClick={() => setStep("resume")}
@@ -160,6 +197,16 @@ export function DocumentWizard({
           label={t("documents", "wizJobLabel", lang)}
           value={jobPostingId || t("documents", "wizNoJobContext", lang)}
         />
+        {showOrientation && (
+          <Row
+            label={t("documents", "wizOrientationLabel", lang)}
+            value={
+              orientation === "landscape"
+                ? t("documents", "wizOrientationLandscape", lang)
+                : t("documents", "wizOrientationPortrait", lang)
+            }
+          />
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground">{t("documents", "wizGenWait", lang)}</p>
@@ -177,7 +224,9 @@ export function DocumentWizard({
           {t("common", "back", lang)}
         </button>
         <button
-          onClick={() => onSubmit(resumeId, jobPostingId || undefined)}
+          onClick={() =>
+            onSubmit(resumeId, jobPostingId || undefined, showOrientation ? orientation : undefined)
+          }
           disabled={isPending}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >

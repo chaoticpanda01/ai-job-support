@@ -151,11 +151,13 @@ export interface ApiError {
 // ---------------------------------------------------------------------------
 
 export type DocumentType = "rirekisho" | "shokumukeirekisho";
+export type DocumentOrientation = "portrait" | "landscape";
 export type DocumentStatus = "pending" | "processing" | "completed" | "failed";
 
 export interface DocumentStatusResponse {
   id: string;
   status: DocumentStatus;
+  orientation: DocumentOrientation;
   error_message: string | null;
   completed_at: string | null;
 }
@@ -166,6 +168,7 @@ export interface Document {
   resume_id: string | null;
   document_type: DocumentType;
   status: DocumentStatus;
+  orientation: DocumentOrientation;
   job_context: Record<string, unknown> | null;
   ai_model: string | null;
   input_tokens: number | null;
@@ -188,6 +191,7 @@ export interface DocumentList {
 export interface CreateDocumentRequest {
   resume_id: string;
   job_posting_id?: string;
+  orientation?: DocumentOrientation;
 }
 
 // ---------------------------------------------------------------------------
