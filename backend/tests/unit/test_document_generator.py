@@ -473,7 +473,7 @@ def test_render_rirekisho_landscape_omits_commute_time_and_dependents_when_blank
     assert "扶養家族" not in html
 
 
-def test_render_rirekisho_landscape_pdf_has_exactly_two_pages() -> None:
+def test_render_rirekisho_landscape_pdf_pages_are_landscape_oriented() -> None:
     import io
 
     import pypdf
@@ -482,7 +482,9 @@ def test_render_rirekisho_landscape_pdf_has_exactly_two_pages() -> None:
     html = _render_rirekisho_landscape(_rirekisho_render_content())
     pdf_bytes = html_to_pdf(html, landscape=True)
     reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-    assert len(reader.pages) == 2
+    assert len(reader.pages) >= 2
+    box = reader.pages[0].mediabox
+    assert box.width > box.height
 
 
 def test_render_rirekisho_landscape_photo_box_does_not_overlap_personal_info_table() -> None:

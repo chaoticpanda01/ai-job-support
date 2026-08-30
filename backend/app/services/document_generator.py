@@ -428,7 +428,7 @@ def _visa_line(v: dict[str, Any]) -> str:
             f"{v.get('nationality', '')}（{visa_category}）"
             f"　有効期限：{v.get('residence_card_expiration', '')}"
         )
-    return v.get("nationality", "")
+    return str(v.get("nationality", ""))
 
 
 def _photo_box_html(photo_data_uri: str | None) -> tuple[str, str]:

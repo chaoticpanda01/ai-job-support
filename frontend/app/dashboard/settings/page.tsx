@@ -1,6 +1,14 @@
 "use client";
 
-import { cloneElement, isValidElement, useEffect, useId, useState, type ReactElement } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { z } from "zod";
@@ -815,14 +823,20 @@ function OptionalField({
   onChange: (value: string) => void;
 }) {
   const [revealed, setRevealed] = useState(Boolean(value));
+  const hydrated = useRef(false);
   const id = useId();
 
   useEffect(() => {
-    setRevealed(Boolean(value));
+    if (hydrated.current) return;
+    if (value !== undefined) {
+      setRevealed(Boolean(value));
+      hydrated.current = true;
+    }
   }, [value]);
 
   function handleToggle(next: boolean) {
     setRevealed(next);
+    hydrated.current = true;
     if (!next) onChange("");
   }
 
@@ -841,6 +855,7 @@ function OptionalField({
         <input
           id={id}
           type="text"
+          aria-label={label}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           className={inputCls}

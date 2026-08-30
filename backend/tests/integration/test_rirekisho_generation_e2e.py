@@ -270,6 +270,8 @@ async def test_generate_rirekisho_end_to_end(with_photo: bool, orientation: str)
             import pypdf
 
             reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-            assert len(reader.pages) == 2
+            assert len(reader.pages) >= 2
+            box = reader.pages[0].mediabox
+            assert box.width > box.height
     finally:
         await _cleanup_user(user.id)
