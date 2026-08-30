@@ -202,3 +202,25 @@ def test_verify_fonts_returns_true_for_the_actual_bundled_files() -> None:
     """No mocking — the real bundled font files must actually be checked
     into the repo at the path pdf_generator.py expects."""
     assert verify_fonts() is True
+
+
+def test_html_to_pdf_landscape_page_size_is_wider_than_tall() -> None:
+    import io
+
+    import pypdf
+
+    pdf_bytes = html_to_pdf("<p>test</p>", landscape=True)
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    box = reader.pages[0].mediabox
+    assert box.width > box.height
+
+
+def test_html_to_pdf_portrait_page_size_is_taller_than_wide() -> None:
+    import io
+
+    import pypdf
+
+    pdf_bytes = html_to_pdf("<p>test</p>")
+    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+    box = reader.pages[0].mediabox
+    assert box.height > box.width

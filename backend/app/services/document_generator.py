@@ -37,7 +37,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.enums import DocumentType, Gender, VisaStatus
+from app.models.enums import DocumentOrientation, DocumentType, Gender, VisaStatus
 from app.repositories.document import DocumentRepository
 from app.repositories.resume import ResumeRepository
 from app.repositories.user import ProfileRepository, UserRepository
@@ -175,9 +175,11 @@ class DocumentGenerator:
         # CPU-bound, and this method runs inline on the event loop as a
         # FastAPI background task — calling it directly here would stall
         # every other in-flight request for the duration of rendering.
-        html = _render_html(doc.document_type, content)
+        html = _render_html(doc.document_type, content, doc.orientation)
         try:
-            pdf_bytes = await asyncio.to_thread(html_to_pdf, html)
+            pdf_bytes = await asyncio.to_thread(
+                html_to_pdf, html, landscape=doc.orientation == DocumentOrientation.landscape
+            )
         except PDFGenerationError as exc:
             raise DocumentGenerationError(f"PDF rendering failed: {exc}") from exc
 
@@ -350,6 +352,8 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
             hobbies=profile.hobbies or None,
             special_skills=profile.special_skills or None,
             personal_requests=profile.personal_requests or _DEFAULT_PERSONAL_REQUESTS,
+            commute_time=profile.commute_time or None,
+            dependents=profile.dependents or None,
         )
     except ValidationError as exc:
         raise DocumentGenerationError(f"Invalid personal info for rirekisho: {exc}") from exc
@@ -391,8 +395,12 @@ def _build_rirekisho_visa_info(profile: Profile) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _render_html(document_type: DocumentType, content: dict[str, Any]) -> str:
+def _render_html(
+    document_type: DocumentType, content: dict[str, Any], orientation: DocumentOrientation
+) -> str:
     if document_type == DocumentType.rirekisho:
+        if orientation == DocumentOrientation.landscape:
+            return _render_rirekisho_landscape(content)
         return _render_rirekisho(content)
     return _render_shokumu(content)
 
@@ -540,6 +548,121 @@ def _render_rirekisho(c: dict[str, Any]) -> str:
 
   <p class="section-title">志望動機</p>
   <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("motivation", ""))}</p>
+
+  <p class="section-title">本人希望記入欄</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(p.get("personal_requests", ""))}</p>
+</div>
+"""
+
+
+def _render_rirekisho_landscape(c: dict[str, Any]) -> str:
+    p = c.get("personal", {})
+    v = c.get("visa_info", {})
+
+    education_rows, work_rows = _education_work_rows(c)
+    qualifications = _qualifications_list_items(c)
+    visa_line = _visa_line(v)
+    photo_box_style, photo_box_inner = _photo_box_html(p.get("photo_data_uri"))
+
+    commute_time = p.get("commute_time")
+    dependents = p.get("dependents")
+
+    commute_row = (
+        f'<p class="section-title">通勤時間</p><p style="padding:4px;">{_esc(commute_time)}</p>'
+        if commute_time
+        else ""
+    )
+    dependents_row = (
+        f'<p class="section-title">扶養家族</p><p style="padding:4px;">{_esc(dependents)}</p>'
+        if dependents
+        else ""
+    )
+
+    rirekisho_title_style = (
+        "text-align:center; font-size:16pt; letter-spacing:0.3em; margin-bottom:8px; color:#1e3a5f;"
+    )
+
+    return f"""
+<div style="max-width:260mm; margin:0 auto;">
+  <h1 style="{rirekisho_title_style}">
+    履　歴　書
+  </h1>
+
+  <table style="margin-bottom:6px;">
+    <tr>
+      <td style="border:none; padding:0; vertical-align:top;">
+        <table>
+          <tr>
+            <th style="width:10%;">ふりがな</th>
+            <td style="width:28%;">{_esc(p.get("name_kana", ""))}</td>
+            <th style="width:8%;">性別</th>
+            <td style="width:20%;">{_esc(p.get("gender", ""))}</td>
+            <th style="width:10%;">生年月日</th>
+            <td style="width:24%;">{_esc(p.get("date_of_birth", ""))}（満{p.get("age", "")}歳）</td>
+          </tr>
+          <tr>
+            <th>氏名</th>
+            <td colspan="5" style="font-size:13pt; font-weight:bold;">
+              {_esc(p.get("name_kanji", ""))}
+            </td>
+          </tr>
+          <tr>
+            <th>住所</th>
+            <td colspan="5">{_esc(p.get("address", ""))}</td>
+          </tr>
+          <tr>
+            <th>電話番号</th>
+            <td>{_esc(p.get("phone", ""))}</td>
+            <th>メール</th>
+            <td colspan="3">{_esc(p.get("email", ""))}</td>
+          </tr>
+          <tr>
+            <th>国籍・ビザ</th>
+            <td colspan="5">{_esc(visa_line)}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="border:none; padding:0 0 0 8px; width:30mm; vertical-align:top;">
+        <div style="{photo_box_style}">
+          {photo_box_inner}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <p class="section-title">学歴・職歴</p>
+  <table>
+    <thead>
+      <tr><th style="width:15%;">年月</th><th>内容</th></tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="2" style="text-align:center; font-weight:bold;">学歴</td></tr>
+      {education_rows}
+      <tr><td colspan="2" style="text-align:center; font-weight:bold;">職歴</td></tr>
+      {work_rows}
+      <tr><td colspan="2" style="text-align:right;">以上</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="max-width:260mm; margin:0 auto; page-break-before:always;">
+  <p class="section-title">資格・免許</p>
+  <ul style="padding-left:1.2em; margin:4px 0;">{qualifications}</ul>
+
+  <p class="section-title">特技・趣味</p>
+  <div style="padding:4px; font-size:10pt;">
+    <p style="margin:2px 0;"><strong>趣味：</strong>{_esc(p.get("hobbies") or "")}</p>
+    <p style="margin:2px 0;"><strong>特技：</strong>{_esc(p.get("special_skills") or "")}</p>
+  </div>
+
+  <p class="section-title">自己PR</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("self_pr", ""))}</p>
+
+  <p class="section-title">志望動機</p>
+  <p style="white-space:pre-wrap; padding:4px;">{_esc(c.get("motivation", ""))}</p>
+
+  {commute_row}
+  {dependents_row}
 
   <p class="section-title">本人希望記入欄</p>
   <p style="white-space:pre-wrap; padding:4px;">{_esc(p.get("personal_requests", ""))}</p>

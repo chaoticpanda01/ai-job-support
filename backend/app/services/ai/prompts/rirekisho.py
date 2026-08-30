@@ -70,6 +70,8 @@ class RirekishoPersonal(BaseModel):
     hobbies: str | None = None
     special_skills: str | None = None
     personal_requests: str
+    commute_time: str | None = None
+    dependents: str | None = None
 
 
 class RirekishoVisaInfo(BaseModel):

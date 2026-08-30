@@ -447,10 +447,21 @@ def test_render_shokumu_title_uses_navy_accent() -> None:
 
 
 def test_render_html_dispatches_by_type() -> None:
-    rirekisho_html = _render_html(DocumentType.rirekisho, _rirekisho_content())
-    shokumu_html = _render_html(DocumentType.shokumukeirekisho, _shokumu_content())
-    assert "履　歴　書" in rirekisho_html
-    assert "職務経歴書" in shokumu_html
+    html_r = _render_html(
+        DocumentType.rirekisho, _rirekisho_render_content(), DocumentOrientation.portrait
+    )
+    assert "履　歴　書" in html_r
+    html_s = _render_html(
+        DocumentType.shokumukeirekisho, _shokumu_content(), DocumentOrientation.portrait
+    )
+    assert "職務経歴書" in html_s
+
+
+def test_render_html_dispatches_rirekisho_landscape() -> None:
+    html = _render_html(
+        DocumentType.rirekisho, _rirekisho_render_content(), DocumentOrientation.landscape
+    )
+    assert "page-break-before:always" in html
 
 
 def test_render_rirekisho_escapes_html() -> None:
@@ -527,6 +538,32 @@ def test_build_rirekisho_personal_uses_custom_personal_requests() -> None:
     assert personal["personal_requests"] == "リモートワークを希望します。"
     assert personal["hobbies"] == "スノーボード"
     assert personal["special_skills"] == "Python"
+
+
+def test_build_rirekisho_personal_includes_commute_time_and_dependents_when_set() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.commute_time = "電車で約45分"
+    profile.dependents = "2名"
+
+    personal = _build_rirekisho_personal(user, profile)
+    assert personal["commute_time"] == "電車で約45分"
+    assert personal["dependents"] == "2名"
+
+
+def test_build_rirekisho_personal_omits_commute_time_and_dependents_when_blank() -> None:
+    from app.services.document_generator import _build_rirekisho_personal
+
+    user = _mock_user()
+    profile = _mock_profile()
+    profile.commute_time = None
+    profile.dependents = None
+
+    personal = _build_rirekisho_personal(user, profile)
+    assert personal["commute_time"] is None
+    assert personal["dependents"] is None
 
 
 def test_build_rirekisho_personal_embeds_photo_as_data_uri() -> None:

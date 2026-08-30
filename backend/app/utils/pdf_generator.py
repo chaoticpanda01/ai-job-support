@@ -60,7 +60,7 @@ body {
     color: #1a1a1a;
 }
 @page {
-    size: A4;
+    size: __PAGE_SIZE__;
     margin: 15mm 18mm 15mm 18mm;
 }
 table {
@@ -97,13 +97,14 @@ class PDFGenerationError(Exception):
     """Raised when WeasyPrint fails to render the document."""
 
 
-def html_to_pdf(html_body: str) -> bytes:
+def html_to_pdf(html_body: str, *, landscape: bool = False) -> bytes:
     """
     Render an HTML fragment to PDF bytes.
 
     html_body should be the <body> content only — this function wraps it
     in a complete HTML document with the bundled font and base styles
-    injected.
+    injected. Pass landscape=True to render on an A4-landscape page
+    instead of the default A4-portrait page.
 
     Raises PDFGenerationError on WeasyPrint failure.
     """
@@ -114,7 +115,8 @@ def html_to_pdf(html_body: str) -> bytes:
         raise PDFGenerationError("weasyprint is not installed") from exc
 
     font_css = _FONT_CSS_TEMPLATE.format(regular=_FONT_REGULAR, bold=_FONT_BOLD)
-    full_css = font_css + _BASE_CSS
+    page_size = "A4 landscape" if landscape else "A4"
+    full_css = font_css + _BASE_CSS.replace("__PAGE_SIZE__", page_size)
 
     full_html = f"""<!DOCTYPE html>
 <html lang="ja">
