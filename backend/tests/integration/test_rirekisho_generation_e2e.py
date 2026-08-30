@@ -189,7 +189,9 @@ def _mock_file_storage_download(photo_key: str | None) -> MagicMock:
     return MagicMock(side_effect=_download)
 
 
-async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID) -> str:
+async def _create_and_await_completion(
+    client: AsyncClient, resume_id: uuid.UUID, *, orientation: str = "portrait"
+) -> str:
     """
     POSTs to create a rirekisho, polls until it completes (or the poll bound
     is exhausted), and confirms the download endpoint reports it ready.
@@ -201,7 +203,7 @@ async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID
     create_resp = await client.post(
         "/api/v1/documents/rirekisho",
         headers=_auth_headers(),
-        json={"resume_id": str(resume_id)},
+        json={"resume_id": str(resume_id), "orientation": orientation},
     )
     assert create_resp.status_code == 202
     document_id: str = create_resp.json()["id"]
@@ -226,8 +228,12 @@ async def _create_and_await_completion(client: AsyncClient, resume_id: uuid.UUID
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("with_photo", [False, True], ids=["without_photo", "with_photo"])
-async def test_generate_rirekisho_end_to_end(with_photo: bool) -> None:
+@pytest.mark.parametrize(
+    "with_photo, orientation",
+    [(False, "portrait"), (True, "portrait"), (True, "landscape")],
+    ids=["without_photo_portrait", "with_photo_portrait", "with_photo_landscape"],
+)
+async def test_generate_rirekisho_end_to_end(with_photo: bool, orientation: str) -> None:
     user, resume, photo_key = await _seed_complete_profile_user(with_photo=with_photo)
     try:
         with (
@@ -242,17 +248,28 @@ async def test_generate_rirekisho_end_to_end(with_photo: bool) -> None:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as client:
-                document_id = await _create_and_await_completion(client, resume.id)
+                document_id = await _create_and_await_completion(
+                    client, resume.id, orientation=orientation
+                )
 
         document_row = await _fetch_document_row(uuid.UUID(document_id))
         assert document_row is not None
         assert document_row.status == DocumentStatus.completed
         assert document_row.file_url is not None
+        assert document_row.orientation.value == orientation
 
         assert mock_upload.called
         pdf_bytes = mock_upload.call_args.kwargs["file_bytes"]
         assert pdf_bytes.startswith(b"%PDF-")
         contains_image = b"/Subtype /Image" in pdf_bytes or b"/Subtype/Image" in pdf_bytes
         assert contains_image == with_photo
+
+        if orientation == "landscape":
+            import io
+
+            import pypdf
+
+            reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+            assert len(reader.pages) == 2
     finally:
         await _cleanup_user(user.id)
