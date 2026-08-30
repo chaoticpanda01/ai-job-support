@@ -1123,6 +1123,12 @@ export const translations = {
     },
     hobbies: { en: "Hobbies", id: "Hobi", ja: "趣味" },
     specialSkills: { en: "Special skills", id: "Keahlian khusus", ja: "特技" },
+    commuteTime: { en: "Commute time", id: "Waktu perjalanan", ja: "通勤時間" },
+    dependents: {
+      en: "Dependents",
+      id: "Tanggungan",
+      ja: "扶養家族",
+    },
     personalRequests: {
       en: "Requests to employer",
       id: "Permintaan kepada perusahaan",

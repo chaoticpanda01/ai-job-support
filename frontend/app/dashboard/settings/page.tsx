@@ -271,6 +271,8 @@ function RirekishoInfoSection() {
       visa_category: p.visa_category ?? undefined,
       hobbies: p.hobbies ?? undefined,
       special_skills: p.special_skills ?? undefined,
+      commute_time: p.commute_time ?? undefined,
+      dependents: p.dependents ?? undefined,
       personal_requests: p.personal_requests ?? "貴社の規定に従います。",
     };
     setForm(
@@ -456,6 +458,18 @@ function RirekishoInfoSection() {
             className={inputCls}
           />
         </Field>
+
+        <OptionalField
+          label={t("settings", "commuteTime", lang)}
+          value={form.commute_time}
+          onChange={(v) => handleChange("commute_time", v)}
+        />
+
+        <OptionalField
+          label={t("settings", "dependents", lang)}
+          value={form.dependents}
+          onChange={(v) => handleChange("dependents", v)}
+        />
 
         <Field
           label={t("settings", "personalRequests", lang)}
@@ -782,6 +796,59 @@ function DangerZone() {
 // ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
+
+/**
+ * A checkbox-gated optional text field: unchecked hides the input and
+ * clears its value (an explicit empty string, not undefined — so the
+ * clear round-trips through ProfileUpdateRequest's `exclude_none`
+ * serialization on save, unlike a field left `undefined`, which is
+ * dropped from the update payload and would silently fail to clear a
+ * previously-saved value).
+ */
+function OptionalField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (value: string) => void;
+}) {
+  const [revealed, setRevealed] = useState(Boolean(value));
+  const id = useId();
+
+  useEffect(() => {
+    setRevealed(Boolean(value));
+  }, [value]);
+
+  function handleToggle(next: boolean) {
+    setRevealed(next);
+    if (!next) onChange("");
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={revealed}
+          onChange={(e) => handleToggle(e.target.checked)}
+          className="accent-primary"
+        />
+        {label}
+      </label>
+      {revealed && (
+        <input
+          id={id}
+          type="text"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls}
+        />
+      )}
+    </div>
+  );
+}
 
 function Field({
   id: idProp,

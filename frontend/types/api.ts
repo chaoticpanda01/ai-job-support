@@ -33,6 +33,8 @@ export interface Profile {
   hobbies: string | null;
   special_skills: string | null;
   personal_requests: string | null;
+  commute_time: string | null;
+  dependents: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +89,8 @@ export interface ProfileUpdateRequest {
   hobbies?: string;
   special_skills?: string;
   personal_requests?: string;
+  commute_time?: string;
+  dependents?: string;
 }
 
 export interface Resume {
