@@ -19,7 +19,7 @@ import pytest
 from app.database import get_db
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
-from app.models.enums import DocumentStatus, DocumentType
+from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
 from app.services.file_storage import StorageError
 from httpx import ASGITransport, AsyncClient
 
@@ -81,6 +81,7 @@ def _mock_document(
     doc.resume_id = uuid.uuid4()
     doc.document_type = document_type
     doc.status = status
+    doc.orientation = DocumentOrientation.portrait
     doc.job_context = None
     doc.ai_model = "gemini-2.5-flash"
     doc.input_tokens = 100
@@ -136,6 +137,46 @@ async def test_create_rirekisho_with_job_posting_id() -> None:
             )
 
     assert resp.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_create_rirekisho_defaults_to_portrait_orientation() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch("app.workers.document_tasks._run_generation", new=AsyncMock()),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/documents/rirekisho",
+                headers=_auth_headers(),
+                json={"resume_id": str(uuid.uuid4())},
+            )
+
+    assert resp.status_code == 202
+    assert resp.json()["orientation"] == "portrait"
+
+
+@pytest.mark.asyncio
+async def test_create_rirekisho_accepts_landscape_orientation() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch("app.workers.document_tasks._run_generation", new=AsyncMock()),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/documents/rirekisho",
+                headers=_auth_headers(),
+                json={"resume_id": str(uuid.uuid4()), "orientation": "landscape"},
+            )
+
+    assert resp.status_code == 202
+    assert resp.json()["orientation"] == "landscape"
 
 
 # ---------------------------------------------------------------------------

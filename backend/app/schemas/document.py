@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import DocumentStatus, DocumentType
+from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
 
 
 class _Base(BaseModel):
@@ -26,6 +26,7 @@ class DocumentResponse(_Base):
     resume_id: UUID | None
     document_type: DocumentType
     status: DocumentStatus
+    orientation: DocumentOrientation
     job_context: dict[str, Any] | None
     ai_model: str | None
     input_tokens: int | None
@@ -57,6 +58,7 @@ class CreateRirekishoRequest(_Base):
     resume_id: UUID
     # Optional job posting context — if provided, tailors the document to the role
     job_posting_id: UUID | None = None
+    orientation: DocumentOrientation = DocumentOrientation.portrait
 
 
 class CreateShokumuRequest(_Base):
@@ -72,5 +74,6 @@ class CreateShokumuRequest(_Base):
 class DocumentStatusResponse(_Base):
     id: UUID
     status: DocumentStatus
+    orientation: DocumentOrientation
     error_message: str | None
     completed_at: datetime | None

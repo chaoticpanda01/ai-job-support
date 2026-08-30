@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from app.models.enums import DocumentStatus, DocumentType
+from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
 from app.schemas.document import (
     CreateRirekishoRequest,
     CreateShokumuRequest,
@@ -24,6 +24,7 @@ def _doc_data(**overrides: object) -> dict:
         "resume_id": None,
         "document_type": DocumentType.rirekisho,
         "status": DocumentStatus.pending,
+        "orientation": DocumentOrientation.portrait,
         "job_context": None,
         "ai_model": None,
         "input_tokens": None,
@@ -115,6 +116,7 @@ def test_document_status_response_pending() -> None:
     resp = DocumentStatusResponse(
         id=uuid.uuid4(),
         status=DocumentStatus.pending,
+        orientation=DocumentOrientation.portrait,
         error_message=None,
         completed_at=None,
     )
@@ -125,6 +127,7 @@ def test_document_status_response_failed_has_error() -> None:
     resp = DocumentStatusResponse(
         id=uuid.uuid4(),
         status=DocumentStatus.failed,
+        orientation=DocumentOrientation.portrait,
         error_message="AI budget exceeded",
         completed_at=datetime.now(tz=UTC),
     )

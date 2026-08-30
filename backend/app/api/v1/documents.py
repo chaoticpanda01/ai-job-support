@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import AuthUser, DbSession, PaginationDep
 from app.models.document import GeneratedDocument
-from app.models.enums import DocumentStatus, DocumentType
+from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
 from app.repositories.document import DocumentRepository
 from app.schemas.document import (
     CreateRirekishoRequest,
@@ -83,6 +83,7 @@ async def create_rirekisho(
         resume_id=body.resume_id,
         document_type=DocumentType.rirekisho,
         status=DocumentStatus.pending,
+        orientation=body.orientation,
         job_context=job_context,
     )
     db.add(doc)
@@ -95,6 +96,7 @@ async def create_rirekisho(
     return DocumentStatusResponse(
         id=doc.id,
         status=doc.status,
+        orientation=doc.orientation,
         error_message=doc.error_message,
         completed_at=doc.completed_at,
     )
@@ -129,6 +131,7 @@ async def create_shokumu(
         resume_id=body.resume_id,
         document_type=DocumentType.shokumukeirekisho,
         status=DocumentStatus.pending,
+        orientation=DocumentOrientation.portrait,
         job_context=job_context,
     )
     db.add(doc)
@@ -141,6 +144,7 @@ async def create_shokumu(
     return DocumentStatusResponse(
         id=doc.id,
         status=doc.status,
+        orientation=doc.orientation,
         error_message=doc.error_message,
         completed_at=doc.completed_at,
     )
@@ -194,6 +198,7 @@ async def get_document_status(
     return DocumentStatusResponse(
         id=doc.id,
         status=doc.status,
+        orientation=doc.orientation,
         error_message=doc.error_message,
         completed_at=doc.completed_at,
     )
@@ -230,6 +235,7 @@ async def download_document(
         resume_id=doc.resume_id,
         document_type=doc.document_type,
         status=doc.status,
+        orientation=doc.orientation,
         job_context=doc.job_context,
         ai_model=doc.ai_model,
         input_tokens=doc.input_tokens,
