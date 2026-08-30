@@ -11,7 +11,7 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.models.enums import DocumentStatus, DocumentType, Gender, VisaStatus
+from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType, Gender, VisaStatus
 from app.services.document_generator import (
     DocumentGenerationError,
     DocumentGenerator,
@@ -42,6 +42,7 @@ def _mock_document(
     doc.document_type = document_type
     doc.status = DocumentStatus.pending
     doc.job_context = job_context
+    doc.orientation = DocumentOrientation.portrait
     return doc
 
 
@@ -87,6 +88,8 @@ def _mock_profile() -> MagicMock:
     p.hobbies = None
     p.special_skills = None
     p.personal_requests = None
+    p.commute_time = None
+    p.dependents = None
     return p
 
 

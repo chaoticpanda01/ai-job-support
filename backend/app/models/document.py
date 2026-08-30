@@ -19,8 +19,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
+    DocumentOrientation,
     DocumentStatus,
     DocumentType,
+    sa_document_orientation,
     sa_document_status,
     sa_document_type,
 )
@@ -78,6 +80,9 @@ class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     document_type: Mapped[DocumentType] = mapped_column(sa_document_type, nullable=False)
     status: Mapped[DocumentStatus] = mapped_column(
         sa_document_status, nullable=False, server_default=text("'pending'")
+    )
+    orientation: Mapped[DocumentOrientation] = mapped_column(
+        sa_document_orientation, nullable=False, server_default=text("'portrait'")
     )
     job_context: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     ai_model: Mapped[str | None] = mapped_column(String(100))

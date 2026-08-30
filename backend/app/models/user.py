@@ -186,6 +186,8 @@ class Profile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     hobbies: Mapped[str | None] = mapped_column(Text)
     special_skills: Mapped[str | None] = mapped_column(Text)
     personal_requests: Mapped[str | None] = mapped_column(Text)
+    commute_time: Mapped[str | None] = mapped_column(Text)
+    dependents: Mapped[str | None] = mapped_column(Text)
 
     # --- Relationships ---
     user: Mapped["User"] = relationship("User", back_populates="profile")

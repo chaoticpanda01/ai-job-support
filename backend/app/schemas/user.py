@@ -64,6 +64,8 @@ class ProfileResponse(_Base):
     hobbies: str | None
     special_skills: str | None
     personal_requests: str | None
+    commute_time: str | None
+    dependents: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -93,6 +95,8 @@ class ProfileUpdateRequest(_Base):
     hobbies: str | None = None
     special_skills: str | None = None
     personal_requests: str | None = None
+    commute_time: str | None = None
+    dependents: str | None = None
 
 
 class RirekishoMissingField(_Base):

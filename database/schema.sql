@@ -35,6 +35,7 @@ CREATE TYPE gender              AS ENUM ('male', 'female');
 CREATE TYPE document_type       AS ENUM ('rirekisho', 'shokumukeirekisho');
 
 CREATE TYPE document_status     AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE document_orientation AS ENUM ('portrait', 'landscape');
 CREATE TYPE job_source_platform AS ENUM ('indeed_jp', 'rikunabi', 'mynavi', 'hellowork', 'manual');
 CREATE TYPE interview_type      AS ENUM ('behavioral', 'technical', 'general', 'culture_fit');
 CREATE TYPE interview_status    AS ENUM ('active', 'completed', 'abandoned');
@@ -116,6 +117,12 @@ CREATE TABLE profiles (
   mailing_address       TEXT,
   residence_card_expiration DATE,
   visa_category         VARCHAR(255),
+  photo_storage_key     VARCHAR(500),
+  hobbies               TEXT,
+  special_skills        TEXT,
+  personal_requests     TEXT,
+  commute_time          TEXT,
+  dependents            TEXT,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -236,6 +243,7 @@ CREATE TABLE generated_documents (
   resume_id       UUID,
   document_type   document_type   NOT NULL,
   status          document_status NOT NULL DEFAULT 'pending',
+  orientation     document_orientation NOT NULL DEFAULT 'portrait',
   job_context     JSONB,
   ai_model        VARCHAR(100),
   input_tokens    INTEGER         CHECK (input_tokens >= 0),

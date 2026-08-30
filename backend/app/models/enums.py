@@ -63,6 +63,11 @@ class DocumentStatus(str, enum.Enum):
     failed = "failed"
 
 
+class DocumentOrientation(str, enum.Enum):
+    portrait = "portrait"
+    landscape = "landscape"
+
+
 class JobSourcePlatform(str, enum.Enum):
     indeed_jp = "indeed_jp"
     rikunabi = "rikunabi"
@@ -160,6 +165,7 @@ sa_visa_status = SAEnum(VisaStatus, name="visa_status", **_kw)
 sa_gender = SAEnum(Gender, name="gender", **_kw)
 sa_document_type = SAEnum(DocumentType, name="document_type", **_kw)
 sa_document_status = SAEnum(DocumentStatus, name="document_status", **_kw)
+sa_document_orientation = SAEnum(DocumentOrientation, name="document_orientation", **_kw)
 sa_job_source_platform = SAEnum(JobSourcePlatform, name="job_source_platform", **_kw)
 sa_interview_type = SAEnum(InterviewType, name="interview_type", **_kw)
 sa_interview_status = SAEnum(InterviewStatus, name="interview_status", **_kw)

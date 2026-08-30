@@ -93,6 +93,8 @@ def make_profile(user_id: uuid.UUID | None = None) -> MagicMock:
     profile.hobbies = None
     profile.special_skills = None
     profile.personal_requests = None
+    profile.commute_time = None
+    profile.dependents = None
     return profile
 
 
