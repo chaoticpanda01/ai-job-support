@@ -488,6 +488,26 @@ export const translations = {
       id: "Buat 職務経歴書",
       ja: "職務経歴書を生成",
     },
+    addToTracker: {
+      en: "Add to tracker",
+      id: "Tambahkan ke pelacak",
+      ja: "トラッカーに追加",
+    },
+    addingToTracker: {
+      en: "Adding...",
+      id: "Menambahkan...",
+      ja: "追加中...",
+    },
+    trackingLabel: {
+      en: "Tracking:",
+      id: "Dilacak:",
+      ja: "追跡中：",
+    },
+    addToTrackerFailed: {
+      en: "Failed to add to tracker. Please try again.",
+      id: "Gagal menambahkan ke pelacak. Coba lagi.",
+      ja: "トラッカーへの追加に失敗しました。もう一度お試しください。",
+    },
     loadError: {
       en: "Failed to load job postings. Please refresh.",
       id: "Gagal memuat lowongan kerja. Coba muat ulang.",

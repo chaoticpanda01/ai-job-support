@@ -4,9 +4,11 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
+import { useApplications, useCreateApplication } from "@/hooks/useApplications";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { ApiClientError } from "@/lib/api-client";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
 
 interface Props {
@@ -203,11 +205,19 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
 function JobIdCard({ jobId }: { jobId: string }) {
   const { lang } = useLang();
   const [copied, setCopied] = useState(false);
+  const { data: applications } = useApplications();
+  const createApplication = useCreateApplication();
+
+  const existingApplication = applications?.find((a) => a.job_posting_id === jobId);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(jobId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleAddToTracker() {
+    createApplication.mutate({ job_posting_id: jobId });
   }
 
   return (
@@ -243,6 +253,40 @@ function JobIdCard({ jobId }: { jobId: string }) {
         >
           {t("jobs", "generateShokumuForJob", lang)}
         </Link>
+
+        {existingApplication ? (
+          <span className="rounded-md border bg-muted px-3 py-2 text-center text-xs font-medium">
+            {t("jobs", "trackingLabel", lang)}{" "}
+            {t(
+              "jobs",
+              `col${existingApplication.status.charAt(0).toUpperCase()}${existingApplication.status.slice(1)}` as never,
+              lang,
+            )}
+          </span>
+        ) : (
+          <button
+            onClick={handleAddToTracker}
+            disabled={createApplication.isPending}
+            className="rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-accent disabled:opacity-40"
+          >
+            {createApplication.isPending ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {t("jobs", "addingToTracker", lang)}
+              </span>
+            ) : (
+              t("jobs", "addToTracker", lang)
+            )}
+          </button>
+        )}
+
+        {createApplication.error && (
+          <p className="text-xs text-destructive">
+            {createApplication.error instanceof ApiClientError
+              ? createApplication.error.detail
+              : t("jobs", "addToTrackerFailed", lang)}
+          </p>
+        )}
       </div>
     </div>
   );
