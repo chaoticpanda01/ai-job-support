@@ -25,6 +25,7 @@ from app.database import close_db, ping_db
 from app.middleware.body_limit import BodySizeLimitMiddleware
 from app.middleware.clerk_auth import ClerkJWTMiddleware
 from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.utils.migration_check import verify_migrations
 from app.utils.pdf_generator import verify_fonts
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "resume/rirekisho PDF generation will silently produce documents with "
             "blank Japanese text. Check that the font files are present in this deploy."
         )
+    if not await verify_migrations():
+        logger.error(
+            "Database migration version mismatch detected at startup -- "
+            "run `alembic upgrade head` against this environment's database. "
+            "The app will keep serving requests, but routes touching "
+            "out-of-sync tables may fail."
+        )
+        if settings.sentry_dsn:
+            sentry_sdk.capture_message(
+                "Migration version mismatch detected at startup", level="error"
+            )
     yield
     await close_db()
 
@@ -118,11 +130,13 @@ app.add_middleware(
 async def health() -> dict[str, object]:
     db_ok = await ping_db()
     fonts_ok = verify_fonts()
+    migrations_ok = await verify_migrations()
     return {
-        "status": "ok" if db_ok and fonts_ok else "degraded",
+        "status": "ok" if db_ok and fonts_ok and migrations_ok else "degraded",
         "version": settings.app_version,
         "db": "ok" if db_ok else "unreachable",
         "fonts": "ok" if fonts_ok else "missing_ja_font",
+        "migrations": "ok" if migrations_ok else "pending",
     }
 
 
