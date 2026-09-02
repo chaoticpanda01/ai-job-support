@@ -13,6 +13,7 @@ lifespan) instead of discovered by a user hitting a broken page.
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 
 from alembic.config import Config
@@ -26,9 +27,11 @@ logger = logging.getLogger(__name__)
 _ALEMBIC_INI = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
 
 
+@lru_cache(maxsize=1)
 def _code_head_revision() -> str | None:
     """The latest migration revision shipped in this deploy's migrations/ folder."""
     config = Config(str(_ALEMBIC_INI))
+    config.set_main_option("script_location", str(_ALEMBIC_INI.parent / "migrations"))
     script = ScriptDirectory.from_config(config)
     return script.get_current_head()
 

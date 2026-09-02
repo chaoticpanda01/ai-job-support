@@ -71,3 +71,11 @@ def test_code_head_revision_resolves_the_actual_bundled_migrations_head() -> Non
     head = _code_head_revision()
     assert head is not None
     assert isinstance(head, str)
+
+
+async def test_verify_migrations_returns_false_when_code_head_lookup_raises() -> None:
+    with patch(
+        "app.utils.migration_check._code_head_revision",
+        side_effect=Exception("bad alembic config"),
+    ):
+        assert await verify_migrations() is False
