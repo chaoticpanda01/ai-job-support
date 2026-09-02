@@ -58,6 +58,20 @@ def test_system_prompt_covers_undated_duty_description() -> None:
     assert "null" in prompt.lower()
 
 
+def test_system_prompt_requires_gregorian_year_conversion() -> None:
+    """
+    Regression test: Gemini was observed echoing back Japanese era (和暦)
+    year numbers verbatim (e.g. 平成28年 -> year=28) instead of converting
+    to the Gregorian year the RirekishoEntry schema requires (year >= 1950),
+    because the prompt never explained era notation or required conversion.
+    """
+    prompt = build_system_prompt()
+    assert "西暦" in prompt
+    assert "平成" in prompt
+    assert "令和" in prompt
+    assert "Gregorian" in prompt
+
+
 # ---------------------------------------------------------------------------
 # User prompt
 # ---------------------------------------------------------------------------

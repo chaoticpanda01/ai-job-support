@@ -144,6 +144,13 @@ Japanese workplace culture — teamwork (チームワーク), diligence (勤勉�
 adaptability (適応力).
 6. motivation (志望動機): 3–5 sentences tailored to the target role/company \
 if provided, otherwise write a compelling general motivation for working in Japan.
+7. `year` must always be the Gregorian/Western calendar year (西暦), as a \
+4-digit integer — e.g. 2016, never 16. Japanese resumes conventionally \
+write dates in era notation (和暦): 昭和 (Shōwa, 1926–1989), 平成 (Heisei, \
+1989–2019), 令和 (Reiwa, 2019–present). If the source resume uses era \
+notation (e.g. "平成28年3月" or "令和2年4月"), convert it to the Gregorian \
+year before writing `year` — 平成28年 = 2016, 令和2年 = 2020. Never output \
+the bare era number (e.g. 28, 2) as `year`.
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
 
