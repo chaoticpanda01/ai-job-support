@@ -205,7 +205,7 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
 function JobIdCard({ jobId }: { jobId: string }) {
   const { lang } = useLang();
   const [copied, setCopied] = useState(false);
-  const { data: applications } = useApplications();
+  const { data: applications, isLoading: applicationsLoading } = useApplications();
   const createApplication = useCreateApplication();
 
   const existingApplication = applications?.find((a) => a.job_posting_id === jobId);
@@ -254,7 +254,9 @@ function JobIdCard({ jobId }: { jobId: string }) {
           {t("jobs", "generateShokumuForJob", lang)}
         </Link>
 
-        {existingApplication ? (
+        {applicationsLoading ? (
+          <div className="h-9 w-full animate-pulse rounded-md bg-muted" />
+        ) : existingApplication ? (
           <span className="rounded-md border bg-muted px-3 py-2 text-center text-xs font-medium">
             {t("jobs", "trackingLabel", lang)}{" "}
             {t(
