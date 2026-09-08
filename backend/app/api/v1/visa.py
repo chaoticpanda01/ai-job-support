@@ -1,10 +1,12 @@
 """
 Visa guidance endpoints.
 
-POST /visa/consultations          — generate a new visa roadmap from current profile
-GET  /visa/consultations          — list the user's past consultations (newest first)
-GET  /visa/consultations/latest   — shortcut to the most recent consultation
-GET  /visa/consultations/{id}     — detail for a specific consultation
+POST  /visa/consultations                    — assess the profile, return visa options
+GET   /visa/consultations                    — list the user's past assessments (newest first)
+GET   /visa/consultations/latest             — shortcut to the most recent assessment
+GET   /visa/consultations/{id}               — detail for a specific assessment
+POST  /visa/consultations/{id}/roadmaps      — build (or return) the roadmap for a chosen visa
+PATCH /visa/roadmaps/{id}/progress           — save checklist progress for a roadmap
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/visa", tags=["visa"])
 
-_VISA_MAX_TOKENS = 4096
+_ASSESSMENT_MAX_TOKENS = 2048
 
 
 # ---------------------------------------------------------------------------
@@ -67,12 +69,12 @@ async def create_consultation(
     db: DbSession,
 ) -> VisaConsultationResponse:
     """
-    Generate a personalised visa roadmap using the user's current profile.
-    Calls Gemini, persists the result, and returns the full consultation.
+    Assess the user's current profile against every relevant Japanese work visa
+    category. Calls Gemini, persists the scored options, and returns them.
     """
     from app.services.ai.client import AIError, ai_client
-    from app.services.ai.prompts.visa import (
-        VisaRoadmapResult,
+    from app.services.ai.prompts.visa_assessment import (
+        VisaAssessmentResult,
         build_system_prompt,
         build_user_prompt,
     )
@@ -90,7 +92,7 @@ async def create_consultation(
         )
 
     try:
-        await usage_tracker.check_budget(current_user.user_id, "visa_guidance", db)
+        await usage_tracker.check_budget(current_user.user_id, "visa_assessment", db)
     except AIBudgetError as exc:
         raise exc.to_http_exception() from exc
 
@@ -101,12 +103,12 @@ async def create_consultation(
         response_text, input_tokens, output_tokens = await ai_client.generate(
             build_system_prompt(),
             build_user_prompt(snapshot),
-            max_tokens=_VISA_MAX_TOKENS,
-            feature="visa_guidance",
+            max_tokens=_ASSESSMENT_MAX_TOKENS,
+            feature="visa_assessment",
             json_mode=True,
         )
     except AIError as exc:
-        logger.error("Visa AI call failed: %s", exc)
+        logger.error("Visa assessment AI call failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service unavailable. Please try again.",
@@ -114,26 +116,30 @@ async def create_consultation(
     elapsed = time.monotonic() - t0
 
     try:
-        result = parse_response(response_text, VisaRoadmapResult)
+        result = parse_response(response_text, VisaAssessmentResult)
     except Exception as exc:
-        logger.error("Visa prompt returned invalid JSON: %s", exc)
+        logger.error("Visa assessment returned invalid JSON: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI returned an unexpected response. Please try again.",
         ) from exc
 
+    # VisaAssessmentResult guarantees exactly one recommended option.
+    recommended = next(o for o in result.options if o.recommended)
+
     consultation = await visa_repo.create(
         user_id=current_user.user_id,
         profile_snapshot=snapshot,
-        visa_type=result.visa_type,
-        ai_guidance=result.ai_guidance,
-        checklist=result.checklist.model_dump(),
+        # Denormalised so the list view needs no join. checklist/ai_guidance
+        # stay NULL on new rows — roadmaps own that content now.
+        visa_type=recommended.visa_type,
+        options=[o.model_dump() for o in result.options],
     )
     await db.flush()
 
     await usage_tracker.record(
         user_id=current_user.user_id,
-        feature="visa_guidance",
+        feature="visa_assessment",
         model=settings.gemini_default_model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
@@ -141,7 +147,22 @@ async def create_consultation(
         db=db,
     )
 
-    return VisaConsultationResponse.model_validate(consultation)
+    # Built explicitly rather than via model_validate(consultation): the
+    # response serialises .roadmaps, and touching that relationship on a
+    # just-created (and refreshed) instance lazy-loads under asyncio and raises
+    # MissingGreenlet. A brand-new assessment has no roadmaps by definition.
+    return VisaConsultationResponse(
+        id=consultation.id,
+        visa_type=consultation.visa_type,
+        ai_guidance=None,
+        checklist=None,
+        options=result.options,
+        active_roadmap_id=None,
+        roadmaps=[],
+        profile_snapshot=snapshot,
+        created_at=consultation.created_at,
+        updated_at=consultation.updated_at,
+    )
 
 
 @router.get("/consultations/latest", response_model=VisaConsultationResponse)
@@ -173,7 +194,7 @@ async def get_consultation(
     db: DbSession,
 ) -> VisaConsultationResponse:
     visa_repo = VisaConsultationRepository(db)
-    consultation = await visa_repo.get_owned(consultation_id, current_user.user_id)
+    consultation = await visa_repo.get_owned_with_roadmaps(consultation_id, current_user.user_id)
     if consultation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found.")
     return VisaConsultationResponse.model_validate(consultation)

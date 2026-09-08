@@ -82,21 +82,38 @@ def _mock_consultation(*, user_id: uuid.UUID | None = None) -> MagicMock:
     consultation.id = uuid.uuid4()
     consultation.user_id = user_id or uuid.uuid4()
     consultation.visa_type = "技術・人文知識・国際業務"
-    consultation.ai_guidance = "Visa ini cocok untuk Anda."
-    consultation.checklist = {"phases": []}
+    consultation.ai_guidance = None
+    consultation.checklist = None
+    consultation.options = [_option_dict("技術・人文知識・国際業務", recommended=True)]
+    consultation.active_roadmap_id = None
+    consultation.roadmaps = []
     consultation.profile_snapshot = {"nationality": "Indonesian"}
     consultation.created_at = datetime.now(tz=UTC)
     consultation.updated_at = datetime.now(tz=UTC)
     return consultation
 
 
+def _option_dict(visa_type: str, *, recommended: bool = False) -> dict[str, Any]:
+    return {
+        "visa_type": visa_type,
+        "eligibility": "eligible",
+        "summary": "Cocok untuk latar belakang Anda.",
+        "key_requirements": ["Gelar sarjana"],
+        "gaps": [],
+        "estimated_months": 6,
+        "recommended": recommended,
+    }
+
+
 def _valid_ai_response() -> tuple[str, int, int]:
+    """A valid ASSESSMENT response (the roadmap call is tested separately)."""
     import json
 
     payload = {
-        "visa_type": "技術・人文知識・国際業務",
-        "ai_guidance": "Visa ini cocok untuk Anda karena latar belakang Anda.",
-        "checklist": {"phases": []},
+        "options": [
+            _option_dict("技術・人文知識・国際業務", recommended=True),
+            _option_dict("特定技能1号"),
+        ]
     }
     return json.dumps(payload), 100, 50
 
@@ -104,6 +121,93 @@ def _valid_ai_response() -> tuple[str, int, int]:
 # ---------------------------------------------------------------------------
 # POST /visa/consultations
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_consultation_persists_assessed_options() -> None:
+    user = make_user()
+    profile = _mock_profile_for_snapshot()
+    consultation = _mock_consultation(user_id=user.id)
+    create_mock = AsyncMock(return_value=consultation)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.ProfileRepository.get_by_user_id",
+            new=AsyncMock(return_value=profile),
+        ),
+        patch("app.services.ai.usage_tracker.usage_tracker.check_budget", new=AsyncMock()),
+        patch("app.services.ai.usage_tracker.usage_tracker.record", new=AsyncMock()),
+        patch(
+            "app.services.ai.client.ai_client.generate",
+            new=AsyncMock(return_value=_valid_ai_response()),
+        ),
+        patch("app.api.v1.visa.VisaConsultationRepository.create", new=create_mock),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/api/v1/visa/consultations", headers=_auth_headers())
+
+    assert resp.status_code == 201
+    kwargs = create_mock.await_args.kwargs
+    assert len(kwargs["options"]) == 2
+    assert kwargs["visa_type"] == "技術・人文知識・国際業務"
+    # New rows leave the legacy narrative columns alone.
+    assert kwargs.get("checklist") is None
+    assert kwargs.get("ai_guidance") is None
+
+
+@pytest.mark.asyncio
+async def test_create_consultation_records_assessment_feature() -> None:
+    user = make_user()
+    profile = _mock_profile_for_snapshot()
+    consultation = _mock_consultation(user_id=user.id)
+    record_mock = AsyncMock()
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.ProfileRepository.get_by_user_id",
+            new=AsyncMock(return_value=profile),
+        ),
+        patch("app.services.ai.usage_tracker.usage_tracker.check_budget", new=AsyncMock()),
+        patch("app.services.ai.usage_tracker.usage_tracker.record", new=record_mock),
+        patch(
+            "app.services.ai.client.ai_client.generate",
+            new=AsyncMock(return_value=_valid_ai_response()),
+        ),
+        patch(
+            "app.api.v1.visa.VisaConsultationRepository.create",
+            new=AsyncMock(return_value=consultation),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/v1/visa/consultations", headers=_auth_headers())
+
+    assert record_mock.await_args.kwargs["feature"] == "visa_assessment"
+
+
+@pytest.mark.asyncio
+async def test_get_latest_consultation_includes_options_and_roadmaps() -> None:
+    user = make_user()
+    consultation = _mock_consultation(user_id=user.id)
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.visa.VisaConsultationRepository.get_latest_for_user",
+            new=AsyncMock(return_value=consultation),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/visa/consultations/latest", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["options"][0]["visa_type"] == "技術・人文知識・国際業務"
+    assert body["roadmaps"] == []
+    assert body["active_roadmap_id"] is None
 
 
 @pytest.mark.asyncio
@@ -134,7 +238,7 @@ async def test_create_consultation_happy_path() -> None:
             resp = await client.post("/api/v1/visa/consultations", headers=_auth_headers())
 
     assert resp.status_code == 201
-    assert resp.json()["visa_type"] == "技術・人文知識・国際業務"
+    assert resp.json()["options"][0]["eligibility"] == "eligible"
 
 
 @pytest.mark.asyncio
@@ -299,7 +403,7 @@ async def test_get_consultation_found() -> None:
     with (
         _bypass_middleware(user),
         patch(
-            "app.api.v1.visa.VisaConsultationRepository.get_owned",
+            "app.api.v1.visa.VisaConsultationRepository.get_owned_with_roadmaps",
             new=AsyncMock(return_value=consultation),
         ),
     ):
@@ -318,7 +422,7 @@ async def test_get_consultation_not_found_returns_404() -> None:
     with (
         _bypass_middleware(user),
         patch(
-            "app.api.v1.visa.VisaConsultationRepository.get_owned",
+            "app.api.v1.visa.VisaConsultationRepository.get_owned_with_roadmaps",
             new=AsyncMock(return_value=None),
         ),
     ):
