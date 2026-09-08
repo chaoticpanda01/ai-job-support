@@ -210,7 +210,9 @@ async def create_roadmap(
     # A free-text visa_type would flow straight into an AI prompt and into the
     # table. Only a category this assessment actually produced is acceptable.
     assessed = {
-        option.get("visa_type") for option in (consultation.options or []) if isinstance(option, dict)
+        option.get("visa_type")
+        for option in (consultation.options or [])
+        if isinstance(option, dict)
     }
     if payload.visa_type not in assessed:
         raise HTTPException(
@@ -218,9 +220,7 @@ async def create_roadmap(
             detail="That visa category was not part of this assessment.",
         )
 
-    existing = await roadmap_repo.get_for_consultation_and_type(
-        consultation_id, payload.visa_type
-    )
+    existing = await roadmap_repo.get_for_consultation_and_type(consultation_id, payload.visa_type)
     if existing is not None:
         await visa_repo.update(consultation, active_roadmap_id=existing.id)
         response.status_code = status.HTTP_200_OK
@@ -272,9 +272,7 @@ async def create_roadmap(
                 completed_steps=[],
             )
     except IntegrityError:
-        raced = await roadmap_repo.get_for_consultation_and_type(
-            consultation_id, payload.visa_type
-        )
+        raced = await roadmap_repo.get_for_consultation_and_type(consultation_id, payload.visa_type)
         if raced is None:
             raise
         await visa_repo.update(consultation, active_roadmap_id=raced.id)
