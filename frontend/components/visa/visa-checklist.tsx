@@ -8,12 +8,21 @@ import type { VisaChecklistStep, VisaRoadmap } from "@/types/api";
 
 const SAVE_DEBOUNCE_MS = 600;
 
-export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
+export function VisaChecklistView({
+  roadmap,
+  readOnly = false,
+}: {
+  roadmap: VisaRoadmap;
+  /**
+   * True for a synthetic roadmap that has no backing roadmap row to save to
+   * (the legacy pre-multi-roadmap consultation fallback) — render checkbox
+   * state without wiring up any save flow, so ticking one can't 404.
+   */
+  readOnly?: boolean;
+}) {
   const { lang } = useLang();
   const [openPhase, setOpenPhase] = useState<number>(0);
-  const [completed, setCompleted] = useState<Set<string>>(
-    () => new Set(roadmap.completed_steps),
-  );
+  const [completed, setCompleted] = useState<Set<string>>(() => new Set(roadmap.completed_steps));
   const [saveFailed, setSaveFailed] = useState(false);
   const updateProgress = useUpdateProgress();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,6 +38,10 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
   // clobber an in-flight, not-yet-saved toggle with stale server data.
   useEffect(() => {
     if (roadmapIdRef.current !== roadmap.id) {
+      // A truly-abandoned save must not fire once the user has moved on —
+      // its onSuccess/onError are guarded below, but there's no reason to
+      // let the request go out at all.
+      if (timerRef.current) clearTimeout(timerRef.current);
       roadmapIdRef.current = roadmap.id;
       const seed = new Set(roadmap.completed_steps);
       setCompleted(seed);
@@ -52,15 +65,28 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
     setCompleted(next);
     setSaveFailed(false);
 
+    // Capture which roadmap this save is FOR at toggle time, not at callback
+    // time. VisaChecklistView isn't remounted on a roadmap switch, so if the
+    // user flips to another roadmap before this debounce fires, the effect
+    // above re-seeds completed/confirmedRef for the NEW roadmap while this
+    // stale timer is still in flight. Without this guard, onSuccess would
+    // stamp confirmedRef with this (now-foreign) roadmap's step set, and a
+    // subsequent onError elsewhere would roll back to it — corrupting
+    // whichever roadmap the user has since switched to.
+    const targetId = roadmap.id;
+
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       updateProgress.mutate(
         { roadmapId: roadmap.id, completedSteps: Array.from(next) },
         {
           onSuccess: () => {
-            confirmedRef.current = next;
+            if (roadmapIdRef.current === targetId) {
+              confirmedRef.current = next;
+            }
           },
           onError: () => {
+            if (roadmapIdRef.current !== targetId) return;
             setCompleted(new Set(confirmedRef.current));
             setSaveFailed(true);
           },
@@ -73,7 +99,7 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">{t("visa", "yourRoadmap", lang)}</p>
-        {saveFailed && (
+        {!readOnly && saveFailed && (
           <p className="text-xs text-destructive">{t("visa", "progressSaveFail", lang)}</p>
         )}
       </div>
@@ -111,7 +137,7 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
                     key={step.id}
                     step={step}
                     checked={completed.has(step.id)}
-                    onToggle={() => toggleStep(step.id)}
+                    onToggle={readOnly ? undefined : () => toggleStep(step.id)}
                   />
                 ))}
               </ul>
@@ -142,7 +168,7 @@ function StepRow({
 }: {
   step: VisaChecklistStep;
   checked: boolean;
-  onToggle: () => void;
+  onToggle?: (() => void) | undefined;
 }) {
   const { lang } = useLang();
   const [expanded, setExpanded] = useState(false);
@@ -154,7 +180,8 @@ function StepRow({
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          disabled={!onToggle}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-primary disabled:cursor-not-allowed"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

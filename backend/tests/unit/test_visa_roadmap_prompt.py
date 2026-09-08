@@ -102,6 +102,4 @@ def test_checklist_accepts_empty_phases() -> None:
 
 def test_phase_requires_a_name() -> None:
     with pytest.raises(ValidationError):
-        VisaChecklistPhase.model_validate(
-            {"phase": "", "description": "x", "steps": [_step()]}
-        )
+        VisaChecklistPhase.model_validate({"phase": "", "description": "x", "steps": [_step()]})

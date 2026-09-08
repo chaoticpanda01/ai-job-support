@@ -22,6 +22,7 @@ from app.middleware import clerk_auth as clerk_auth_module
 from app.services.ai.client import AIError
 from app.services.ai.usage_tracker import AIBudgetError
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import IntegrityError
 
 from tests.conftest import make_profile, make_user
 
@@ -577,6 +578,59 @@ async def test_create_roadmap_returns_existing_without_calling_ai() -> None:
     assert generate_mock.await_count == 0
     # Reusing still makes it the active roadmap — this doubles as the switch.
     assert update_mock.await_args.kwargs["active_roadmap_id"] == roadmap.id
+
+
+@pytest.mark.asyncio
+async def test_create_roadmap_records_usage_when_insert_loses_the_race() -> None:
+    """
+    Two rapid clicks both pass the "existing is None" check and both call the
+    AI — only one insert wins the unique constraint. The loser's tokens were
+    still spent and must still be billed, even though its own insert never
+    lands and it ends up returning the winner's row.
+    """
+    user = make_user()
+    consultation = _mock_consultation(user_id=user.id)
+    winning_roadmap = _mock_roadmap()
+    generate_mock = AsyncMock(return_value=_valid_roadmap_ai_response())
+    record_mock = AsyncMock()
+    create_mock = AsyncMock(side_effect=IntegrityError("", None, Exception()))
+    # No existing row yet when we check before generating; by the time we
+    # fall through to the IntegrityError handler, the winner has landed.
+    get_for_type_mock = AsyncMock(side_effect=[None, winning_roadmap])
+    update_mock = AsyncMock(return_value=consultation)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.VisaConsultationRepository.get_owned",
+            new=AsyncMock(return_value=consultation),
+        ),
+        patch(
+            "app.api.v1.visa.VisaRoadmapRepository.get_for_consultation_and_type",
+            new=get_for_type_mock,
+        ),
+        patch("app.services.ai.usage_tracker.usage_tracker.check_budget", new=AsyncMock()),
+        patch("app.services.ai.usage_tracker.usage_tracker.record", new=record_mock),
+        patch("app.services.ai.client.ai_client.generate", new=generate_mock),
+        patch("app.api.v1.visa.VisaRoadmapRepository.create", new=create_mock),
+        patch("app.api.v1.visa.VisaConsultationRepository.update", new=update_mock),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                f"/api/v1/visa/consultations/{consultation.id}/roadmaps",
+                headers=_auth_headers(),
+                json={"visa_type": "技術・人文知識・国際業務"},
+            )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert generate_mock.await_count == 1
+    # The point of the fix: billing happens once the AI call succeeds,
+    # regardless of whether the subsequent insert then wins or loses.
+    assert record_mock.await_count == 1
+    assert update_mock.await_args.kwargs["active_roadmap_id"] == winning_roadmap.id
+    assert body["id"] == str(winning_roadmap.id)
 
 
 @pytest.mark.asyncio

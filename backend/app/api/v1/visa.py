@@ -274,6 +274,20 @@ async def create_roadmap(
             detail="AI returned an unexpected response. Please try again.",
         ) from exc
 
+    # Tokens were already spent and the response already parsed successfully
+    # by this point — bill it now, before the insert races anyone. Whether
+    # that insert then wins or loses the race below must not affect whether
+    # this AI call gets recorded against the user's budget.
+    await usage_tracker.record(
+        user_id=current_user.user_id,
+        feature="visa_roadmap",
+        model=settings.gemini_default_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=int(elapsed * 1000),
+        db=db,
+    )
+
     try:
         # Savepoint: two rapid clicks both pass the "existing is None" check
         # above, and the unique constraint lets exactly one insert win. Without
@@ -297,16 +311,6 @@ async def create_roadmap(
         return VisaRoadmapResponse.model_validate(raced)
 
     await visa_repo.update(consultation, active_roadmap_id=roadmap.id)
-
-    await usage_tracker.record(
-        user_id=current_user.user_id,
-        feature="visa_roadmap",
-        model=settings.gemini_default_model,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        latency_ms=int(elapsed * 1000),
-        db=db,
-    )
 
     return VisaRoadmapResponse.model_validate(roadmap)
 

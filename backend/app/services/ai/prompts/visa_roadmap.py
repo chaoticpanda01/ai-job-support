@@ -169,8 +169,7 @@ def build_user_prompt(profile_snapshot: dict[str, Any], visa_type: str) -> str:
         lines.append(f"  Target industry: {', '.join(str(i) for i in industries)}")
 
     lines.append(
-        f"\nProduce a complete, actionable roadmap for {visa_type}. "
-        "Return the JSON object only."
+        f"\nProduce a complete, actionable roadmap for {visa_type}. Return the JSON object only."
     )
 
     return "\n".join(lines)

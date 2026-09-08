@@ -51,7 +51,7 @@ class VisaAssessmentResult(BaseModel):
     options: list[VisaOption] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def exactly_one_recommended(self) -> "VisaAssessmentResult":
+    def exactly_one_recommended(self) -> VisaAssessmentResult:
         """
         Normalise rather than reject. The model occasionally flags zero options
         (common when nothing is outright eligible) or several. Failing the whole
@@ -120,8 +120,10 @@ does not fit this specific candidate
    - estimated_months: realistic months from today to holding this visa
 
 5. All prose (summary, key_requirements, gaps) must be in Indonesian \
-(Bahasa Indonesia). Visa category names keep their Japanese official names with \
-an Indonesian explanation in parentheses.
+(Bahasa Indonesia). This does NOT apply to visa_type: per rule 1, visa_type is \
+always the Japanese official name + English name only — never add an \
+Indonesian explanation there. If a category's name needs explaining, that \
+explanation belongs in summary, which is already Indonesian prose per rule 4.
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
 
@@ -147,8 +149,7 @@ def build_user_prompt(profile_snapshot: dict[str, Any]) -> str:
     years_experience, current_location, target_location, preferred_language.
     """
     lines: list[str] = [
-        "Please assess the following candidate against the Japanese work visa "
-        "categories.\n",
+        "Please assess the following candidate against the Japanese work visa categories.\n",
         "CANDIDATE PROFILE:",
     ]
 

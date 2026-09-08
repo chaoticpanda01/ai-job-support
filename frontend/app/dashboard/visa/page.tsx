@@ -80,9 +80,7 @@ export default function VisaPage() {
       {noConsultation && !assess.isPending && (
         <div className="rounded-lg border border-dashed p-10 text-center">
           <p className="text-sm text-muted-foreground">{t("visa", "noAssessment", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("visa", "noAssessmentSub", lang)}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("visa", "noAssessmentSub", lang)}</p>
         </div>
       )}
 
@@ -102,7 +100,7 @@ export default function VisaPage() {
         <VisaOptionsList
           options={latest.options}
           roadmaps={roadmaps}
-          buildingVisaType={selectRoadmap.isPending ? selectRoadmap.variables ?? null : null}
+          buildingVisaType={selectRoadmap.isPending ? (selectRoadmap.variables ?? null) : null}
           onSelect={handleSelect}
         />
       )}
@@ -120,12 +118,15 @@ export default function VisaPage() {
             created_at: latest.created_at,
             updated_at: latest.updated_at,
           }}
+          // This is a synthetic roadmap keyed on the CONSULTATION's id — no
+          // roadmap row exists to save progress to. Interactive checkboxes
+          // here would always 404 and revert. Read-only until the user
+          // re-assesses into the real multi-roadmap flow.
+          readOnly
         />
       )}
 
-      {list && list.length > 1 && (
-        <VisaPastConsultations list={list} currentId={latest?.id} />
-      )}
+      {list && list.length > 1 && <VisaPastConsultations list={list} currentId={latest?.id} />}
     </div>
   );
 }

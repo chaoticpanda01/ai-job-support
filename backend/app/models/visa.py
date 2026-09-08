@@ -72,9 +72,7 @@ class VisaRoadmap(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "visa_roadmaps"
     __table_args__ = (
-        UniqueConstraint(
-            "consultation_id", "visa_type", name="visa_roadmaps_consultation_visa_uk"
-        ),
+        UniqueConstraint("consultation_id", "visa_type", name="visa_roadmaps_consultation_visa_uk"),
         Index("idx_visa_roadmaps_consultation", "consultation_id"),
     )
 

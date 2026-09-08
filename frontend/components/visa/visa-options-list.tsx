@@ -20,9 +20,7 @@ export function VisaOptionsList({
   const builtTypes = new Set(roadmaps.map((r) => r.visa_type));
   // The AI is told to order best-first, but never trust that for the
   // recommended one — pin it to the top explicitly.
-  const ordered = [...options].sort(
-    (a, b) => Number(b.recommended) - Number(a.recommended),
-  );
+  const ordered = [...options].sort((a, b) => Number(b.recommended) - Number(a.recommended));
 
   return (
     <div className="space-y-3">
