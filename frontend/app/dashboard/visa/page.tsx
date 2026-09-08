@@ -1,18 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { useGenerateVisa, useLatestVisaConsultation, useVisaConsultations } from "@/hooks/useVisa";
+import { VisaOptionsList } from "@/components/visa/visa-options-list";
+import { VisaPastConsultations } from "@/components/visa/visa-past-consultations";
+import { VisaRoadmapSwitcher } from "@/components/visa/visa-roadmap-switcher";
+import { VisaRoadmapView } from "@/components/visa/visa-roadmap-view";
+import {
+  useAssessVisa,
+  useLatestVisaConsultation,
+  useSelectRoadmap,
+  useVisaConsultations,
+} from "@/hooks/useVisa";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { VisaChecklist, VisaChecklistStep, VisaConsultation } from "@/types/api";
 
 export default function VisaPage() {
   const { data: latest, isLoading, error } = useLatestVisaConsultation();
   const { data: list } = useVisaConsultations();
-  const generate = useGenerateVisa();
+  const assess = useAssessVisa();
+  const selectRoadmap = useSelectRoadmap(latest?.id);
   const { lang } = useLang();
 
+  // null = show the options list. A visa_type = show that roadmap.
+  const [viewingVisaType, setViewingVisaType] = useState<string | null>(null);
+
   const noConsultation = !isLoading && (error as { status?: number } | null)?.status === 404;
+  const roadmaps = latest?.roadmaps ?? [];
+  const viewing = roadmaps.find((r) => r.visa_type === viewingVisaType) ?? null;
+
+  function handleSelect(visaType: string) {
+    // Generate-or-return lives on the server; the client just says which visa.
+    selectRoadmap.mutate(visaType, {
+      onSuccess: (roadmap) => setViewingVisaType(roadmap.visa_type),
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -22,273 +43,89 @@ export default function VisaPage() {
           <p className="mt-1 text-sm text-muted-foreground">{t("visa", "sub", lang)}</p>
         </div>
         <button
-          onClick={() => generate.mutate()}
-          disabled={generate.isPending}
+          onClick={() => {
+            setViewingVisaType(null);
+            assess.mutate();
+          }}
+          disabled={assess.isPending}
           className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {generate.isPending ? (
+          {assess.isPending ? (
             <span className="flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              {t("visa", "generating", lang)}
+              {t("visa", "assessing", lang)}
             </span>
+          ) : latest ? (
+            t("visa", "reassessBtn", lang)
           ) : (
-            t("visa", "generateBtn", lang)
+            t("visa", "assessBtn", lang)
           )}
         </button>
       </div>
 
-      {generate.error && (
+      {assess.error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(generate.error as { detail?: string }).detail ?? t("visa", "generateFail", lang)}
+          {(assess.error as { detail?: string }).detail ?? t("visa", "assessFail", lang)}
+        </p>
+      )}
+
+      {selectRoadmap.error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {(selectRoadmap.error as { detail?: string }).detail ?? t("visa", "buildFail", lang)}
         </p>
       )}
 
       {isLoading && <RoadmapSkeleton />}
 
-      {noConsultation && !generate.isPending && (
+      {noConsultation && !assess.isPending && (
         <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">{t("visa", "noRoadmap", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t("visa", "noRoadmapSub", lang)}</p>
-        </div>
-      )}
-
-      {latest && <RoadmapView consultation={latest} />}
-
-      {list && list.length > 1 && <PastConsultations list={list} currentId={latest?.id} />}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Full roadmap view
-// ---------------------------------------------------------------------------
-
-function RoadmapView({ consultation: c }: { consultation: VisaConsultation }) {
-  const { lang } = useLang();
-  return (
-    <div className="space-y-6">
-      <div className="rounded-lg border bg-primary/5 px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("visa", "recommendedVisa", lang)}
-        </p>
-        <p className="mt-1 text-lg font-semibold">{c.visa_type ?? "—"}</p>
-      </div>
-
-      {c.ai_guidance && (
-        <div className="rounded-lg border bg-card p-5">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("visa", "guidance", lang)}
+          <p className="text-sm text-muted-foreground">{t("visa", "noAssessment", lang)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("visa", "noAssessmentSub", lang)}
           </p>
-          <p className="text-sm leading-relaxed text-foreground">{c.ai_guidance}</p>
         </div>
       )}
 
-      {c.checklist && <ChecklistView checklist={c.checklist} />}
-
-      <p className="text-right text-xs text-muted-foreground">
-        {t("visa", "generated", lang)}{" "}
-        {new Date(c.created_at).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })}
-      </p>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Phase accordion
-// ---------------------------------------------------------------------------
-
-function ChecklistView({ checklist }: { checklist: VisaChecklist }) {
-  const { lang } = useLang();
-  const [openPhase, setOpenPhase] = useState<number>(0);
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
-
-  function toggleStep(stepId: string) {
-    setCompleted((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepId)) {
-        next.delete(stepId);
-      } else {
-        next.add(stepId);
-      }
-      return next;
-    });
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium">{t("visa", "yourRoadmap", lang)}</p>
-      {checklist.phases.map((phase, idx) => {
-        const isOpen = openPhase === idx;
-        const doneCount = phase.steps.filter((s) => completed.has(s.id)).length;
-        const totalCount = phase.steps.length;
-
-        return (
-          <div key={idx} className="overflow-hidden rounded-lg border bg-card">
-            <button
-              onClick={() => setOpenPhase(isOpen ? -1 : idx)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent"
-            >
-              <div className="flex items-center gap-3">
-                <PhaseNumber index={idx} done={doneCount === totalCount} />
-                <div>
-                  <p className="text-sm font-medium">{phase.phase}</p>
-                  <p className="text-xs text-muted-foreground">{phase.description}</p>
-                </div>
-              </div>
-              <div className="ml-4 flex shrink-0 items-center gap-3">
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {doneCount}/{totalCount}
-                </span>
-                <span className="text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
-              </div>
-            </button>
-
-            {isOpen && (
-              <ul className="divide-y border-t">
-                {phase.steps.map((step) => (
-                  <StepRow
-                    key={step.id}
-                    step={step}
-                    checked={completed.has(step.id)}
-                    onToggle={() => toggleStep(step.id)}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function PhaseNumber({ index, done }: { index: number; done: boolean }) {
-  return (
-    <span
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        done ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"
-      }`}
-    >
-      {done ? "✓" : index + 1}
-    </span>
-  );
-}
-
-function StepRow({
-  step,
-  checked,
-  onToggle,
-}: {
-  step: VisaChecklistStep;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  const { lang } = useLang();
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <li className={`px-4 py-3 text-sm ${checked ? "opacity-60" : ""}`}>
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className={`font-medium ${checked ? "line-through" : ""}`}>{step.title}</p>
-            {!step.required && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {t("visa", "optional", lang)}
-              </span>
-            )}
-            {step.estimated_weeks > 0 && (
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                ~{step.estimated_weeks}w
-              </span>
-            )}
-          </div>
-
-          {!checked && (
-            <>
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{step.detail}</p>
-              {(step.resources.length > 0 || step.detail.length > 120) && (
-                <button
-                  onClick={() => setExpanded((v) => !v)}
-                  className="mt-1 text-xs text-primary hover:underline"
-                >
-                  {expanded ? t("visa", "showLess", lang) : t("visa", "showMore", lang)}
-                </button>
-              )}
-              {expanded && (
-                <div className="mt-2 space-y-1.5">
-                  <p className="text-xs text-foreground">{step.detail}</p>
-                  {step.resources.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {t("visa", "resources", lang)}
-                      </p>
-                      <ul className="mt-0.5 space-y-0.5">
-                        {step.resources.map((r, i) => (
-                          <li key={i} className="text-xs text-muted-foreground">
-                            • {r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+      {latest && viewing && (
+        <div className="space-y-6">
+          <VisaRoadmapSwitcher
+            roadmaps={roadmaps}
+            activeId={viewing.id}
+            onSelect={handleSelect}
+            onBack={() => setViewingVisaType(null)}
+          />
+          <VisaRoadmapView roadmap={viewing} />
         </div>
-      </div>
-    </li>
-  );
-}
+      )}
 
-// ---------------------------------------------------------------------------
-// Past consultations list
-// ---------------------------------------------------------------------------
+      {latest && !viewing && latest.options.length > 0 && (
+        <VisaOptionsList
+          options={latest.options}
+          roadmaps={roadmaps}
+          buildingVisaType={selectRoadmap.isPending ? selectRoadmap.variables ?? null : null}
+          onSelect={handleSelect}
+        />
+      )}
 
-function PastConsultations({
-  list,
-  currentId,
-}: {
-  list: { id: string; visa_type: string | null; created_at: string }[];
-  currentId: string | undefined;
-}) {
-  const { lang } = useLang();
+      {/* Consultations created before multi-roadmap support have no options —
+          fall back to the checklist stored on the row itself. */}
+      {latest && !viewing && latest.options.length === 0 && latest.checklist && (
+        <VisaRoadmapView
+          roadmap={{
+            id: latest.id,
+            visa_type: latest.visa_type ?? "—",
+            ai_guidance: latest.ai_guidance,
+            checklist: latest.checklist,
+            completed_steps: [],
+            created_at: latest.created_at,
+            updated_at: latest.updated_at,
+          }}
+        />
+      )}
 
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-muted-foreground">
-        {t("visa", "previousRoadmaps", lang)}
-      </p>
-      <ul className="space-y-1.5">
-        {list
-          .filter((c) => c.id !== currentId)
-          .map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between rounded-md border bg-card px-4 py-2.5 text-sm"
-            >
-              <span className="text-muted-foreground">{c.visa_type ?? "—"}</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(c.created_at).toLocaleDateString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            </li>
-          ))}
-      </ul>
+      {list && list.length > 1 && (
+        <VisaPastConsultations list={list} currentId={latest?.id} />
+      )}
     </div>
   );
 }
