@@ -657,3 +657,108 @@ async def test_create_roadmap_budget_exceeded_returns_429() -> None:
             )
 
     assert resp.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# PATCH /visa/roadmaps/{id}/progress
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_progress_saves_known_step_ids() -> None:
+    user = make_user()
+    roadmap = _mock_roadmap()
+    update_mock = AsyncMock(return_value=roadmap)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.VisaRoadmapRepository.get_owned",
+            new=AsyncMock(return_value=roadmap),
+        ),
+        patch("app.api.v1.visa.VisaRoadmapRepository.update", new=update_mock),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/visa/roadmaps/{roadmap.id}/progress",
+                headers=_auth_headers(),
+                json={"completed_steps": ["step_1_1"]},
+            )
+
+    assert resp.status_code == 200
+    assert update_mock.await_args.kwargs["completed_steps"] == ["step_1_1"]
+
+
+@pytest.mark.asyncio
+async def test_update_progress_drops_step_ids_not_in_the_checklist() -> None:
+    """The column stores progress, not arbitrary client strings."""
+    user = make_user()
+    roadmap = _mock_roadmap()
+    update_mock = AsyncMock(return_value=roadmap)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.VisaRoadmapRepository.get_owned",
+            new=AsyncMock(return_value=roadmap),
+        ),
+        patch("app.api.v1.visa.VisaRoadmapRepository.update", new=update_mock),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/visa/roadmaps/{roadmap.id}/progress",
+                headers=_auth_headers(),
+                json={"completed_steps": ["step_1_1", "step_9_9", "<script>"]},
+            )
+
+    assert resp.status_code == 200
+    assert update_mock.await_args.kwargs["completed_steps"] == ["step_1_1"]
+
+
+@pytest.mark.asyncio
+async def test_update_progress_deduplicates_repeated_ids() -> None:
+    user = make_user()
+    roadmap = _mock_roadmap()
+    update_mock = AsyncMock(return_value=roadmap)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.VisaRoadmapRepository.get_owned",
+            new=AsyncMock(return_value=roadmap),
+        ),
+        patch("app.api.v1.visa.VisaRoadmapRepository.update", new=update_mock),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.patch(
+                f"/api/v1/visa/roadmaps/{roadmap.id}/progress",
+                headers=_auth_headers(),
+                json={"completed_steps": ["step_1_1", "step_1_1"]},
+            )
+
+    assert update_mock.await_args.kwargs["completed_steps"] == ["step_1_1"]
+
+
+@pytest.mark.asyncio
+async def test_update_progress_on_someone_elses_roadmap_returns_404() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.visa.VisaRoadmapRepository.get_owned",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/visa/roadmaps/{uuid.uuid4()}/progress",
+                headers=_auth_headers(),
+                json={"completed_steps": []},
+            )
+
+    assert resp.status_code == 404

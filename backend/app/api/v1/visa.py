@@ -27,6 +27,7 @@ from app.repositories.visa import VisaConsultationRepository, VisaRoadmapReposit
 from app.schemas.visa import (
     VisaConsultationListItem,
     VisaConsultationResponse,
+    VisaProgressUpdateRequest,
     VisaRoadmapCreateRequest,
     VisaRoadmapResponse,
 )
@@ -59,6 +60,22 @@ def _profile_snapshot(profile: Profile) -> dict[str, Any]:
             profile.preferred_language.value if profile.preferred_language else None
         ),
     }
+
+
+def _checklist_step_ids(checklist: dict[str, Any] | None) -> set[str]:
+    """
+    Every step id present in a roadmap's checklist. Used to filter incoming
+    progress so the completed_steps column can only ever hold ids that
+    actually exist in that roadmap.
+    """
+    ids: set[str] = set()
+    for phase in (checklist or {}).get("phases", []) or []:
+        if not isinstance(phase, dict):
+            continue
+        for step in phase.get("steps", []) or []:
+            if isinstance(step, dict) and isinstance(step.get("id"), str):
+                ids.add(step["id"])
+    return ids
 
 
 # ---------------------------------------------------------------------------
@@ -327,3 +344,29 @@ async def get_consultation(
     if consultation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found.")
     return VisaConsultationResponse.model_validate(consultation)
+
+
+@router.patch("/roadmaps/{roadmap_id}/progress", response_model=VisaRoadmapResponse)
+async def update_roadmap_progress(
+    roadmap_id: UUID,
+    payload: VisaProgressUpdateRequest,
+    current_user: AuthUser,
+    db: DbSession,
+) -> VisaRoadmapResponse:
+    """
+    Replace a roadmap's completed-step set. The client sends the whole set
+    rather than a per-step toggle: idempotent, and no reconciliation needed
+    when two tabs disagree — last write wins.
+    """
+    roadmap_repo = VisaRoadmapRepository(db)
+
+    roadmap = await roadmap_repo.get_owned(roadmap_id, current_user.user_id)
+    if roadmap is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Roadmap not found.")
+
+    known = _checklist_step_ids(roadmap.checklist)
+    # dict.fromkeys dedupes while preserving the client's order.
+    filtered = [step_id for step_id in dict.fromkeys(payload.completed_steps) if step_id in known]
+
+    updated = await roadmap_repo.update(roadmap, completed_steps=filtered)
+    return VisaRoadmapResponse.model_validate(updated)
