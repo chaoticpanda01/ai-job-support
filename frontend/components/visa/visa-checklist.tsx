@@ -17,11 +17,24 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
   const [saveFailed, setSaveFailed] = useState(false);
   const updateProgress = useUpdateProgress();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The last state we know the server actually persisted — rollback target
+  // on save failure. Only ever advanced by a successful save or a genuine
+  // roadmap switch, never by an in-flight local toggle.
+  const confirmedRef = useRef<Set<string>>(new Set(roadmap.completed_steps));
+  const roadmapIdRef = useRef<string>(roadmap.id);
 
-  // Switching roadmaps re-seeds local state from the newly shown one.
+  // Switching roadmaps re-seeds local state from the newly shown one. Gated
+  // on roadmap.id (not roadmap.completed_steps) so a background refetch of
+  // the *same* roadmap — which hands back a new array reference — can't
+  // clobber an in-flight, not-yet-saved toggle with stale server data.
   useEffect(() => {
-    setCompleted(new Set(roadmap.completed_steps));
-    setSaveFailed(false);
+    if (roadmapIdRef.current !== roadmap.id) {
+      roadmapIdRef.current = roadmap.id;
+      const seed = new Set(roadmap.completed_steps);
+      setCompleted(seed);
+      confirmedRef.current = seed;
+      setSaveFailed(false);
+    }
   }, [roadmap.id, roadmap.completed_steps]);
 
   useEffect(() => {
@@ -34,7 +47,6 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
     // Optimistic: flip immediately, persist on a trailing debounce. Nobody
     // should watch a spinner to tick a checkbox.
     const next = new Set(completed);
-    const previous = new Set(completed);
     if (next.has(stepId)) next.delete(stepId);
     else next.add(stepId);
     setCompleted(next);
@@ -45,8 +57,11 @@ export function VisaChecklistView({ roadmap }: { roadmap: VisaRoadmap }) {
       updateProgress.mutate(
         { roadmapId: roadmap.id, completedSteps: Array.from(next) },
         {
+          onSuccess: () => {
+            confirmedRef.current = next;
+          },
           onError: () => {
-            setCompleted(previous);
+            setCompleted(new Set(confirmedRef.current));
             setSaveFailed(true);
           },
         },
