@@ -1,10 +1,10 @@
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.models.visa import VisaConsultation
+from app.models.visa import VisaConsultation, VisaRoadmap
 from app.repositories.base import BaseRepository
 
 
@@ -15,17 +15,50 @@ class VisaConsultationRepository(BaseRepository[VisaConsultation]):
         super().__init__(session)
 
     async def get_latest_for_user(self, user_id: UUID) -> VisaConsultation | None:
+        # selectinload is required, not an optimisation: VisaConsultationResponse
+        # serialises .roadmaps, and lazy-loading a relationship under asyncio
+        # raises MissingGreenlet.
         return await self._scalar(
             select(VisaConsultation)
             .where(VisaConsultation.user_id == user_id)
+            .options(selectinload(VisaConsultation.roadmaps))
             .order_by(VisaConsultation.created_at.desc())
             .limit(1)
         )
 
-    async def update_checklist(
-        self, consultation_id: UUID, user_id: UUID, checklist: dict[str, Any]
+    async def get_owned_with_roadmaps(
+        self, consultation_id: UUID, user_id: UUID
     ) -> VisaConsultation | None:
-        consult = await self.get_owned(consultation_id, user_id)
-        if consult is None:
-            return None
-        return await self.update(consult, checklist=checklist)
+        """get_owned(), plus the eager-loaded roadmaps the response needs."""
+        return await self._scalar(
+            select(VisaConsultation)
+            .where(
+                VisaConsultation.id == consultation_id,
+                VisaConsultation.user_id == user_id,
+            )
+            .options(selectinload(VisaConsultation.roadmaps))
+        )
+
+
+class VisaRoadmapRepository(BaseRepository[VisaRoadmap]):
+    model = VisaRoadmap
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+
+    async def get_for_consultation_and_type(
+        self, consultation_id: UUID, visa_type: str
+    ) -> VisaRoadmap | None:
+        return await self._scalar(
+            select(VisaRoadmap).where(
+                VisaRoadmap.consultation_id == consultation_id,
+                VisaRoadmap.visa_type == visa_type,
+            )
+        )
+
+    async def list_for_consultation(self, consultation_id: UUID) -> list[VisaRoadmap]:
+        return await self._scalars(
+            select(VisaRoadmap)
+            .where(VisaRoadmap.consultation_id == consultation_id)
+            .order_by(VisaRoadmap.created_at)
+        )

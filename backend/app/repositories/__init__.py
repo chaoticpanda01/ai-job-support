@@ -32,7 +32,7 @@ from app.repositories.job import (
 )
 from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
 from app.repositories.user import ProfileRepository, UserRepository
-from app.repositories.visa import VisaConsultationRepository
+from app.repositories.visa import VisaConsultationRepository, VisaRoadmapRepository
 
 __all__ = [
     "AIUsageRepository",
@@ -52,4 +52,5 @@ __all__ = [
     "ProfileRepository",
     "UserRepository",
     "VisaConsultationRepository",
+    "VisaRoadmapRepository",
 ]
