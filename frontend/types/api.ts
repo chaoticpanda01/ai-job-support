@@ -396,11 +396,39 @@ export interface VisaChecklist {
   phases: VisaChecklistPhase[];
 }
 
+export type VisaEligibility = "eligible" | "eligible_with_gaps" | "not_eligible";
+
+export interface VisaOption {
+  visa_type: string;
+  eligibility: VisaEligibility;
+  summary: string;
+  key_requirements: string[];
+  gaps: string[];
+  estimated_months: number;
+  recommended: boolean;
+}
+
+export interface VisaRoadmap {
+  id: string;
+  visa_type: string;
+  ai_guidance: string | null;
+  checklist: VisaChecklist;
+  completed_steps: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface VisaConsultation {
   id: string;
+  /** Legacy on pre-multi-roadmap rows; the recommended category on new ones. */
   visa_type: string | null;
+  /** Legacy: only set on consultations created before multi-roadmap support. */
   ai_guidance: string | null;
+  /** Legacy: only set on consultations created before multi-roadmap support. */
   checklist: VisaChecklist | null;
+  options: VisaOption[];
+  active_roadmap_id: string | null;
+  roadmaps: VisaRoadmap[];
   profile_snapshot: Record<string, unknown>;
   created_at: string;
   updated_at: string;
