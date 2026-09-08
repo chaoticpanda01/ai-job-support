@@ -16,20 +16,27 @@ import time
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.dependencies import AuthUser, DbSession
 from app.models.user import Profile
 from app.repositories.user import ProfileRepository
-from app.repositories.visa import VisaConsultationRepository
-from app.schemas.visa import VisaConsultationListItem, VisaConsultationResponse
+from app.repositories.visa import VisaConsultationRepository, VisaRoadmapRepository
+from app.schemas.visa import (
+    VisaConsultationListItem,
+    VisaConsultationResponse,
+    VisaRoadmapCreateRequest,
+    VisaRoadmapResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/visa", tags=["visa"])
 
 _ASSESSMENT_MAX_TOKENS = 2048
+_ROADMAP_MAX_TOKENS = 4096
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +170,130 @@ async def create_consultation(
         created_at=consultation.created_at,
         updated_at=consultation.updated_at,
     )
+
+
+@router.post(
+    "/consultations/{consultation_id}/roadmaps",
+    response_model=VisaRoadmapResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_roadmap(
+    consultation_id: UUID,
+    payload: VisaRoadmapCreateRequest,
+    current_user: AuthUser,
+    db: DbSession,
+    response: Response,
+) -> VisaRoadmapResponse:
+    """
+    Build the roadmap for one of this consultation's assessed visa categories,
+    or return the one already built for it. Either way the roadmap becomes the
+    consultation's active one, so this endpoint doubles as the "switch visa"
+    action — whether that costs an AI call is the server's business, not the
+    client's.
+    """
+    from app.services.ai.client import AIError, ai_client
+    from app.services.ai.prompts.visa_roadmap import (
+        VisaRoadmapResult,
+        build_system_prompt,
+        build_user_prompt,
+    )
+    from app.services.ai.response_parser import parse_response
+    from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
+
+    visa_repo = VisaConsultationRepository(db)
+    roadmap_repo = VisaRoadmapRepository(db)
+
+    consultation = await visa_repo.get_owned(consultation_id, current_user.user_id)
+    if consultation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found.")
+
+    # A free-text visa_type would flow straight into an AI prompt and into the
+    # table. Only a category this assessment actually produced is acceptable.
+    assessed = {
+        option.get("visa_type") for option in (consultation.options or []) if isinstance(option, dict)
+    }
+    if payload.visa_type not in assessed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="That visa category was not part of this assessment.",
+        )
+
+    existing = await roadmap_repo.get_for_consultation_and_type(
+        consultation_id, payload.visa_type
+    )
+    if existing is not None:
+        await visa_repo.update(consultation, active_roadmap_id=existing.id)
+        response.status_code = status.HTTP_200_OK
+        return VisaRoadmapResponse.model_validate(existing)
+
+    try:
+        await usage_tracker.check_budget(current_user.user_id, "visa_roadmap", db)
+    except AIBudgetError as exc:
+        raise exc.to_http_exception() from exc
+
+    t0 = time.monotonic()
+    try:
+        response_text, input_tokens, output_tokens = await ai_client.generate(
+            build_system_prompt(),
+            build_user_prompt(consultation.profile_snapshot, payload.visa_type),
+            max_tokens=_ROADMAP_MAX_TOKENS,
+            feature="visa_roadmap",
+            json_mode=True,
+        )
+    except AIError as exc:
+        logger.error("Visa roadmap AI call failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service unavailable. Please try again.",
+        ) from exc
+    elapsed = time.monotonic() - t0
+
+    try:
+        result = parse_response(response_text, VisaRoadmapResult)
+    except Exception as exc:
+        logger.error("Visa roadmap returned invalid JSON: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI returned an unexpected response. Please try again.",
+        ) from exc
+
+    try:
+        # Savepoint: two rapid clicks both pass the "existing is None" check
+        # above, and the unique constraint lets exactly one insert win. Without
+        # begin_nested() the loser's IntegrityError would poison the whole
+        # request transaction instead of falling through to the existing row.
+        async with db.begin_nested():
+            roadmap = await roadmap_repo.create(
+                user_id=current_user.user_id,
+                consultation_id=consultation_id,
+                visa_type=payload.visa_type,
+                ai_guidance=result.ai_guidance,
+                checklist=result.checklist.model_dump(),
+                completed_steps=[],
+            )
+    except IntegrityError:
+        raced = await roadmap_repo.get_for_consultation_and_type(
+            consultation_id, payload.visa_type
+        )
+        if raced is None:
+            raise
+        await visa_repo.update(consultation, active_roadmap_id=raced.id)
+        response.status_code = status.HTTP_200_OK
+        return VisaRoadmapResponse.model_validate(raced)
+
+    await visa_repo.update(consultation, active_roadmap_id=roadmap.id)
+
+    await usage_tracker.record(
+        user_id=current_user.user_id,
+        feature="visa_roadmap",
+        model=settings.gemini_default_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=int(elapsed * 1000),
+        db=db,
+    )
+
+    return VisaRoadmapResponse.model_validate(roadmap)
 
 
 @router.get("/consultations/latest", response_model=VisaConsultationResponse)
