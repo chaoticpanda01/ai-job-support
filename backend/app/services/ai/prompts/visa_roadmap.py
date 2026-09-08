@@ -1,17 +1,12 @@
 """
-Prompt builders for personalised visa guidance.
+Prompt builders for generating a roadmap for ONE already-chosen visa category.
 
-Generates a roadmap for an Indonesian professional pursuing a Japanese work visa,
-based on a snapshot of their profile. The output has three parts that map
-directly to visa_consultations table columns:
-
-  visa_type   — the most appropriate visa category for this candidate
-  checklist   — structured step-by-step action items (stored as JSONB)
-  ai_guidance — narrative explanation (stored as Text)
+The category is selected by the user from the options produced by
+prompts/visa_assessment.py, so this prompt does not re-litigate the choice —
+it produces the phased action plan for the category it is handed.
 
 Output schema:
 {
-  "visa_type": "…",
   "ai_guidance": "…",
   "checklist": {
     "phases": [
@@ -20,12 +15,12 @@ Output schema:
         "description": "…",
         "steps": [
           {
-            "id":          "step_1_1",
-            "title":       "…",
-            "detail":      "…",
-            "required":    true|false,
+            "id":              "step_1_1",
+            "title":           "…",
+            "detail":          "…",
+            "required":        true|false,
             "estimated_weeks": 1,
-            "resources":   ["…"]
+            "resources":       ["…"]
           }
         ]
       }
@@ -68,7 +63,6 @@ class VisaChecklist(BaseModel):
 
 
 class VisaRoadmapResult(BaseModel):
-    visa_type: str = Field(min_length=1)
     ai_guidance: str = Field(min_length=1)
     checklist: VisaChecklist
 
@@ -81,40 +75,22 @@ class VisaRoadmapResult(BaseModel):
 def build_system_prompt() -> str:
     return """\
 You are a Japan immigration specialist with deep expertise in work visa categories \
-for Indonesian nationals. You provide accurate, up-to-date, and actionable guidance \
-on the Japanese visa application process, tailored to the candidate's specific \
-background, skill level, and goals.
+for Indonesian nationals. The candidate has ALREADY chosen which visa category they \
+want to pursue. Your task is to produce the concrete action plan for that category — \
+do not suggest a different one, and do not re-argue their choice.
 
-Your task is to generate a personalised visa roadmap for an Indonesian professional \
-who wants to work in Japan. Follow these rules:
-
-1. VISA TYPE SELECTION — Choose the single most appropriate visa category based on \
-the candidate's profile:
-   - 技術・人文知識・国際業務 (Engineer/Specialist in Humanities/International Services)
-     → Most common for IT, engineering, business, marketing, HR professionals
-   - 特定技能1号 (Specified Skilled Worker Level 1)
-     → For candidates in designated industries (care, construction, food service, etc.)
-     who pass the relevant sector test
-   - 特定技能2号 (Specified Skilled Worker Level 2)
-     → For highly experienced workers in select industries
-   - 高度専門職 (Highly Skilled Professional)
-     → Points-based visa for experienced professionals (70+ points on METI calculator)
-   - 経営・管理 (Business Manager)
-     → Only if the candidate intends to start or manage a business in Japan
-   State the visa type as its Japanese name + English name.
-
-2. AI_GUIDANCE — Write a 4–6 sentence narrative in Indonesian (Bahasa Indonesia) that:
-   - Explains why this visa category fits the candidate
+1. AI_GUIDANCE — Write a 4–6 sentence narrative in Indonesian (Bahasa Indonesia) that:
+   - Explains what this category requires of them specifically
    - Highlights the key eligibility requirements they must meet
-   - Notes any risks or gaps in their current profile
+   - Notes any risks or gaps in their current profile for THIS category
    - Encourages them with realistic expectations about the timeline
 
-3. CHECKLIST — Break the journey into 3–5 sequential phases. Each phase has:
+2. CHECKLIST — Break the journey into 3–5 sequential phases. Each phase has:
    - A clear name (e.g. "Persiapan Dokumen", "Ujian Bahasa Jepang", \
 "Pencarian Kerja", "Pengajuan Visa", "Keberangkatan")
    - 2–6 concrete steps per phase
    - Each step must have:
-     * id: unique snake_case identifier like "step_1_1"
+     * id: unique snake_case identifier like "step_1_1" (phase index, step index)
      * title: short action title in Indonesian
      * detail: 1–3 sentence explanation of what to do and why
      * required: true if mandatory, false if recommended
@@ -122,18 +98,16 @@ the candidate's profile:
      * resources: list of specific resource names or URLs (e.g. \
 "JLPT official site: jlpt.jp", "Immigration Bureau: moj.go.jp")
 
-4. All text in ai_guidance, phase names, step titles, and details must be in \
-Indonesian (Bahasa Indonesia). Visa category names should use their Japanese \
-official names with Indonesian explanation in parentheses.
+3. All text in ai_guidance, phase names, step titles, and details must be in \
+Indonesian (Bahasa Indonesia).
 
-5. Be realistic: if the candidate's Japanese level is low (N4/N5/none), include \
-a language study phase. If their experience is limited, note that some visa \
-categories may not be immediately accessible.
+4. Be realistic and specific to the chosen category. If the candidate's Japanese \
+level is below what this category needs, include a language study phase. If the \
+category requires a sector skills test, make taking it an explicit step.
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
 
 {
-  "visa_type": <string — Japanese official name + English name>,
   "ai_guidance": <string in Indonesian — 4-6 sentences>,
   "checklist": {
     "phases": [
@@ -156,17 +130,16 @@ Return ONLY a JSON object matching this exact schema — no prose before or afte
 }"""
 
 
-def build_user_prompt(profile_snapshot: dict[str, Any]) -> str:
+def build_user_prompt(profile_snapshot: dict[str, Any], visa_type: str) -> str:
     """
-    Build the user-turn prompt from the profile snapshot stored at generation time.
+    Build the user-turn prompt for the chosen category.
 
-    profile_snapshot contains fields from the profiles table captured at the
-    moment the consultation is requested:
-      nationality, japanese_level, visa_status, target_role, target_industry,
-      years_experience, current_location, target_location, preferred_language
+    visa_type has already been validated by the caller against the assessed
+    options on the consultation, so it is never arbitrary client input.
     """
     lines: list[str] = [
-        "Please generate a personalised Japanese work visa roadmap for the following candidate.\n",
+        f"The candidate has chosen to pursue: {visa_type}\n",
+        "Generate their roadmap for that visa category.\n",
         "CANDIDATE PROFILE:",
     ]
 
@@ -196,8 +169,7 @@ def build_user_prompt(profile_snapshot: dict[str, Any]) -> str:
         lines.append(f"  Target industry: {', '.join(str(i) for i in industries)}")
 
     lines.append(
-        "\nBased on this profile, select the most suitable visa category and generate "
-        "a complete, actionable roadmap. Return the JSON object only."
+        f"\nProduce a complete, actionable roadmap for {visa_type}. Return the JSON object only."
     )
 
     return "\n".join(lines)
