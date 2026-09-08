@@ -386,6 +386,8 @@ CREATE TABLE visa_consultations (
   profile_snapshot JSONB       NOT NULL,
   checklist        JSONB,
   ai_guidance      TEXT,
+  options          JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  active_roadmap_id UUID,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -396,6 +398,32 @@ CREATE INDEX idx_visa_consultations_user_id ON visa_consultations (user_id);
 
 CREATE TRIGGER visa_consultations_updated_at
   BEFORE UPDATE ON visa_consultations
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- TABLE: visa_roadmaps
+-- =============================================================================
+
+CREATE TABLE visa_roadmaps (
+  id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID         NOT NULL,
+  consultation_id  UUID         NOT NULL,
+  visa_type        VARCHAR(100) NOT NULL,
+  ai_guidance      TEXT,
+  checklist        JSONB        NOT NULL,
+  completed_steps  TEXT[]       NOT NULL DEFAULT '{}',
+  created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT visa_roadmaps_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT visa_roadmaps_consultation_fk FOREIGN KEY (consultation_id) REFERENCES visa_consultations(id) ON DELETE CASCADE,
+  CONSTRAINT visa_roadmaps_consultation_visa_uk UNIQUE (consultation_id, visa_type)
+);
+
+CREATE INDEX idx_visa_roadmaps_consultation ON visa_roadmaps (consultation_id);
+
+CREATE TRIGGER visa_roadmaps_updated_at
+  BEFORE UPDATE ON visa_roadmaps
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- =============================================================================

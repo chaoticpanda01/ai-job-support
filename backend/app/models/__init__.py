@@ -34,7 +34,7 @@ from app.models.interview import InterviewMessage, InterviewSession
 from app.models.job import JobApplication, JobMatch, JobPosting, SavedJob
 from app.models.resume import Resume, ResumeAnalysis
 from app.models.user import Profile, User
-from app.models.visa import VisaConsultation
+from app.models.visa import VisaConsultation, VisaRoadmap
 
 __all__ = [
     "Base",
@@ -68,6 +68,7 @@ __all__ = [
     "InterviewSession",
     "InterviewMessage",
     "VisaConsultation",
+    "VisaRoadmap",
     "CultureTopic",
     "CultureGlossary",
     "Subscription",
