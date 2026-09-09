@@ -73,3 +73,4 @@ docker-compose.override.yml
 
 # --- Local-only notes ---
 HANDOFF.md
+cleanup-report.md
