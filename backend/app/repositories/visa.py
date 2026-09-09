@@ -55,10 +55,3 @@ class VisaRoadmapRepository(BaseRepository[VisaRoadmap]):
                 VisaRoadmap.visa_type == visa_type,
             )
         )
-
-    async def list_for_consultation(self, consultation_id: UUID) -> list[VisaRoadmap]:
-        return await self._scalars(
-            select(VisaRoadmap)
-            .where(VisaRoadmap.consultation_id == consultation_id)
-            .order_by(VisaRoadmap.created_at)
-        )

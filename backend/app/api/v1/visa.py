@@ -193,6 +193,12 @@ async def create_consultation(
     "/consultations/{consultation_id}/roadmaps",
     response_model=VisaRoadmapResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        200: {
+            "model": VisaRoadmapResponse,
+            "description": "Existing roadmap returned; no AI call was made.",
+        }
+    },
 )
 async def create_roadmap(
     consultation_id: UUID,

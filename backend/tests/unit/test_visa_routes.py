@@ -508,6 +508,7 @@ async def test_create_roadmap_generates_for_an_assessed_visa() -> None:
     consultation = _mock_consultation(user_id=user.id)
     roadmap = _mock_roadmap()
     generate_mock = AsyncMock(return_value=_valid_roadmap_ai_response())
+    update_mock = AsyncMock(return_value=consultation)
 
     with (
         _bypass_middleware(user),
@@ -529,7 +530,7 @@ async def test_create_roadmap_generates_for_an_assessed_visa() -> None:
         ),
         patch(
             "app.api.v1.visa.VisaConsultationRepository.update",
-            new=AsyncMock(return_value=consultation),
+            new=update_mock,
         ),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -542,6 +543,7 @@ async def test_create_roadmap_generates_for_an_assessed_visa() -> None:
     assert resp.status_code == 201
     assert resp.json()["visa_type"] == "技術・人文知識・国際業務"
     assert generate_mock.await_count == 1
+    assert update_mock.await_args.kwargs["active_roadmap_id"] == roadmap.id
 
 
 @pytest.mark.asyncio
@@ -663,6 +665,7 @@ async def test_create_roadmap_rejects_visa_type_not_in_options() -> None:
 @pytest.mark.asyncio
 async def test_create_roadmap_on_someone_elses_consultation_returns_404() -> None:
     user = make_user()
+    generate_mock = AsyncMock()
 
     with (
         _bypass_middleware(user),
@@ -671,6 +674,7 @@ async def test_create_roadmap_on_someone_elses_consultation_returns_404() -> Non
             "app.api.v1.visa.VisaConsultationRepository.get_owned",
             new=AsyncMock(return_value=None),
         ),
+        patch("app.services.ai.client.ai_client.generate", new=generate_mock),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
@@ -680,12 +684,14 @@ async def test_create_roadmap_on_someone_elses_consultation_returns_404() -> Non
             )
 
     assert resp.status_code == 404
+    assert generate_mock.await_count == 0
 
 
 @pytest.mark.asyncio
 async def test_create_roadmap_budget_exceeded_returns_429() -> None:
     user = make_user()
     consultation = _mock_consultation(user_id=user.id)
+    generate_mock = AsyncMock()
 
     with (
         _bypass_middleware(user),
@@ -702,6 +708,7 @@ async def test_create_roadmap_budget_exceeded_returns_429() -> None:
             "app.services.ai.usage_tracker.usage_tracker.check_budget",
             new=AsyncMock(side_effect=AIBudgetError(used=5, limit=5)),
         ),
+        patch("app.services.ai.client.ai_client.generate", new=generate_mock),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
@@ -711,6 +718,7 @@ async def test_create_roadmap_budget_exceeded_returns_429() -> None:
             )
 
     assert resp.status_code == 429
+    assert generate_mock.await_count == 0
 
 
 # ---------------------------------------------------------------------------

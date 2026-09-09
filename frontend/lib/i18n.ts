@@ -779,27 +779,6 @@ export const translations = {
       id: "Peta jalan visa kerja Jepang yang dipersonalisasi berdasarkan profilmu.",
       ja: "プロフィールに基づいた個別の日本就労ビザロードマップ。",
     },
-    generateBtn: {
-      en: "Generate new roadmap",
-      id: "Buat peta jalan baru",
-      ja: "新しいロードマップを生成",
-    },
-    generating: { en: "Generating…", id: "Membuat…", ja: "生成中…" },
-    noRoadmap: {
-      en: "No visa roadmap yet.",
-      id: "Belum ada peta jalan visa.",
-      ja: "ビザロードマップはまだありません。",
-    },
-    noRoadmapSub: {
-      en: "Click Generate new roadmap to get personalised guidance.",
-      id: "Klik Buat peta jalan baru untuk mendapatkan panduan personal.",
-      ja: "「新しいロードマップを生成」をクリックして個別ガイダンスを取得してください。",
-    },
-    generateFail: {
-      en: "Failed to generate roadmap. Please try again.",
-      id: "Gagal membuat peta jalan. Coba lagi.",
-      ja: "ロードマップの生成に失敗しました。再試行してください。",
-    },
     recommendedVisa: {
       en: "Recommended visa category",
       id: "Kategori visa yang direkomendasikan",

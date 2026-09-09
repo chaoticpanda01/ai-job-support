@@ -26,9 +26,9 @@ export function VisaOptionsList({
     <div className="space-y-3">
       <p className="text-sm font-medium">{t("visa", "yourOptions", lang)}</p>
       <div className="grid gap-3 lg:grid-cols-2">
-        {ordered.map((option) => (
+        {ordered.map((option, index) => (
           <VisaOptionCard
-            key={option.visa_type}
+            key={`${option.visa_type}-${index}`}
             option={option}
             hasRoadmap={builtTypes.has(option.visa_type)}
             isBuilding={buildingVisaType === option.visa_type}

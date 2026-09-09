@@ -28,6 +28,11 @@ export function VisaOptionCard({
   onSelect: () => void;
 }) {
   const { lang } = useLang();
+  const buttonText = isBuilding
+    ? t("visa", "building", lang)
+    : hasRoadmap
+      ? t("visa", "viewRoadmap", lang)
+      : t("visa", "buildRoadmap", lang);
 
   return (
     <div
@@ -95,13 +100,10 @@ export function VisaOptionCard({
         <button
           onClick={onSelect}
           disabled={isBuilding}
+          aria-label={`${buttonText} — ${option.visa_type}`}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {isBuilding
-            ? t("visa", "building", lang)
-            : hasRoadmap
-              ? t("visa", "viewRoadmap", lang)
-              : t("visa", "buildRoadmap", lang)}
+          {buttonText}
         </button>
         {!hasRoadmap && !isBuilding && (
           <span className="text-xs text-muted-foreground">

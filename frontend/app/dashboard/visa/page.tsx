@@ -47,7 +47,7 @@ export default function VisaPage() {
             setViewingVisaType(null);
             assess.mutate();
           }}
-          disabled={assess.isPending}
+          disabled={assess.isPending || isLoading}
           className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
           {assess.isPending ? (
@@ -55,6 +55,8 @@ export default function VisaPage() {
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               {t("visa", "assessing", lang)}
             </span>
+          ) : isLoading ? (
+            <span className="block h-4 w-24 animate-pulse rounded bg-primary-foreground/30" />
           ) : latest ? (
             t("visa", "reassessBtn", lang)
           ) : (
@@ -89,6 +91,7 @@ export default function VisaPage() {
           <VisaRoadmapSwitcher
             roadmaps={roadmaps}
             activeId={viewing.id}
+            switchingVisaType={selectRoadmap.isPending ? (selectRoadmap.variables ?? null) : null}
             onSelect={handleSelect}
             onBack={() => setViewingVisaType(null)}
           />
