@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
 import { apiClient, extractDetail } from "@/lib/api-client";
+import { t, type Language } from "@/lib/i18n";
 import type {
   CreateSessionRequest,
   InterviewEvaluation,
@@ -38,6 +39,33 @@ export function useInterviewSessions() {
 // SSE stream state
 // ---------------------------------------------------------------------------
 
+/**
+ * Why a stream failed. Failures the client detects are stored by kind and
+ * translated at render, so the message follows the current language. Text the
+ * server sent is shown as-is.
+ */
+export type StreamError =
+  | { kind: "server"; message: string }
+  /** The request failed and the response had no readable detail. */
+  | { kind: "failed" }
+  /** The response ended without a terminal event. */
+  | { kind: "ended" }
+  /** The connection dropped mid-stream. */
+  | { kind: "connection" };
+
+export function streamErrorMessage(error: StreamError, lang: Language): string {
+  switch (error.kind) {
+    case "server":
+      return error.message;
+    case "failed":
+      return t("common", "error", lang);
+    case "ended":
+      return t("interview", "streamEnded", lang);
+    case "connection":
+      return t("interview", "connectionLost", lang);
+  }
+}
+
 export interface StreamState {
   /** Tokens accumulated from the current streamed message */
   streamingText: string;
@@ -47,8 +75,8 @@ export interface StreamState {
   lastEval: InterviewEvaluation | null;
   /** Session summary (populated after end session) */
   summary: InterviewSummary | null;
-  /** Error message if the stream errored */
-  error: string | null;
+  /** Why the stream failed, if it did. Render with streamErrorMessage. */
+  error: StreamError | null;
 }
 
 const INITIAL_STATE: StreamState = {
@@ -104,7 +132,11 @@ export function useInterview() {
       return;
     }
     if (event.type === "error") {
-      setState((s) => ({ ...s, isStreaming: false, error: event.content }));
+      setState((s) => ({
+        ...s,
+        isStreaming: false,
+        error: { kind: "server", message: event.content },
+      }));
     }
   }, []);
 
@@ -130,14 +162,15 @@ export function useInterview() {
         async onopen(response) {
           if (!response.ok) {
             const text = await response.text();
-            let detail = `HTTP ${response.status}`;
+            let error: StreamError = { kind: "failed" };
             try {
               // A 422's detail is an array of objects, which React cannot render.
-              detail = extractDetail((JSON.parse(text) as { detail?: unknown }).detail, detail);
+              const detail = extractDetail((JSON.parse(text) as { detail?: unknown }).detail, "");
+              if (detail) error = { kind: "server", message: detail };
             } catch {
-              /* ignore */
+              /* not JSON: keep the generic message */
             }
-            setState((s) => ({ ...s, isStreaming: false, error: detail }));
+            setState((s) => ({ ...s, isStreaming: false, error }));
             ctrl.abort();
             return;
           }
@@ -164,23 +197,13 @@ export function useInterview() {
           // one has already replaced.
           if (abortRef.current !== ctrl) return;
           setState((s) =>
-            s.isStreaming
-              ? {
-                  ...s,
-                  isStreaming: false,
-                  error: "The response ended unexpectedly. Please try again.",
-                }
-              : s,
+            s.isStreaming ? { ...s, isStreaming: false, error: { kind: "ended" } } : s,
           );
         },
 
         onerror(err) {
           if ((err as Error).name === "AbortError") return;
-          setState((s) => ({
-            ...s,
-            isStreaming: false,
-            error: "Connection lost. Please try again.",
-          }));
+          setState((s) => ({ ...s, isStreaming: false, error: { kind: "connection" } }));
           // Don't retry — throw to stop fetchEventSource's internal retry loop
           throw err;
         },

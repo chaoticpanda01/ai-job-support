@@ -55,7 +55,7 @@ function ResumeCard({ resume }: { resume: Resume }) {
   const { toast } = useToast();
 
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
-  const uploadedAt = new Date(resume.created_at).toLocaleDateString();
+  const uploadedAt = new Date(resume.created_at).toLocaleDateString(lang);
 
   function handleSetPrimary() {
     setPrimaryMutation.mutate(resume.id, {

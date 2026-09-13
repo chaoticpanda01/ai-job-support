@@ -51,7 +51,7 @@ export default function VisaConsultationPage({ params }: Props) {
         <h1 className="text-2xl font-semibold">{t("visa", "roadmapTitle", lang)}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
           {t("visa", "generated", lang)}{" "}
-          {new Date(consultation.created_at).toLocaleDateString(undefined, {
+          {new Date(consultation.created_at).toLocaleDateString(lang, {
             day: "numeric",
             month: "long",
             year: "numeric",

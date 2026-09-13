@@ -1,3 +1,4 @@
+/** Also valid BCP 47 locale tags, so dates are formatted with toLocaleDateString(lang). */
 export type Language = "en" | "id" | "ja";
 
 export const DEFAULT_LANGUAGE: Language = "en";
@@ -749,6 +750,16 @@ export const translations = {
       en: "Failed to load sessions. Please refresh.",
       id: "Gagal memuat sesi. Coba muat ulang.",
       ja: "セッションの読み込みに失敗しました。更新してください。",
+    },
+    streamEnded: {
+      en: "The response ended unexpectedly. Please try again.",
+      id: "Respons berakhir tiba-tiba. Coba lagi.",
+      ja: "応答が途中で終了しました。再試行してください。",
+    },
+    connectionLost: {
+      en: "Connection lost. Please try again.",
+      id: "Koneksi terputus. Coba lagi.",
+      ja: "接続が切断されました。再試行してください。",
     },
     score: { en: "score", id: "skor", ja: "スコア" },
     langJa: { en: "Japanese", id: "Jepang", ja: "日本語" },

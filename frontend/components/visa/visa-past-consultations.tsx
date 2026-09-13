@@ -28,7 +28,7 @@ export function VisaPastConsultations({
             >
               <span className="text-muted-foreground">{c.visa_type ?? "—"}</span>
               <span className="text-xs text-muted-foreground">
-                {new Date(c.created_at).toLocaleDateString(undefined, {
+                {new Date(c.created_at).toLocaleDateString(lang, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",

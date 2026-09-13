@@ -81,7 +81,7 @@ export function DocumentWizard({
                     <p className="text-xs text-muted-foreground">
                       {Math.round(r.file_size_bytes / 1024)} KB ·{" "}
                       {t("documents", "wizUploaded", lang)}{" "}
-                      {new Date(r.created_at).toLocaleDateString()}
+                      {new Date(r.created_at).toLocaleDateString(lang)}
                       {r.is_primary && (
                         <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                           {t("documents", "wizPrimary", lang)}

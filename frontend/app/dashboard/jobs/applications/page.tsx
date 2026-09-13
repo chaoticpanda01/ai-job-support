@@ -198,7 +198,7 @@ function ApplicationCard({
   }
 
   const appliedDate = app.applied_at
-    ? new Date(app.applied_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    ? new Date(app.applied_at).toLocaleDateString(lang, { day: "numeric", month: "short" })
     : null;
 
   return (

@@ -28,7 +28,7 @@ export default function CultureTopicPage({ params }: Props) {
     );
   }
 
-  const date = new Date(topic.published_at).toLocaleDateString(undefined, {
+  const date = new Date(topic.published_at).toLocaleDateString(lang, {
     day: "numeric",
     month: "long",
     year: "numeric",

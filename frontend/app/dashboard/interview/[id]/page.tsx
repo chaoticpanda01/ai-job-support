@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useInterview, useInterviewSession } from "@/hooks/useInterview";
+import { streamErrorMessage, useInterview, useInterviewSession } from "@/hooks/useInterview";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useLang } from "@/lib/language-context";
@@ -166,7 +166,7 @@ export default function InterviewSessionPage({ params }: Props) {
 
           {state.error && (
             <p role="alert" className="text-center text-sm text-destructive">
-              {state.error}
+              {streamErrorMessage(state.error, lang)}
             </p>
           )}
 
@@ -228,6 +228,7 @@ function MessageBubble({
   sessionLanguage: string | undefined;
 }) {
   const isInterviewer = message.role === "interviewer";
+  const { lang } = useLang();
 
   return (
     <div className={`flex ${isInterviewer ? "justify-start" : "justify-end"}`}>
@@ -249,7 +250,7 @@ function MessageBubble({
             isInterviewer ? "text-muted-foreground" : "text-primary-foreground/70"
           }`}
         >
-          {new Date(message.created_at).toLocaleTimeString([], {
+          {new Date(message.created_at).toLocaleTimeString(lang, {
             hour: "2-digit",
             minute: "2-digit",
           })}

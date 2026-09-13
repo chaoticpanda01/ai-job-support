@@ -130,7 +130,7 @@ function StatusBody({
         {t("documents", "genSuccess", lang)}
         {completedAt && (
           <span className="ml-1 text-green-700">
-            {t("documents", "on", lang)} {new Date(completedAt).toLocaleString()}
+            {t("documents", "on", lang)} {new Date(completedAt).toLocaleString(lang)}
           </span>
         )}
       </div>

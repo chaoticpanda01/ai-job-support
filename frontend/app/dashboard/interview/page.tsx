@@ -64,7 +64,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
           : "text-red-600";
 
   const completedAt = s.completed_at
-    ? new Date(s.completed_at).toLocaleDateString(undefined, {
+    ? new Date(s.completed_at).toLocaleDateString(lang, {
         day: "numeric",
         month: "short",
         year: "numeric",

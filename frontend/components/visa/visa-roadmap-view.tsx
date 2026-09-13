@@ -36,7 +36,7 @@ export function VisaRoadmapView({
 
       <p className="text-right text-xs text-muted-foreground">
         {t("visa", "generated", lang)}{" "}
-        {new Date(roadmap.created_at).toLocaleDateString(undefined, {
+        {new Date(roadmap.created_at).toLocaleDateString(lang, {
           day: "numeric",
           month: "short",
           year: "numeric",

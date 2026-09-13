@@ -107,7 +107,7 @@ function DocumentCard({ doc }: { doc: Document }) {
   const confirmDialog = useConfirm();
   const { toast } = useToast();
   const label = doc.document_type === "rirekisho" ? "履歴書" : "職務経歴書";
-  const createdAt = new Date(doc.created_at).toLocaleDateString();
+  const createdAt = new Date(doc.created_at).toLocaleDateString(lang);
   // Matches the backend's own rule (documents.py's delete route rejects
   // pending/processing with 409): only a finished generation is safe to
   // delete, since the background task may still be about to write to or

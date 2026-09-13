@@ -111,7 +111,8 @@ export default function CulturePage() {
 // ---------------------------------------------------------------------------
 
 function TopicCard({ topic: tp }: { topic: CultureTopicSummary }) {
-  const date = new Date(tp.published_at).toLocaleDateString(undefined, {
+  const { lang } = useLang();
+  const date = new Date(tp.published_at).toLocaleDateString(lang, {
     day: "numeric",
     month: "short",
     year: "numeric",
