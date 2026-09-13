@@ -833,6 +833,14 @@ export const translations = {
       id: "Budaya tempat kerja Jepang: kerja tim, 報連相, kemampuan adaptasi, dan nilai-nilai.",
       ja: "日本の職場文化：チームワーク、報連相、適応力、価値観。",
     },
+    titleGeneral: { en: "General Interview", id: "Wawancara Umum", ja: "総合面接" },
+    titleBehavioral: { en: "Behavioural Interview", id: "Wawancara Perilaku", ja: "行動面接" },
+    titleTechnical: { en: "Technical Interview", id: "Wawancara Teknis", ja: "技術面接" },
+    titleCulture: {
+      en: "Culture Fit Interview",
+      id: "Wawancara Kesesuaian Budaya",
+      ja: "文化適合面接",
+    },
     interviewLang: { en: "Interview language", id: "Bahasa wawancara", ja: "面接言語" },
     context: { en: "Context", id: "Konteks", ja: "コンテキスト" },
     contextHint: {

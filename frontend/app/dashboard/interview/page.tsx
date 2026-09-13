@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useInterviewSessions } from "@/hooks/useInterview";
+import { interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewSession } from "@/types/api";
@@ -82,7 +83,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-medium">
-          {capitalise(s.session_type)} Interview
+          {interviewTitle(s.session_type, lang)}
           {s.target_role && (
             <span className="ml-2 font-normal text-muted-foreground">— {s.target_role}</span>
           )}
@@ -112,10 +113,6 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
       </div>
     </li>
   );
-}
-
-function capitalise(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 }
 
 function SessionsSkeleton() {

@@ -12,6 +12,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { ApiClientError } from "@/lib/api-client";
+import { interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
@@ -212,7 +213,7 @@ export default function InterviewSessionPage({ params }: Props) {
             ←
           </Link>
           <div>
-            <p className="text-sm font-medium">{`${capitalise(session.session_type)} Interview`}</p>
+            <p className="text-sm font-medium">{interviewTitle(session.session_type, lang)}</p>
             {session.target_role && (
               <p className="text-xs text-muted-foreground">{session.target_role}</p>
             )}
@@ -633,10 +634,6 @@ function StatusPill({ status }: { status: string }) {
       {label}
     </span>
   );
-}
-
-function capitalise(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 }
 
 function PageSkeleton() {
