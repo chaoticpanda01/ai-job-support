@@ -4,6 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
+import { extractDetail } from "@/lib/api-client";
+
+// ChatRequest.message limit on the backend. Longer messages get a 422.
+const MAX_MESSAGE_LENGTH = 8000;
+const GENERIC_ERROR = "Sorry, something went wrong. Please try again.";
 
 interface Message {
   role: "user" | "assistant";
@@ -73,7 +78,7 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history: messages.slice(-10) }),
       });
-      const body = (await response.json()) as { reply?: string; detail?: string };
+      const body = (await response.json()) as { reply?: string; detail?: unknown };
 
       if (!response.ok) {
         if (response.status === 429) {
@@ -89,17 +94,19 @@ export function ChatWidget() {
             ? "Please sign in to chat with the assistant."
             : response.status === 429
               ? "You've reached the chat limit — try again in a few hours."
-              : "Sorry, something went wrong. Please try again.";
-        setMessages([...newMessages, { role: "assistant", content: body.detail ?? fallback }]);
+              : GENERIC_ERROR;
+        // A 422's detail is an array of objects, which React cannot render.
+        setMessages([
+          ...newMessages,
+          { role: "assistant", content: extractDetail(body.detail, fallback) },
+        ]);
         return;
       }
 
-      setMessages([...newMessages, { role: "assistant", content: body.reply ?? "" }]);
+      // An empty reply would leave a blank bubble with nothing to read.
+      setMessages([...newMessages, { role: "assistant", content: body.reply || GENERIC_ERROR }]);
     } catch {
-      setMessages([
-        ...newMessages,
-        { role: "assistant", content: "Sorry, something went wrong. Please try again." },
-      ]);
+      setMessages([...newMessages, { role: "assistant", content: GENERIC_ERROR }]);
     } finally {
       setLoading(false);
     }
@@ -204,6 +211,7 @@ export function ChatWidget() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
                   aria-label="Message the assistant"
+                  maxLength={MAX_MESSAGE_LENGTH}
                   placeholder={rateLimited ? "Chat limit reached…" : "Ask me anything…"}
                   rows={1}
                   disabled={rateLimited}

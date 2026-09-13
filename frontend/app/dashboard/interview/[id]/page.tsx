@@ -9,6 +9,9 @@ import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
 
+// SendMessageRequest.content limit on the backend. Longer answers get a 422.
+const MAX_ANSWER_LENGTH = 4000;
+
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -180,6 +183,7 @@ export default function InterviewSessionPage({ params }: Props) {
             </label>
             <textarea
               id="interview-answer"
+              maxLength={MAX_ANSWER_LENGTH}
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}

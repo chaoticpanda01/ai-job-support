@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, extractDetail } from "@/lib/api-client";
 import type {
   CreateSessionRequest,
   InterviewEvaluation,
@@ -132,7 +132,8 @@ export function useInterview() {
             const text = await response.text();
             let detail = `HTTP ${response.status}`;
             try {
-              detail = (JSON.parse(text) as { detail: string }).detail ?? detail;
+              // A 422's detail is an array of objects, which React cannot render.
+              detail = extractDetail((JSON.parse(text) as { detail?: unknown }).detail, detail);
             } catch {
               /* ignore */
             }

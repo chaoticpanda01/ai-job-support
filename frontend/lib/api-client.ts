@@ -33,7 +33,7 @@ export class ApiClientError extends Error {
  * literal text "[object Object]" instead of a readable message. Extract a
  * real message from either shape here instead.
  */
-function extractDetail(raw: unknown, fallback: string): string {
+export function extractDetail(raw: unknown, fallback: string): string {
   if (typeof raw === "string") return raw;
   if (Array.isArray(raw)) {
     const messages = raw
