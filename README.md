@@ -295,7 +295,7 @@ Never commit `.env` or `.env.local` files.
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 **Deployment:**
-- Backend → Render (auto-deploys on `git push main`)
+- Backend → Render (auto-deploys on `git push main`; the start command runs `alembic upgrade head` first, so migrations apply on every deploy)
 - Frontend → Vercel (auto-deploys on `git push main` — connected to GitHub)
 
 ---

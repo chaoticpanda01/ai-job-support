@@ -302,7 +302,7 @@ npm run format
 | バックエンド CI | Ruff リント + フォーマット、mypy、alembic check、pytest |
 
 **デプロイ:**
-- バックエンド → Render（`git push main` で自動デプロイ）
+- バックエンド → Render（`git push main` で自動デプロイ。起動コマンドが最初に `alembic upgrade head` を実行するため、マイグレーションはデプロイごとに自動適用）
 - フロントエンド → Vercel（`git push main` で自動デプロイ — GitHub 連携済み）
 
 ---

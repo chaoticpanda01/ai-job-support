@@ -3,7 +3,12 @@ services:
     name: ai-job-support-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Migrations run here, not in preDeployCommand: Render only runs a pre-deploy
+    # command on paid plans, and this service is on the free tier. Upgrading an
+    # up-to-date database is a quick no-op, so this also runs harmlessly on every
+    # restart and wake from sleep. If a migration fails, uvicorn never starts, the
+    # deploy fails, and Render keeps serving the previous deploy.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: APP_ENV
         value: production
