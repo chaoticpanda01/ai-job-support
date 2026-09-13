@@ -878,6 +878,11 @@ export const translations = {
       id: "Gagal menilai opsi kamu. Coba lagi.",
       ja: "診断に失敗しました。再試行してください。",
     },
+    loadFail: {
+      en: "Couldn't load your visa assessment. Refresh the page to try again.",
+      id: "Gagal memuat penilaian visamu. Muat ulang halaman untuk mencoba lagi.",
+      ja: "ビザ診断を読み込めませんでした。ページを再読み込みしてもう一度お試しください。",
+    },
     yourOptions: { en: "Your visa options", id: "Opsi visa kamu", ja: "ビザの選択肢" },
     eligible: { en: "Eligible", id: "Memenuhi syarat", ja: "条件を満たす" },
     eligibleWithGaps: {

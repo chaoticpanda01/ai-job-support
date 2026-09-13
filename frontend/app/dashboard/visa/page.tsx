@@ -30,7 +30,11 @@ export default function VisaPage() {
   // the options list would re-announce the older assessment as new.
   const [announcement, setAnnouncement] = useState("");
 
-  const noConsultation = !isLoading && (error as { status?: number } | null)?.status === 404;
+  // A 404 means no consultation yet. Any other error means the lookup itself
+  // failed, which must be shown rather than rendering nothing.
+  const errorStatus = (error as { status?: number } | null)?.status;
+  const noConsultation = !isLoading && errorStatus === 404;
+  const loadFailed = !isLoading && Boolean(error) && errorStatus !== 404;
   const roadmaps = latest?.roadmaps ?? [];
   const viewing = roadmaps.find((r) => r.visa_type === viewingVisaType) ?? null;
 
@@ -91,6 +95,12 @@ export default function VisaPage() {
       {selectRoadmap.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {(selectRoadmap.error as { detail?: string }).detail ?? t("visa", "buildFail", lang)}
+        </p>
+      )}
+
+      {loadFailed && !assess.isPending && (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {t("visa", "loadFail", lang)}
         </p>
       )}
 
