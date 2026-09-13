@@ -67,6 +67,19 @@ export function streamErrorMessage(error: StreamError, lang: Language): string {
   }
 }
 
+/**
+ * State after a stream fails or is stopped. Feedback the stream sent is dropped
+ * with it: the backend saves an answer only together with its whole turn, so
+ * that feedback is for an answer that was not saved.
+ */
+function interruptedState(
+  s: StreamState,
+  error: StreamError | null,
+  evalSent: boolean,
+): StreamState {
+  return { ...s, isStreaming: false, error, lastEval: evalSent ? null : s.lastEval };
+}
+
 export interface StreamState {
   /** Tokens accumulated from the current streamed message */
   streamingText: string;
@@ -101,9 +114,12 @@ export function useInterview() {
 
   // Accumulate streamed tokens outside React state for performance
   const textBuffer = useRef("");
+  // Whether the current stream has sent an evaluation, for interruptedState.
+  const evalInStream = useRef(false);
 
   function _resetStream() {
     textBuffer.current = "";
+    evalInStream.current = false;
     setState((s) => ({ ...s, streamingText: "", isStreaming: true, error: null }));
   }
 
@@ -120,6 +136,7 @@ export function useInterview() {
       return;
     }
     if (event.type === "eval") {
+      evalInStream.current = true;
       setState((s) => ({ ...s, lastEval: event.content }));
       return;
     }
@@ -137,7 +154,7 @@ export function useInterview() {
       const error: StreamError = event.content
         ? { kind: "server", message: event.content }
         : { kind: "failed" };
-      setState((s) => ({ ...s, isStreaming: false, error }));
+      setState((s) => interruptedState(s, error, evalInStream.current));
     }
   }, []);
 
@@ -171,7 +188,7 @@ export function useInterview() {
             } catch {
               /* body is not a JSON object: keep the "failed" kind */
             }
-            setState((s) => ({ ...s, isStreaming: false, error }));
+            setState((s) => interruptedState(s, error, evalInStream.current));
             ctrl.abort();
             return;
           }
@@ -198,13 +215,13 @@ export function useInterview() {
           // one has already replaced.
           if (abortRef.current !== ctrl) return;
           setState((s) =>
-            s.isStreaming ? { ...s, isStreaming: false, error: { kind: "ended" } } : s,
+            s.isStreaming ? interruptedState(s, { kind: "ended" }, evalInStream.current) : s,
           );
         },
 
         onerror(err) {
           if ((err as Error).name === "AbortError") return;
-          setState((s) => ({ ...s, isStreaming: false, error: { kind: "connection" } }));
+          setState((s) => interruptedState(s, { kind: "connection" }, evalInStream.current));
           // Don't retry — throw to stop fetchEventSource's internal retry loop
           throw err;
         },
@@ -272,12 +289,15 @@ export function useInterview() {
   /**
    * Abort any in-flight stream. The partial reply is dropped: it is no longer
    * shown once streaming stops, and keeping it would let the page announce a
-   * stopped reply as if it had finished.
+   * stopped reply as if it had finished. So is feedback the stream sent.
    */
   const abort = useCallback(() => {
     _abort();
     textBuffer.current = "";
-    setState((s) => ({ ...s, streamingText: "", isStreaming: false }));
+    setState((s) => ({
+      ...interruptedState(s, s.error, evalInStream.current),
+      streamingText: "",
+    }));
   }, []);
 
   return {

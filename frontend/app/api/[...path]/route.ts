@@ -101,6 +101,9 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     method: request.method,
     headers,
     body: body ? Buffer.from(body) : undefined,
+    // Cancel the backend request when the browser disconnects, so stopping an
+    // interview stream stops the backend before it saves the turn.
+    signal: request.signal,
     // @ts-expect-error — duplex required for streaming bodies in Node.js fetch
     duplex: "half",
   });

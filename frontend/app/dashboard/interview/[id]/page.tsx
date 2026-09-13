@@ -16,6 +16,11 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
+/** An answer shown before the server saved it, or an end request, still in flight. */
+type PendingTurn =
+  | { kind: "answer"; id: string; text: string; savedCount: number }
+  | { kind: "end" };
+
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
   const { data: session, isLoading, refetch } = useInterviewSession(id);
@@ -25,8 +30,8 @@ export default function InterviewSessionPage({ params }: Props) {
 
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState<InterviewMessage[]>([]);
-  // The answer shown before its turn is saved, so a failed turn can be undone.
-  const pendingAnswerRef = useRef<{ id: string; text: string } | null>(null);
+  // Cleared when the turn's stream ends cleanly. On error or Stop it is undone.
+  const pendingTurnRef = useRef<PendingTurn | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,24 +40,33 @@ export default function InterviewSessionPage({ params }: Props) {
     if (session?.messages) setLocalMessages(session.messages);
   }, [session]);
 
-  // Put a failed or stopped answer back in the input instead of losing it. The
-  // backend saves an answer only together with its evaluation and the next
-  // question, so there is normally nothing saved to duplicate on resend. The
-  // refetch covers a stop that lands just after the save.
-  const restorePendingAnswer = useCallback(() => {
-    const pending = pendingAnswerRef.current;
+  // Undo a failed or stopped turn. An answer goes back in the input instead of
+  // being lost. The backend saves it only together with its evaluation and the
+  // next question, so a failed turn normally leaves nothing to duplicate. The
+  // refetch catches a turn saved anyway, when the failure or Stop lands just
+  // after the commit: the saved messages show, and the restored text is cleared
+  // so it is not sent twice. After an end request it shows a session that was
+  // completed anyway, which hides End.
+  const undoPendingTurn = useCallback(() => {
+    const pending = pendingTurnRef.current;
     if (!pending) return;
-    pendingAnswerRef.current = null;
-    setLocalMessages((prev) => prev.filter((m) => m.id !== pending.id));
-    setInput(pending.text);
-    void refetch();
+    pendingTurnRef.current = null;
+    if (pending.kind === "answer") {
+      setLocalMessages((prev) => prev.filter((m) => m.id !== pending.id));
+      setInput(pending.text);
+    }
+    void refetch().then(({ data }) => {
+      if (pending.kind === "answer" && (data?.messages.length ?? 0) > pending.savedCount) {
+        setInput((current) => (current === pending.text ? "" : current));
+      }
+    });
   }, [refetch]);
 
   useEffect(() => {
-    if (state.isStreaming || !pendingAnswerRef.current) return;
-    if (state.error) restorePendingAnswer();
-    else pendingAnswerRef.current = null;
-  }, [state.isStreaming, state.error, restorePendingAnswer]);
+    if (state.isStreaming || !pendingTurnRef.current) return;
+    if (state.error) undoPendingTurn();
+    else pendingTurnRef.current = null;
+  }, [state.isStreaming, state.error, undoPendingTurn]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -60,8 +74,8 @@ export default function InterviewSessionPage({ params }: Props) {
 
   if (isLoading) return <PageSkeleton />;
 
-  // Ended only once the server says so or the summary arrives, so a failed end
-  // request leaves the input and End button in place to retry.
+  // Ended only once the fetched status says so or the summary arrives, so a
+  // failed end request leaves the input and End button in place to retry.
   const isActive = session?.status === "active" && !state.summary;
 
   // Silent while tokens arrive, then one announcement when the stream closes.
@@ -88,7 +102,12 @@ export default function InterviewSessionPage({ params }: Props) {
     if (!text || state.isStreaming) return;
 
     const pendingId = crypto.randomUUID();
-    pendingAnswerRef.current = { id: pendingId, text };
+    pendingTurnRef.current = {
+      kind: "answer",
+      id: pendingId,
+      text,
+      savedCount: session?.messages.length ?? 0,
+    };
     setLocalMessages((prev) => [
       ...prev,
       {
@@ -113,12 +132,13 @@ export default function InterviewSessionPage({ params }: Props) {
       cancelLabel: t("common", "cancel", lang),
     });
     if (!ok) return;
+    pendingTurnRef.current = { kind: "end" };
     endSession(id);
   }
 
   function handleStop() {
     abort();
-    restorePendingAnswer();
+    undoPendingTurn();
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

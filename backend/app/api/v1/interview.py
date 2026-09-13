@@ -12,6 +12,9 @@ SSE event protocol:
   data: {"type": "eval",    "content": <InterviewEvalResult JSON>}
   data: {"type": "summary", "content": <InterviewSummaryResult JSON>}
   data: {"type": "done"}
+  data: {"type": "error",   "content": "<message>"}
+
+A stream ends with "done", or with "error" if generating or saving fails.
 """
 
 from __future__ import annotations
@@ -61,7 +64,8 @@ async def create_session(
 ) -> StreamingResponse:
     """
     Create a new interview session and immediately stream the first question.
-    Returns text/event-stream — client reads SSE tokens then a 'done' event.
+    Returns text/event-stream — client reads SSE tokens then a 'done' event, or an
+    'error' event if it fails.
     """
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
 
@@ -342,30 +346,38 @@ async def _stream_question(
 
     latency_ms = int((time.monotonic() - t0) * 1000)
 
-    # Persist the question and record usage in a fresh session BEFORE signalling
-    # done: the client opens the session page on done, and it must see the question.
-    async with AsyncSessionFactory() as db:
-        msg_repo = InterviewMessageRepository(db)
-        await msg_repo.add_interviewer_turn(session_id=session_id, content=full_text)
-        await usage_tracker.record(
-            user_id=user_id,
-            feature="interview_message",
-            model=settings.gemini_default_model,
-            input_tokens=input_tokens,
-            output_tokens=len(full_text.split()),  # approximate — stream doesn't return counts
-            latency_ms=latency_ms,
-            db=db,
-        )
-        await db.commit()
+    # Persist the question and record usage in a fresh DB session BEFORE signalling
+    # done: the new-session page opens the chat on done, and the chat must see the
+    # question. If saving fails, abandon the session and send an error rather than
+    # dropping the stream with the session still active.
+    try:
+        async with AsyncSessionFactory() as db:
+            msg_repo = InterviewMessageRepository(db)
+            await msg_repo.add_interviewer_turn(session_id=session_id, content=full_text)
+            await usage_tracker.record(
+                user_id=user_id,
+                feature="interview_message",
+                model=settings.gemini_default_model,
+                input_tokens=input_tokens,
+                output_tokens=len(full_text.split()),  # approximate — stream doesn't return counts
+                latency_ms=latency_ms,
+                db=db,
+            )
+            await db.commit()
+    except Exception:
+        logger.exception("Failed to save first question: session=%s", session_id)
+        await _abandon_session(session_id, user_id)
+        yield _sse_error("Question generation failed. Please try again.")
+        return
 
     yield _sse_done()
 
 
 async def _abandon_session(session_id: UUID, user_id: UUID) -> None:
     """
-    Abandon a session whose first question failed. Otherwise it stays active with
-    no question to answer. Best effort: a failure here is logged, and the client
-    still gets the error event.
+    Mark a session abandoned after its first question fails, so it is not left
+    active with nothing to answer. Best effort: failures are logged and swallowed,
+    so the caller still sends its error event.
     """
     from app.database import AsyncSessionFactory
 
@@ -451,25 +463,32 @@ async def _stream_eval_and_question(
 
     # Persist the answer (with eval), the interviewer's next question, and usage
     # BEFORE signalling done, so the client's on-done refetch sees the new turn.
-    async with AsyncSessionFactory() as db:
-        msg_repo = InterviewMessageRepository(db)
-        await msg_repo.add_user_turn(
-            session_id=session_id,
-            content=answer,
-            language=language,
-            ai_evaluation=eval_result,
-        )
-        await msg_repo.add_interviewer_turn(session_id=session_id, content=next_question)
-        await usage_tracker.record(
-            user_id=user_id,
-            feature="interview_message",
-            model=settings.gemini_default_model,
-            input_tokens=in_tok,
-            output_tokens=out_tok,
-            latency_ms=latency_ms,
-            db=db,
-        )
-        await db.commit()
+    # They commit together: if saving fails nothing is kept, and the error lets
+    # the client put the answer back to resend.
+    try:
+        async with AsyncSessionFactory() as db:
+            msg_repo = InterviewMessageRepository(db)
+            await msg_repo.add_user_turn(
+                session_id=session_id,
+                content=answer,
+                language=language,
+                ai_evaluation=eval_result,
+            )
+            await msg_repo.add_interviewer_turn(session_id=session_id, content=next_question)
+            await usage_tracker.record(
+                user_id=user_id,
+                feature="interview_message",
+                model=settings.gemini_default_model,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                latency_ms=latency_ms,
+                db=db,
+            )
+            await db.commit()
+    except Exception:
+        logger.exception("Failed to save interview turn: session=%s", session_id)
+        yield _sse_error("Failed to save your answer. Please try again.")
+        return
 
     yield _sse_done()
 
@@ -525,25 +544,32 @@ async def _stream_summary(
 
     latency_ms = int((time.monotonic() - t0) * 1000)
 
-    # Complete the session BEFORE sending the summary: the client treats the
-    # summary as the end, and its on-done refetch must see the completed status.
-    async with AsyncSessionFactory() as db:
-        sess_repo = InterviewSessionRepository(db)
-        await sess_repo.complete(
-            session_id=session_id,
-            overall_score=float(parsed_summary.overall_score),
-            feedback_summary=parsed_summary.feedback_summary,
-        )
-        await usage_tracker.record(
-            user_id=user_id,
-            feature="interview_message",
-            model=settings.gemini_default_model,
-            input_tokens=in_tok,
-            output_tokens=out_tok,
-            latency_ms=latency_ms,
-            db=db,
-        )
-        await db.commit()
+    # Complete the session BEFORE sending the summary: once the client has the
+    # summary it hides End, so a session left active could not be retried, and its
+    # on-done refetch must see the completed status. If saving fails the session
+    # stays active, and the error keeps End available.
+    try:
+        async with AsyncSessionFactory() as db:
+            sess_repo = InterviewSessionRepository(db)
+            await sess_repo.complete(
+                session_id=session_id,
+                overall_score=float(parsed_summary.overall_score),
+                feedback_summary=parsed_summary.feedback_summary,
+            )
+            await usage_tracker.record(
+                user_id=user_id,
+                feature="interview_message",
+                model=settings.gemini_default_model,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                latency_ms=latency_ms,
+                db=db,
+            )
+            await db.commit()
+    except Exception:
+        logger.exception("Failed to save interview summary: session=%s", session_id)
+        yield _sse_error("Failed to save the summary. Please try again.")
+        return
 
     yield _sse("summary", parsed_summary.model_dump())
     yield _sse_done()

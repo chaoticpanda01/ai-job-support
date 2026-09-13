@@ -31,9 +31,10 @@ export default function NewInterviewPage() {
     { value: "id", label: "Indonesian (Bahasa Indonesia)" },
   ];
 
-  // Leave only once the first question is saved. The session id arrives with
-  // the response headers, before the question is generated; leaving then would
-  // send a generation error to this unmounted page and show an empty chat.
+  // Leave only after the stream ends with no error: the backend sends done after
+  // saving the question. The session id arrives in the response headers, before
+  // the question is generated, so leaving then would drop a generation error on
+  // this unmounted page and open an empty chat.
   const ready = sessionId !== null && !state.isStreaming && state.error === null;
 
   useEffect(() => {
