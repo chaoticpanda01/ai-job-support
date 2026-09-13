@@ -6,11 +6,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <header className="border-b bg-background">
         <div className="container flex h-14 items-center">
           <Link href="/" className="text-sm font-semibold transition-opacity hover:opacity-80">
-            🏠 Japan Job Support
+            <span aria-hidden="true">🏠</span> Japan Job Support
           </Link>
         </div>
       </header>
-      <main className="flex flex-1 items-center justify-center bg-muted/40">{children}</main>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex flex-1 items-center justify-center bg-muted/40 focus:outline-none"
+      >
+        {children}
+      </main>
     </div>
   );
 }

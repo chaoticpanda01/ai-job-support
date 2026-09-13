@@ -5,6 +5,7 @@ import { VisaOptionsList } from "@/components/visa/visa-options-list";
 import { VisaPastConsultations } from "@/components/visa/visa-past-consultations";
 import { VisaRoadmapSwitcher } from "@/components/visa/visa-roadmap-switcher";
 import { VisaRoadmapView } from "@/components/visa/visa-roadmap-view";
+import { LiveAnnouncer } from "@/components/live-announcer";
 import {
   useAssessVisa,
   useLatestVisaConsultation,
@@ -23,6 +24,9 @@ export default function VisaPage() {
 
   // null = show the options list. A visa_type = show that roadmap.
   const [viewingVisaType, setViewingVisaType] = useState<string | null>(null);
+  // Set from mutation callbacks rather than derived from isSuccess flags, which
+  // stay true and would re-announce stale results on unrelated re-renders.
+  const [announcement, setAnnouncement] = useState("");
 
   const noConsultation = !isLoading && (error as { status?: number } | null)?.status === 404;
   const roadmaps = latest?.roadmaps ?? [];
@@ -30,8 +34,13 @@ export default function VisaPage() {
 
   function handleSelect(visaType: string) {
     // Generate-or-return lives on the server; the client just says which visa.
+    setAnnouncement(t("visa", "building", lang));
     selectRoadmap.mutate(visaType, {
-      onSuccess: (roadmap) => setViewingVisaType(roadmap.visa_type),
+      onSuccess: (roadmap) => {
+        setViewingVisaType(roadmap.visa_type);
+        setAnnouncement(t("visa", "roadmapReady", lang));
+      },
+      onError: () => setAnnouncement(""),
     });
   }
 
@@ -45,7 +54,11 @@ export default function VisaPage() {
         <button
           onClick={() => {
             setViewingVisaType(null);
-            assess.mutate();
+            setAnnouncement(t("visa", "assessing", lang));
+            assess.mutate(undefined, {
+              onSuccess: () => setAnnouncement(t("visa", "assessmentReady", lang)),
+              onError: () => setAnnouncement(""),
+            });
           }}
           disabled={assess.isPending || isLoading}
           className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
@@ -65,14 +78,16 @@ export default function VisaPage() {
         </button>
       </div>
 
+      <LiveAnnouncer message={announcement} />
+
       {assess.error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {(assess.error as { detail?: string }).detail ?? t("visa", "assessFail", lang)}
         </p>
       )}
 
       {selectRoadmap.error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {(selectRoadmap.error as { detail?: string }).detail ?? t("visa", "buildFail", lang)}
         </p>
       )}

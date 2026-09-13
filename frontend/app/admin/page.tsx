@@ -92,15 +92,23 @@ export default function AdminPage() {
   // replaces four separate "failed to load" panels with one clear answer.
   if (meLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen items-center justify-center focus:outline-none"
+      >
         <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
+      </main>
     );
   }
 
   if (me?.user.role !== "admin") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 focus:outline-none"
+      >
         <h1 className="text-xl font-semibold">Admin access required</h1>
         <p className="text-sm text-muted-foreground">
           Your account doesn&apos;t have permission to view this page.
@@ -108,7 +116,7 @@ export default function AdminPage() {
         <Link href="/dashboard/resumes" className="text-sm text-primary hover:underline">
           ← Back to app
         </Link>
-      </div>
+      </main>
     );
   }
 
@@ -119,7 +127,7 @@ export default function AdminPage() {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              🏠 Home
+              <span aria-hidden="true">🏠</span> Home
             </Link>
             <Link
               href="/dashboard/resumes"
@@ -135,7 +143,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="container py-8">
+      <main id="main-content" tabIndex={-1} className="container py-8 focus:outline-none">
         {/* Tabs */}
         <div className="mb-6 flex gap-2 border-b">
           {(["stats", "users", "culture", "glossary"] as Tab[]).map((t) => (
@@ -157,7 +165,7 @@ export default function AdminPage() {
         {tab === "users" && <UsersTab />}
         {tab === "culture" && <CultureTab />}
         {tab === "glossary" && <GlossaryTab />}
-      </div>
+      </main>
     </div>
   );
 }

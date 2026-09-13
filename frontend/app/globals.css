@@ -62,6 +62,14 @@
     @apply border-border;
   }
 
+  /* Keyboard focus floor for every interactive element. Controls that draw
+     their own ring opt out with focus:outline-none, which wins because
+     utilities sit in a later layer than base. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings:

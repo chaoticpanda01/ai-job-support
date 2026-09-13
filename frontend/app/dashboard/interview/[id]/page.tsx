@@ -4,6 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useInterview, useInterviewSession } from "@/hooks/useInterview";
 import { useConfirm } from "@/components/confirm-dialog-provider";
+import { LiveAnnouncer } from "@/components/live-announcer";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
@@ -42,6 +43,23 @@ export default function InterviewSessionPage({ params }: Props) {
   if (isLoading) return <PageSkeleton />;
 
   const isActive = !ended && session?.status === "active";
+
+  // Silent while tokens arrive, then one announcement for the finished turn.
+  // The hook keeps streamingText after "done" until the next stream opens.
+  // On error the text is a partial reply and the alert already speaks.
+  const announcement =
+    state.isStreaming || state.error
+      ? ""
+      : state.summary
+        ? t("interview", "summaryReady", lang)
+        : [
+            state.lastEval ? t("interview", "feedbackReady", lang) : "",
+            state.streamingText
+              ? `${t("interview", "replyReady", lang)} ${state.streamingText}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
 
   function handleSend() {
     const text = input.trim();
@@ -84,6 +102,8 @@ export default function InterviewSessionPage({ params }: Props) {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+      <LiveAnnouncer message={announcement} />
+
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-3">
         <div className="flex items-center gap-3">
@@ -127,7 +147,7 @@ export default function InterviewSessionPage({ params }: Props) {
       </div>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div aria-busy={state.isStreaming} className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-6">
           {localMessages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
@@ -141,7 +161,11 @@ export default function InterviewSessionPage({ params }: Props) {
 
           {state.summary && <SummaryCard summary={state.summary} />}
 
-          {state.error && <p className="text-center text-sm text-destructive">{state.error}</p>}
+          {state.error && (
+            <p role="alert" className="text-center text-sm text-destructive">
+              {state.error}
+            </p>
+          )}
 
           <div ref={bottomRef} />
         </div>
@@ -151,7 +175,11 @@ export default function InterviewSessionPage({ params }: Props) {
       {isActive && (
         <div className="shrink-0 border-t bg-background px-4 py-3">
           <div className="mx-auto flex max-w-2xl gap-2">
+            <label htmlFor="interview-answer" className="sr-only">
+              {t("interview", "answerLabel", lang)}
+            </label>
             <textarea
+              id="interview-answer"
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}

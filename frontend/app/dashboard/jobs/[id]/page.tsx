@@ -348,19 +348,22 @@ function MatchSection({ jobId }: { jobId: string }) {
 
       {!resumesLoading && resumes.length > 0 && (
         <>
-          <select
-            value={selectedResumeId}
-            onChange={(e) => setSelectedResumeId(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">{t("jobs", "selectResume", lang)}</option>
-            {resumes.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.file_name}
-                {r.is_primary ? ` (${t("common", "primary", lang)})` : ""}
-              </option>
-            ))}
-          </select>
+          <label className="block">
+            <span className="sr-only">{t("jobs", "matchResumeLabel", lang)}</span>
+            <select
+              value={selectedResumeId}
+              onChange={(e) => setSelectedResumeId(e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">{t("jobs", "selectResume", lang)}</option>
+              {resumes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.file_name}
+                  {r.is_primary ? ` (${t("common", "primary", lang)})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <button
             onClick={() => {

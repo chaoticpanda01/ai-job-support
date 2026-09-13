@@ -225,13 +225,16 @@ function ApplicationCard({
 
       {editingNotes && (
         <div className="space-y-1">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            autoFocus
-            className="w-full resize-none rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+          <label className="block">
+            <span className="sr-only">{t("jobs", "notesLabel", lang)}</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full resize-none rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </label>
           <div className="flex gap-1.5">
             <button
               onClick={saveNotes}

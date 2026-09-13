@@ -118,7 +118,9 @@ export function ChatWidget() {
       {open && (
         <SignedOut>
           <div className="flex h-[500px] w-80 flex-col items-center justify-center gap-4 rounded-2xl border bg-background p-6 text-center shadow-xl sm:w-96">
-            <span className="text-3xl">🤖</span>
+            <span aria-hidden="true" className="text-3xl">
+              🤖
+            </span>
             <p className="text-sm text-muted-foreground">
               Sign in first before chatting with the Japan Job Assistant.
             </p>
@@ -137,7 +139,9 @@ export function ChatWidget() {
             {/* Header */}
             <div className="flex items-center justify-between bg-primary px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🤖</span>
+                <span aria-hidden="true" className="text-lg">
+                  🤖
+                </span>
                 <div>
                   <p className="text-sm font-semibold text-primary-foreground">
                     Japan Job Assistant
@@ -155,7 +159,11 @@ export function ChatWidget() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div
+              role="log"
+              aria-label="Conversation"
+              className="flex-1 space-y-3 overflow-y-auto p-4"
+            >
               {messages.map((msg, i) => (
                 <div
                   key={i}
@@ -195,6 +203,7 @@ export function ChatWidget() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
+                  aria-label="Message the assistant"
                   placeholder={rateLimited ? "Chat limit reached…" : "Ask me anything…"}
                   rows={1}
                   disabled={rateLimited}
@@ -217,7 +226,8 @@ export function ChatWidget() {
       <button
         onClick={() => setOpen(!open)}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg transition-opacity hover:opacity-90"
-        aria-label="Open chat"
+        aria-label={open ? "Close chat" : "Open chat"}
+        aria-expanded={open}
       >
         {open ? "✕" : "💬"}
       </button>

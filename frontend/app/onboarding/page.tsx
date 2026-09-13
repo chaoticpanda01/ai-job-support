@@ -124,7 +124,11 @@ export default function OnboardingPage() {
     .replace("{t}", String(TOTAL_STEPS));
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 focus:outline-none"
+    >
       <div className="w-full max-w-lg rounded-xl border bg-card p-8 shadow-sm">
         {/* Progress header */}
         <div className="mb-8">
@@ -138,7 +142,10 @@ export default function OnboardingPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div
+            role="alert"
+            className="mb-4 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
             {error}
           </div>
         )}
@@ -274,7 +281,7 @@ export default function OnboardingPage() {
           />
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

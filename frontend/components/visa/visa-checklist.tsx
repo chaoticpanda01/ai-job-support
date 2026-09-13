@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useUpdateProgress } from "@/hooks/useVisa";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
@@ -172,12 +172,14 @@ function StepRow({
 }) {
   const { lang } = useLang();
   const [expanded, setExpanded] = useState(false);
+  const titleId = useId();
 
   return (
     <li className={`px-4 py-3 text-sm ${checked ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
+          aria-labelledby={titleId}
           checked={checked}
           onChange={onToggle}
           disabled={!onToggle}
@@ -185,7 +187,9 @@ function StepRow({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className={`font-medium ${checked ? "line-through" : ""}`}>{step.title}</p>
+            <p id={titleId} className={`font-medium ${checked ? "line-through" : ""}`}>
+              {step.title}
+            </p>
             {!step.required && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 {t("visa", "optional", lang)}

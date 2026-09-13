@@ -50,14 +50,22 @@ export default function JobsPage() {
 
       {/* Filters */}
       <form onSubmit={handleSearch} className="flex gap-2">
+        <label htmlFor="job-search" className="sr-only">
+          {t("jobs", "searchLabel", lang)}
+        </label>
         <input
+          id="job-search"
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("jobs", "searchPlaceholder", lang)}
           className="flex-1 rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
+        <label htmlFor="job-min-score" className="sr-only">
+          {t("jobs", "minScoreLabel", lang)}
+        </label>
         <select
+          id="job-min-score"
           value={minScore ?? ""}
           onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : undefined)}
           className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"

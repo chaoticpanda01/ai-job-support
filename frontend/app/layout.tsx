@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import { ChatWidget } from "@/components/chat-widget";
 import { Toaster } from "@/components/ui/toaster";
+import { SkipLink } from "@/components/skip-link";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <html lang="id" className={`${notoSans.variable} ${notoSansJP.variable}`}>
         <body className="min-h-screen bg-background font-sans antialiased">
           <Providers>
+            <SkipLink />
             {children}
             <ChatWidget />
             <Toaster />

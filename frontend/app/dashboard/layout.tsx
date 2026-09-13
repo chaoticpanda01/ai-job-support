@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               href="/"
               className="shrink-0 whitespace-nowrap text-sm font-semibold transition-opacity hover:opacity-80"
             >
-              🏠 Japan Job Support
+              <span aria-hidden="true">🏠</span> Japan Job Support
             </Link>
             {/* lg, not md: at md the eight links fit only by leaving the header
                 with zero slack, and the wordmark starts losing width to them.
@@ -108,7 +108,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         )}
       </header>
-      <main className="container flex-1 py-8">{children}</main>
+      <main id="main-content" tabIndex={-1} className="container flex-1 py-8 focus:outline-none">
+        {children}
+      </main>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { use } from "react";
 import { useResume, useResumeAnalysis, useAnalyzeResume } from "@/hooks/useResumes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { LiveAnnouncer } from "@/components/live-announcer";
 import { useToast } from "@/hooks/use-toast";
 import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
@@ -49,6 +50,13 @@ export default function ResumeDetailPage({ params }: Props) {
 
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
   const uploadedAt = new Date(resume.created_at).toLocaleDateString();
+  // Keyed to this visit's analyse click, so an analysis that already existed
+  // on load is not read out as news.
+  const analysisAnnouncement = analyzeMutation.isSuccess
+    ? analysis
+      ? t("resumes", "analysisReady", lang)
+      : t("resumes", "queued", lang)
+    : "";
 
   return (
     <div className="space-y-8">
@@ -101,6 +109,8 @@ export default function ResumeDetailPage({ params }: Props) {
             </button>
           )}
         </div>
+
+        <LiveAnnouncer message={analysisAnnouncement} />
 
         {analysisLoading && (
           <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">

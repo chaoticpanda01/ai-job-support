@@ -158,13 +158,16 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
 
   return (
     <div className="space-y-4">
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={t("culture", "searchPlaceholder", lang)}
-        className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-      />
+      <label className="block">
+        <span className="sr-only">{t("culture", "searchLabel", lang)}</span>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("culture", "searchPlaceholder", lang)}
+          className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </label>
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50">

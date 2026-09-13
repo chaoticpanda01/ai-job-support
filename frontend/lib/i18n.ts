@@ -144,6 +144,11 @@ export const translations = {
   // Shared / common
   // ---------------------------------------------------------------------------
   common: {
+    skipToContent: {
+      en: "Skip to main content",
+      id: "Langsung ke konten utama",
+      ja: "メインコンテンツへスキップ",
+    },
     back: { en: "Back", id: "Kembali", ja: "戻る" },
     continue: { en: "Continue", id: "Lanjut", ja: "次へ" },
     saving: { en: "Saving…", id: "Menyimpan…", ja: "保存中…" },
@@ -420,6 +425,11 @@ export const translations = {
       id: "Menganalisis resume kamu… ini mungkin membutuhkan waktu hingga 30 detik.",
       ja: "履歴書を分析中…最大30秒かかる場合があります。",
     },
+    analysisReady: {
+      en: "Resume analysis is ready.",
+      id: "Analisis resume sudah siap.",
+      ja: "履歴書の分析が完了しました。",
+    },
     queued: {
       en: "Analysis queued — results will appear here shortly.",
       id: "Analisis sudah diantri — hasil akan muncul sebentar lagi.",
@@ -458,6 +468,14 @@ export const translations = {
       ja: "求人タイトルや概要を検索…",
     },
     allScores: { en: "All scores", id: "Semua skor", ja: "すべてのスコア" },
+    searchLabel: { en: "Search jobs", id: "Cari lowongan", ja: "求人を検索" },
+    minScoreLabel: { en: "Minimum score", id: "Skor minimum", ja: "最低スコア" },
+    matchResumeLabel: {
+      en: "Resume to match",
+      id: "Resume untuk dicocokkan",
+      ja: "照合する履歴書",
+    },
+    notesLabel: { en: "Application notes", id: "Catatan lamaran", ja: "応募メモ" },
     noPostings: {
       en: "No job postings found.",
       id: "Tidak ada lowongan kerja.",
@@ -749,6 +767,22 @@ export const translations = {
     statusCompleted: { en: "completed", id: "selesai", ja: "完了" },
     statusAbandoned: { en: "abandoned", id: "ditinggalkan", ja: "中断" },
     answerFeedback: { en: "Answer feedback", id: "Umpan balik jawaban", ja: "回答フィードバック" },
+    answerLabel: { en: "Your answer", id: "Jawabanmu", ja: "あなたの回答" },
+    feedbackReady: {
+      en: "Feedback on your answer is ready.",
+      id: "Umpan balik untuk jawabanmu sudah siap.",
+      ja: "回答へのフィードバックが届きました。",
+    },
+    replyReady: {
+      en: "The interviewer replied:",
+      id: "Pewawancara membalas:",
+      ja: "面接官の返答：",
+    },
+    summaryReady: {
+      en: "Session complete. Your summary is ready.",
+      id: "Sesi selesai. Ringkasanmu sudah siap.",
+      ja: "セッションが終了しました。サマリーが届きました。",
+    },
     keigo: { en: "Keigo", id: "Keigo", ja: "敬語" },
     relevance: { en: "Relevance", id: "Relevansi", ja: "関連性" },
     specificity: { en: "Specificity", id: "Spesifisitas", ja: "具体性" },
@@ -855,6 +889,16 @@ export const translations = {
     },
     viewRoadmap: { en: "View roadmap", id: "Lihat peta jalan", ja: "ロードマップを見る" },
     building: { en: "Building…", id: "Membuat…", ja: "作成中…" },
+    assessmentReady: {
+      en: "Your visa options are ready.",
+      id: "Opsi visamu sudah siap.",
+      ja: "ビザの選択肢が表示されました。",
+    },
+    roadmapReady: {
+      en: "Your roadmap is ready.",
+      id: "Peta jalanmu sudah siap.",
+      ja: "ロードマップが表示されました。",
+    },
     buildFail: {
       en: "Failed to build the roadmap. Please try again.",
       id: "Gagal membuat peta jalan. Coba lagi.",
@@ -1062,6 +1106,7 @@ export const translations = {
       ja: "まだ用語集の項目がありません。",
     },
     searchPlaceholder: { en: "Search terms…", id: "Cari istilah…", ja: "用語を検索…" },
+    searchLabel: { en: "Search glossary", id: "Cari glosarium", ja: "用語集を検索" },
     colTerm: { en: "Term", id: "Istilah", ja: "用語" },
     colReading: { en: "Reading", id: "Bacaan", ja: "読み方" },
     colDefinition: { en: "Definition (ID)", id: "Definisi (ID)", ja: "定義（ID）" },
