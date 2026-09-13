@@ -6,13 +6,26 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
 import { extractDetail } from "@/lib/api-client";
 
-// ChatRequest.message limit on the backend. Longer messages get a 422.
+// Backend limit for ChatRequest.message and for each history item's content,
+// counted in characters (code points). Longer values get a 422.
 const MAX_MESSAGE_LENGTH = 8000;
 const GENERIC_ERROR = "Sorry, something went wrong. Please try again.";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+/**
+ * Recent messages to send as context, each trimmed to the backend limit. Replies
+ * are capped well below it today, but one that exceeded it would get every
+ * later message rejected. Trims by code point so an emoji is never split.
+ */
+function recentHistory(messages: Message[]): Message[] {
+  return messages.slice(-10).map((m) => ({
+    ...m,
+    content: Array.from(m.content).slice(0, MAX_MESSAGE_LENGTH).join(""),
+  }));
 }
 
 export function ChatWidget() {
@@ -76,7 +89,7 @@ export function ChatWidget() {
       const response = await fetch("/api/v1/chat/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: messages.slice(-10) }),
+        body: JSON.stringify({ message: text, history: recentHistory(messages) }),
       });
       const body = (await response.json()) as { reply?: string; detail?: unknown };
 
