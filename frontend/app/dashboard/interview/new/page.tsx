@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { streamErrorMessage, useInterview } from "@/hooks/useInterview";
+import {
+  INTERVIEW_LANGUAGES,
+  INTERVIEW_TYPES,
+  interviewLanguageOption,
+  interviewTypeDescription,
+  interviewTypeLabel,
+} from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewLanguage, InterviewType } from "@/types/api";
@@ -17,19 +24,6 @@ export default function NewInterviewPage() {
   const [language, setLanguage] = useState<InterviewLanguage>("ja");
   const [targetRole, setTargetRole] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
-
-  const SESSION_TYPES: { value: InterviewType; labelKey: string; descKey: string }[] = [
-    { value: "general", labelKey: "typeGeneral", descKey: "typeGeneralDesc" },
-    { value: "behavioral", labelKey: "typeBehavioral", descKey: "typeBehavioralDesc" },
-    { value: "technical", labelKey: "typeTechnical", descKey: "typeTechnicalDesc" },
-    { value: "culture_fit", labelKey: "typeCulture", descKey: "typeCultureDesc" },
-  ];
-
-  const LANGUAGES: { value: InterviewLanguage; label: string }[] = [
-    { value: "ja", label: "Japanese (日本語)" },
-    { value: "en", label: "English" },
-    { value: "id", label: "Indonesian (Bahasa Indonesia)" },
-  ];
 
   // Leave only after the stream ends with no error: the backend sends done after
   // saving the question. The session id arrives in the response headers, before
@@ -68,21 +62,21 @@ export default function NewInterviewPage() {
         <div className="space-y-2">
           <p className="text-sm font-medium">{t("interview", "interviewType", lang)}</p>
           <ul className="space-y-2">
-            {SESSION_TYPES.map((tp) => (
-              <li key={tp.value}>
+            {INTERVIEW_TYPES.map((type) => (
+              <li key={type}>
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-4 hover:bg-accent has-[:checked]:border-primary">
                   <input
                     type="radio"
                     name="session_type"
-                    value={tp.value}
-                    checked={sessionType === tp.value}
-                    onChange={() => setSessionType(tp.value)}
+                    value={type}
+                    checked={sessionType === type}
+                    onChange={() => setSessionType(type)}
                     className="mt-0.5 accent-primary"
                   />
                   <div>
-                    <p className="text-sm font-medium">{t("interview", tp.labelKey, lang)}</p>
+                    <p className="text-sm font-medium">{interviewTypeLabel(type, lang)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t("interview", tp.descKey, lang)}
+                      {interviewTypeDescription(type, lang)}
                     </p>
                   </div>
                 </label>
@@ -102,9 +96,9 @@ export default function NewInterviewPage() {
             onChange={(e) => setLanguage(e.target.value as InterviewLanguage)}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
+            {INTERVIEW_LANGUAGES.map((code) => (
+              <option key={code} value={code}>
+                {interviewLanguageOption(code, lang)}
               </option>
             ))}
           </select>

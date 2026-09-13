@@ -827,7 +827,7 @@ export const translations = {
       id: "Pertanyaan teknis spesifik peran yang disesuaikan dengan bidang target kamu.",
       ja: "目標職種に合わせた技術的な専門質問。",
     },
-    typeCulture: { en: "Culture Fit", id: "Kesesuaian Budaya", ja: "文化適合" },
+    typeCulture: { en: "Culture Fit", id: "Kesesuaian Budaya", ja: "カルチャーフィット" },
     typeCultureDesc: {
       en: "Japanese workplace culture: teamwork, 報連相, adaptability, and values.",
       id: "Budaya tempat kerja Jepang: kerja tim, 報連相, kemampuan adaptasi, dan nilai-nilai.",
@@ -839,7 +839,7 @@ export const translations = {
     titleCulture: {
       en: "Culture Fit Interview",
       id: "Wawancara Kesesuaian Budaya",
-      ja: "文化適合面接",
+      ja: "カルチャーフィット面接",
     },
     interviewLang: { en: "Interview language", id: "Bahasa wawancara", ja: "面接言語" },
     context: { en: "Context", id: "Konteks", ja: "コンテキスト" },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useInterviewSessions } from "@/hooks/useInterview";
-import { interviewTitle } from "@/lib/interview-labels";
+import { interviewLanguageName, interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewSession } from "@/types/api";
@@ -72,12 +72,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
       })
     : null;
 
-  const langLabel =
-    s.language === "ja"
-      ? t("interview", "langJa", lang)
-      : s.language === "id"
-        ? t("interview", "langId", lang)
-        : t("interview", "langEn", lang);
+  const langLabel = interviewLanguageName(s.language, lang);
 
   return (
     <li className="flex items-center justify-between rounded-lg border bg-card p-4">
