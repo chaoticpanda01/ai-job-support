@@ -430,6 +430,16 @@ export const translations = {
       id: "Analisis resume sudah siap.",
       ja: "履歴書の分析が完了しました。",
     },
+    analysisTimeout: {
+      en: "Analysis is taking longer than expected. Refresh the page to check again, or analyse the resume again.",
+      id: "Analisis memakan waktu lebih lama dari perkiraan. Muat ulang halaman untuk memeriksa lagi, atau analisis ulang resume.",
+      ja: "分析に予想以上の時間がかかっています。ページを再読み込みして確認するか、もう一度分析してください。",
+    },
+    analysisLoadError: {
+      en: "Couldn't load the analysis. Please try again.",
+      id: "Gagal memuat analisis. Coba lagi.",
+      ja: "分析を読み込めませんでした。再試行してください。",
+    },
     queued: {
       en: "Analysis queued — results will appear here shortly.",
       id: "Analisis sudah diantri — hasil akan muncul sebentar lagi.",

@@ -1,7 +1,12 @@
 "use client";
 
-import { use } from "react";
-import { useResume, useResumeAnalysis, useAnalyzeResume } from "@/hooks/useResumes";
+import { use, useState } from "react";
+import {
+  ANALYSIS_POLL_TIMEOUT_MS,
+  useResume,
+  useResumeAnalysis,
+  useAnalyzeResume,
+} from "@/hooks/useResumes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +22,14 @@ interface Props {
 export default function ResumeDetailPage({ params }: Props) {
   const { id } = use(params);
   const { data: resume, isLoading, error } = useResume(id);
-  const { data: analysis, isLoading: analysisLoading } = useResumeAnalysis(id);
+  // Polling deadline, set when an analysis is queued. null means don't poll.
+  const [pollUntil, setPollUntil] = useState<number | null>(null);
+  const {
+    data: analysis,
+    isLoading: analysisLoading,
+    error: analysisError,
+    timedOut: analysisTimedOut,
+  } = useResumeAnalysis(id, pollUntil);
   const analyzeMutation = useAnalyzeResume();
   const { lang } = useLang();
   const { toast } = useToast();
@@ -26,6 +38,7 @@ export default function ResumeDetailPage({ params }: Props) {
     analyzeMutation.mutate(
       { resumeId: id, language: lang },
       {
+        onSuccess: () => setPollUntil(Date.now() + ANALYSIS_POLL_TIMEOUT_MS),
         onError: (err) => {
           toast({
             variant: "destructive",
@@ -51,12 +64,14 @@ export default function ResumeDetailPage({ params }: Props) {
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
   const uploadedAt = new Date(resume.created_at).toLocaleDateString();
   // Keyed to this visit's analyse click, so an analysis that already existed
-  // on load is not read out as news.
-  const analysisAnnouncement = analyzeMutation.isSuccess
-    ? analysis
-      ? t("resumes", "analysisReady", lang)
-      : t("resumes", "queued", lang)
-    : "";
+  // on load is not read out as news. Says "queued", then "ready" when polling
+  // lands the result. A timeout is spoken by its role="alert" message instead.
+  const analysisAnnouncement =
+    analyzeMutation.isSuccess && !analysisTimedOut
+      ? analysis
+        ? t("resumes", "analysisReady", lang)
+        : t("resumes", "queued", lang)
+      : "";
 
   return (
     <div className="space-y-8">
@@ -97,7 +112,7 @@ export default function ResumeDetailPage({ params }: Props) {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-medium">{t("resumes", "aiAnalysis", lang)}</h2>
-          {!analysis && !analysisLoading && (
+          {!analysis && !analysisLoading && !analysisError && (
             <button
               onClick={handleAnalyze}
               disabled={analyzeMutation.isPending}
@@ -121,7 +136,25 @@ export default function ResumeDetailPage({ params }: Props) {
 
         {analysis && <AnalysisCard analysis={analysis} />}
 
-        {!analysis && !analysisLoading && analyzeMutation.isSuccess && (
+        {analysisError && (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {t("resumes", "analysisLoadError", lang)}
+          </p>
+        )}
+
+        {analysisTimedOut && !analysisError && (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {t("resumes", "analysisTimeout", lang)}
+          </p>
+        )}
+
+        {!analysis && !analysisLoading && analyzeMutation.isSuccess && !analysisTimedOut && (
           <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
             <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             {t("resumes", "queued", lang)}

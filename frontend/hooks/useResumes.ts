@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 import type { AnalyzeResponse, ResumeAnalysis, ResumeDetail, ResumeList } from "@/types/api";
 
 export function useResumes() {
@@ -19,21 +19,51 @@ export function useResume(id: string) {
   });
 }
 
-export function useResumeAnalysis(resumeId: string) {
-  return useQuery<ResumeAnalysis>({
+const ANALYSIS_POLL_INTERVAL_MS = 3000;
+/** How long the detail page polls for a queued analysis before giving up. */
+export const ANALYSIS_POLL_TIMEOUT_MS = 60_000;
+
+/** When the analysis endpoint last answered, with data or with an error. */
+function lastCheckedAt(state: { dataUpdatedAt: number; errorUpdatedAt: number }) {
+  return Math.max(state.dataUpdatedAt, state.errorUpdatedAt);
+}
+
+/**
+ * Latest analysis for a resume, or null while none exists (the API's 404).
+ *
+ * Pass `pollUntil` (a timestamp) after queueing an analysis to poll until the
+ * result lands or that time passes. The backend has no job status to poll: it
+ * only writes a row on success, so a failed background job stays a 404 and
+ * `timedOut` is the only signal the client gets.
+ */
+export function useResumeAnalysis(resumeId: string, pollUntil: number | null = null) {
+  const query = useQuery<ResumeAnalysis | null>({
     queryKey: ["resumes", resumeId, "analysis"],
-    queryFn: () => apiClient.get<ResumeAnalysis>(`/resumes/${resumeId}/analysis`),
-    enabled: Boolean(resumeId),
-    // Re-poll every 3 s until analysis lands (status field does not exist on
-    // ResumeAnalysis — we just retry until 200 OK or a non-404 error)
-    retry: (failureCount, error) => {
-      if (error instanceof Error && error.message.includes("404")) {
-        return failureCount < 20; // poll up to ~60 s
+    queryFn: async () => {
+      try {
+        return await apiClient.get<ResumeAnalysis>(`/resumes/${resumeId}/analysis`);
+      } catch (err) {
+        if (err instanceof ApiClientError && err.status === 404) return null;
+        throw err;
       }
-      return failureCount < 1;
     },
-    retryDelay: 3000,
+    enabled: Boolean(resumeId),
+    refetchInterval: (q) =>
+      pollUntil !== null && !q.state.data && lastCheckedAt(q.state) < pollUntil
+        ? ANALYSIS_POLL_INTERVAL_MS
+        : false,
   });
+
+  // Same lastCheckedAt comparison as refetchInterval, so the timeout shows
+  // exactly when polling stops. Comparing Date.now() here could disagree.
+  const timedOut = pollUntil !== null && !query.data && lastCheckedAt(query) >= pollUntil;
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    timedOut,
+  };
 }
 
 export function useAnalyzeResume() {
@@ -45,7 +75,8 @@ export function useAnalyzeResume() {
         language,
       }),
     onSuccess: (_data, { resumeId }) => {
-      // Invalidate so the analysis query starts polling
+      // Fetch now. The detail page's pollUntil keeps it polling until the
+      // result lands or the deadline passes.
       queryClient.invalidateQueries({ queryKey: ["resumes", resumeId, "analysis"] });
     },
   });
