@@ -24,8 +24,10 @@ export default function VisaPage() {
 
   // null = show the options list. A visa_type = show that roadmap.
   const [viewingVisaType, setViewingVisaType] = useState<string | null>(null);
-  // Set from mutation callbacks rather than derived from isSuccess flags, which
-  // stay true and would re-announce stale results on unrelated re-renders.
+  // Set from mutation callbacks rather than derived from mutation flags. assess
+  // and selectRoadmap each keep isSuccess true after their call, so derived
+  // text can't tell which action finished last: going back from a roadmap to
+  // the options list would re-announce the older assessment as new.
   const [announcement, setAnnouncement] = useState("");
 
   const noConsultation = !isLoading && (error as { status?: number } | null)?.status === 404;

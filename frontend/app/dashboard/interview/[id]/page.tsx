@@ -42,9 +42,11 @@ export default function InterviewSessionPage({ params }: Props) {
 
   const isActive = !ended && session?.status === "active";
 
-  // Silent while tokens arrive, then one announcement for the finished turn.
-  // The hook keeps streamingText after "done" until the next stream opens.
-  // On error the text is a partial reply and the alert already speaks.
+  // Silent while tokens arrive, then one announcement when the stream closes.
+  // After "done" the hook keeps streamingText until the next stream opens, so
+  // the text is stable across re-renders and is not read twice. abort() clears
+  // it, so a stopped reply is never announced as finished. On error the
+  // role="alert" below speaks instead.
   const announcement =
     state.isStreaming || state.error
       ? ""

@@ -63,8 +63,10 @@
   }
 
   /* Keyboard focus floor for every interactive element. Controls that draw
-     their own ring opt out with focus:outline-none, which wins because
-     utilities sit in a later layer than base. */
+     their own ring, and the tabIndex={-1} <main> skip-link targets, opt out
+     with focus:outline-none. That wins on specificity (.class:focus beats a
+     bare :focus-visible), not on layer order: Tailwind 3's @layer is not a
+     native cascade layer. */
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;

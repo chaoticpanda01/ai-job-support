@@ -226,10 +226,15 @@ export function useInterview() {
     [_openStream, queryClient],
   );
 
-  /** Abort any in-flight stream. */
+  /**
+   * Abort any in-flight stream. The partial reply is dropped: it is no longer
+   * shown once streaming stops, and keeping it would let the page announce a
+   * stopped reply as if it had finished.
+   */
   const abort = useCallback(() => {
     _abort();
-    setState((s) => ({ ...s, isStreaming: false }));
+    textBuffer.current = "";
+    setState((s) => ({ ...s, streamingText: "", isStreaming: false }));
   }, []);
 
   return {
