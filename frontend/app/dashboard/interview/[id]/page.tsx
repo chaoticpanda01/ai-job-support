@@ -2,7 +2,12 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { streamErrorMessage, useInterview, useInterviewSession } from "@/hooks/useInterview";
+import {
+  isMissingSessionError,
+  streamErrorMessage,
+  useInterview,
+  useInterviewSession,
+} from "@/hooks/useInterview";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { LiveAnnouncer } from "@/components/live-announcer";
@@ -25,7 +30,14 @@ type PendingTurn =
 
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
-  const { data: session, isLoading, isError, error, isFetching, refetch } = useInterviewSession(id);
+  const {
+    data: session,
+    error,
+    fetchStatus,
+    isFetching,
+    errorUpdateCount,
+    refetch,
+  } = useInterviewSession(id);
   const { state, sendMessage, endSession, abort } = useInterview();
   const { lang } = useLang();
   const confirmDialog = useConfirm();
@@ -34,6 +46,12 @@ export default function InterviewSessionPage({ params }: Props) {
   const [localMessages, setLocalMessages] = useState<InterviewMessage[]>([]);
   // Cleared when the turn's stream ends cleanly. On error or Stop it is undone.
   const pendingTurnRef = useRef<PendingTurn | null>(null);
+  // Set while retrying from the full-page notice. With no data a retry puts the
+  // query back to pending, which would otherwise swap the notice for the
+  // skeleton and drop keyboard focus.
+  const [retryingProblem, setRetryingProblem] = useState<LoadProblem | null>(null);
+
+  const problem = loadProblemOf(error, fetchStatus === "paused");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -57,8 +75,14 @@ export default function InterviewSessionPage({ params }: Props) {
       setLocalMessages((prev) => prev.filter((m) => m.id !== pending.id));
       setInput(pending.text);
     }
-    void refetch().then(({ data }) => {
-      if (pending.kind === "answer" && (data?.messages.length ?? 0) > pending.savedCount) {
+    void refetch().then((result) => {
+      // Only a successful refetch says whether the turn was saved. A failed one
+      // returns the old data.
+      if (
+        pending.kind === "answer" &&
+        result.status === "success" &&
+        result.data.messages.length > pending.savedCount
+      ) {
         setInput((current) => (current === pending.text ? "" : current));
       }
     });
@@ -72,39 +96,36 @@ export default function InterviewSessionPage({ params }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, state.streamingText, state.lastEval, state.summary, isError]);
+  }, [localMessages, state.streamingText, state.lastEval, state.summary, problem]);
 
-  if (isLoading) return <PageSkeleton />;
-
-  // Nothing loaded: the request failed, or the session doesn't exist for this
-  // user. Without this the page renders empty, with no input and no message.
+  // No data yet: the skeleton while it loads, otherwise why it didn't load (a
+  // failed or offline-paused fetch). Before, the page showed only the header,
+  // with no messages, no input and no explanation.
   if (!session) {
-    const notFound = error instanceof ApiClientError && error.status === 404;
+    const shown = problem ?? retryingProblem;
+    if (!shown) return <PageSkeleton />;
     return (
-      <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+      <div className="space-y-4">
         <Breadcrumbs
           items={[{ label: t("interview", "title", lang), href: "/dashboard/interview" }]}
         />
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {t("interview", notFound ? "sessionNotFound" : "sessionLoadError", lang)}
-        </p>
-        {!notFound && (
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
-          >
-            {t("common", "tryAgain", lang)}
-          </button>
-        )}
+        <LoadProblemNotice
+          problem={shown}
+          variant="page"
+          retrying={retryingProblem !== null}
+          failureCount={errorUpdateCount}
+          onRetry={() => {
+            setRetryingProblem(shown);
+            void refetch().finally(() => setRetryingProblem(null));
+          }}
+        />
       </div>
     );
   }
 
   // Ended only once the fetched status says so or the summary arrives, so a
   // failed end request leaves the input and End button in place to retry.
-  const isActive = session?.status === "active" && !state.summary;
+  const isActive = session.status === "active" && !state.summary;
 
   // Silent while tokens arrive, then one announcement when the stream closes.
   // After "done" the hook keeps streamingText until the next stream opens, so
@@ -191,18 +212,14 @@ export default function InterviewSessionPage({ params }: Props) {
             ←
           </Link>
           <div>
-            <p className="text-sm font-medium">
-              {session
-                ? `${capitalise(session.session_type)} Interview`
-                : t("interview", "sessionTitle", lang)}
-            </p>
-            {session?.target_role && (
+            <p className="text-sm font-medium">{`${capitalise(session.session_type)} Interview`}</p>
+            {session.target_role && (
               <p className="text-xs text-muted-foreground">{session.target_role}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <StatusPill status={state.summary ? "completed" : (session?.status ?? "active")} />
+          <StatusPill status={state.summary ? "completed" : session.status} />
           {isActive && !state.isStreaming && (
             <button
               onClick={handleEnd}
@@ -226,11 +243,11 @@ export default function InterviewSessionPage({ params }: Props) {
       <div aria-busy={state.isStreaming} className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-6">
           {localMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} sessionLanguage={session?.language} />
+            <MessageBubble key={msg.id} message={msg} sessionLanguage={session.language} />
           ))}
 
           {state.isStreaming && state.streamingText && (
-            <StreamingBubble text={state.streamingText} language={session?.language} />
+            <StreamingBubble text={state.streamingText} language={session.language} />
           )}
 
           {state.lastEval && !state.isStreaming && <EvalCard eval={state.lastEval} />}
@@ -243,22 +260,19 @@ export default function InterviewSessionPage({ params }: Props) {
             </p>
           )}
 
-          {/* A failed refetch keeps the old messages, so after an answer the
-              next question would be missing with no sign of why. */}
-          {isError && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <p role="alert" className="text-sm text-destructive">
-                {t("interview", "sessionRefreshError", lang)}
-              </p>
-              <button
-                type="button"
-                onClick={() => void refetch()}
-                disabled={isFetching}
-                className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
-              >
-                {t("common", "tryAgain", lang)}
-              </button>
-            </div>
+          {/* The next question arrives only through the refetch after "done" (the
+              streaming bubble hides then). If that refetch fails or is paused
+              offline, the answer and feedback show but the question doesn't, so
+              say why. Hidden while a stream error shows: the refetch then only
+              checks whether the failed turn was saved anyway. */}
+          {problem && !state.error && (
+            <LoadProblemNotice
+              problem={problem}
+              variant="inline"
+              retrying={isFetching}
+              failureCount={errorUpdateCount}
+              onRetry={() => void refetch()}
+            />
           )}
 
           <div ref={bottomRef} />
@@ -300,6 +314,95 @@ export default function InterviewSessionPage({ params }: Props) {
             {t("interview", "enterHint", lang)}
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Load problem notice
+// ---------------------------------------------------------------------------
+
+type LoadProblem = "offline" | "notFound" | "signedOut" | "failed";
+
+/** Why the session query has nothing fresh to show, or null if nothing is wrong. */
+function loadProblemOf(error: unknown, paused: boolean): LoadProblem | null {
+  // A fetch started while offline pauses, with no error, until the connection returns.
+  if (paused) return "offline";
+  if (!error) return null;
+  if (isMissingSessionError(error)) return "notFound";
+  // Also sent when Clerk briefly fails to issue a token, so a retry can still work.
+  if (error instanceof ApiClientError && error.status === 401) return "signedOut";
+  return "failed";
+}
+
+const PROBLEM_MESSAGE_KEYS = {
+  page: {
+    offline: "sessionOffline",
+    notFound: "sessionNotFound",
+    signedOut: "sessionSignedOut",
+    failed: "sessionLoadError",
+  },
+  inline: {
+    offline: "sessionRefreshOffline",
+    notFound: "sessionNotFound",
+    signedOut: "sessionSignedOut",
+    failed: "sessionRefreshError",
+  },
+} satisfies Record<"page" | "inline", Record<LoadProblem, string>>;
+
+function LoadProblemNotice({
+  problem,
+  variant,
+  retrying,
+  failureCount,
+  onRetry,
+}: {
+  problem: LoadProblem;
+  variant: "page" | "inline";
+  retrying: boolean;
+  /** Changes when a retry fails, remounting the message so it is announced again. */
+  failureCount: number;
+  onRetry: () => void;
+}) {
+  const { lang } = useLang();
+  const offline = problem === "offline";
+  // Offline resumes on its own, and retrying can't find a missing session.
+  const canRetry = problem === "failed" || problem === "signedOut";
+  const tone = offline ? "text-muted-foreground" : "text-destructive";
+
+  return (
+    <div
+      className={
+        variant === "page" ? "space-y-3" : "flex flex-wrap items-center justify-center gap-2"
+      }
+    >
+      <p
+        key={failureCount}
+        role={offline ? "status" : "alert"}
+        className={
+          variant === "page"
+            ? `rounded-md px-3 py-2 text-sm ${offline ? "bg-muted" : "bg-destructive/10"} ${tone}`
+            : `text-sm ${tone}`
+        }
+      >
+        {t("interview", PROBLEM_MESSAGE_KEYS[variant][problem], lang)}
+      </p>
+      {canRetry && (
+        // aria-disabled rather than disabled, so the button keeps keyboard focus
+        // while the retry runs.
+        <button
+          type="button"
+          onClick={() => {
+            if (!retrying) onRetry();
+          }}
+          aria-disabled={retrying}
+          className={`rounded-md border hover:bg-accent aria-disabled:opacity-50 ${
+            variant === "page" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"
+          }`}
+        >
+          {t("common", retrying ? "retrying" : "tryAgain", lang)}
+        </button>
       )}
     </div>
   );

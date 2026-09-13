@@ -230,6 +230,7 @@ export const translations = {
       ja: "このページで予期しないエラーが発生しました。もう一度お試しいただくか、ホームに戻ってください。",
     },
     tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
+    retrying: { en: "Retrying…", id: "Mencoba lagi…", ja: "再試行中…" },
     goHome: { en: "Go to home page", id: "Ke beranda", ja: "ホームへ" },
     errorId: { en: "Error ID", id: "ID kesalahan", ja: "エラーID" },
     notFoundTitle: {
@@ -776,6 +777,21 @@ export const translations = {
       id: "Gagal memuat pesan terbaru, jadi pertanyaan berikutnya mungkin belum muncul.",
       ja: "最新のメッセージを読み込めなかったため、次の質問が表示されていない可能性があります。",
     },
+    sessionOffline: {
+      en: "You're offline. This session will load when you reconnect.",
+      id: "Kamu sedang offline. Sesi ini akan dimuat saat kamu terhubung kembali.",
+      ja: "オフラインです。再接続するとこのセッションが読み込まれます。",
+    },
+    sessionRefreshOffline: {
+      en: "You're offline. The latest messages will load when you reconnect.",
+      id: "Kamu sedang offline. Pesan terbaru akan dimuat saat kamu terhubung kembali.",
+      ja: "オフラインです。再接続すると最新のメッセージが読み込まれます。",
+    },
+    sessionSignedOut: {
+      en: "Your sign-in may have expired. Try again, or sign in again if this keeps happening.",
+      id: "Sesi masukmu mungkin sudah berakhir. Coba lagi, atau masuk kembali jika ini terus terjadi.",
+      ja: "ログインの有効期限が切れた可能性があります。再試行するか、繰り返し発生する場合は再度ログインしてください。",
+    },
     score: { en: "score", id: "skor", ja: "スコア" },
     langJa: { en: "Japanese", id: "Jepang", ja: "日本語" },
     langEn: { en: "English", id: "Inggris", ja: "英語" },
@@ -838,7 +854,6 @@ export const translations = {
     starting: { en: "Starting session…", id: "Memulai sesi…", ja: "セッション開始中…" },
     backToList: { en: "← Back", id: "← Kembali", ja: "← 戻る" },
     // Session page
-    sessionTitle: { en: "Interview Session", id: "Sesi Wawancara", ja: "面接セッション" },
     endSession: { en: "End session", id: "Akhiri sesi", ja: "セッションを終了" },
     endConfirm: {
       en: "End this interview session and get your overall feedback?",

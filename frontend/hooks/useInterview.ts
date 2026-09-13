@@ -20,15 +20,23 @@ const API_PREFIX = "/api/v1";
 // Session queries
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether a session request failed because there is no such session for this
+ * user: 404 when it doesn't exist or isn't theirs, 422 when the id isn't a UUID.
+ * Retrying can't change either.
+ */
+export function isMissingSessionError(error: unknown): boolean {
+  return error instanceof ApiClientError && (error.status === 404 || error.status === 422);
+}
+
 export function useInterviewSession(id: string) {
   return useQuery<InterviewSessionDetail>({
     queryKey: ["interview", "sessions", id],
     queryFn: () => apiClient.get<InterviewSessionDetail>(`/interview/sessions/${id}`),
     enabled: Boolean(id),
-    // A missing session won't appear on retry, so show "not found" straight away.
-    // Other failures keep the app-wide single retry.
-    retry: (failureCount, error) =>
-      !(error instanceof ApiClientError && error.status === 404) && failureCount < 1,
+    // Show "not found" straight away. Other failures retry once, matching the
+    // default in lib/providers.tsx.
+    retry: (failureCount, error) => !isMissingSessionError(error) && failureCount < 1,
   });
 }
 
