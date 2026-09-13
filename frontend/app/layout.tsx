@@ -31,7 +31,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider>
-      <html lang="id" className={`${notoSans.variable} ${notoSansJP.variable}`}>
+      {/* "en" matches LanguageProvider's initial language. The provider updates
+          this attribute when the user switches language. */}
+      <html lang="en" className={`${notoSans.variable} ${notoSansJP.variable}`}>
         <body className="min-h-screen bg-background font-sans antialiased">
           <Providers>
             <SkipLink />
