@@ -198,6 +198,16 @@ export const translations = {
     tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
     goHome: { en: "Go to home page", id: "Ke beranda", ja: "ホームへ" },
     errorId: { en: "Error ID", id: "ID kesalahan", ja: "エラーID" },
+    notFoundTitle: {
+      en: "Page not found",
+      id: "Halaman tidak ditemukan",
+      ja: "ページが見つかりません",
+    },
+    notFoundBody: {
+      en: "The page you're looking for doesn't exist or has moved.",
+      id: "Halaman yang kamu cari tidak ada atau sudah dipindahkan.",
+      ja: "お探しのページは存在しないか、移動した可能性があります。",
+    },
   },
 
   // ---------------------------------------------------------------------------
