@@ -2,11 +2,19 @@ export type Language = "en" | "id" | "ja";
 
 export const DEFAULT_LANGUAGE: Language = "en";
 
+/** Cookie that saves the chosen language so the server can render it. */
+export const LANGUAGE_COOKIE = "preferred_language";
+
 export const LANGUAGES: { code: Language; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "id", label: "ID" },
   { code: "ja", label: "JP" },
 ];
+
+/** Narrows an untrusted value, such as a cookie, to a supported language. */
+export function isLanguage(value: unknown): value is Language {
+  return LANGUAGES.some(({ code }) => code === value);
+}
 
 export const translations = {
   // ---------------------------------------------------------------------------
