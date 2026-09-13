@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { NotFoundContent } from "@/components/not-found-content";
+import { t } from "@/lib/i18n";
+import { getSavedLanguage } from "@/lib/saved-language";
 
-// Metadata is server-side and the chosen language is client state, so the
-// title stays in the default language.
-export const metadata: Metadata = {
-  title: "Page not found",
-};
+// A missing URL is always a full page load, so the saved-language cookie is
+// available and the tab title can match the translated page body.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t("common", "notFoundTitle", await getSavedLanguage()) };
+}
 
 /**
  * Shown for any URL that matches no route. It replaces the page inside the root

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { t, type Language } from "@/lib/i18n";
 
 export interface ErrorBoundaryProps {
   error: Error & { digest?: string };
@@ -14,8 +14,16 @@ export interface ErrorBoundaryProps {
  * and global boundaries wrap it in one, and the dashboard boundary already
  * sits inside the dashboard layout's <main>.
  */
-export function ErrorFallback({ error, reset }: ErrorBoundaryProps) {
-  const { lang } = useLang();
+export function ErrorFallback({
+  error,
+  reset,
+  lang: langOverride,
+}: ErrorBoundaryProps & {
+  /** For global-error.tsx, which renders outside the language provider. */
+  lang?: Language | undefined;
+}) {
+  const { lang: contextLang } = useLang();
+  const lang = langOverride ?? contextLang;
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <div role="alert" className="space-y-2">

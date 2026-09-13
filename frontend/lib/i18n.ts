@@ -17,6 +17,18 @@ export function isLanguage(value: unknown): value is Language {
   return LANGUAGES.some(({ code }) => code === value);
 }
 
+/** The saved language from a document.cookie string, if it holds a supported one. */
+export function languageFromCookies(cookieString: string): Language | undefined {
+  for (const part of cookieString.split(";")) {
+    const [name, ...value] = part.trim().split("=");
+    if (name === LANGUAGE_COOKIE) {
+      const saved = value.join("=");
+      return isLanguage(saved) ? saved : undefined;
+    }
+  }
+  return undefined;
+}
+
 const JAPANESE_SCRIPT = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f]/;
 
 /**

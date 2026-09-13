@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import { ChatWidget } from "@/components/chat-widget";
 import { Toaster } from "@/components/ui/toaster";
 import { SkipLink } from "@/components/skip-link";
-import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE, isLanguage } from "@/lib/i18n";
+import { getSavedLanguage } from "@/lib/saved-language";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
@@ -34,8 +33,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // Rendering the saved language on the server makes the first paint and
   // <html lang> right with no flash of English. Reading a cookie makes every
   // route dynamically rendered, which this signed-in app accepts.
-  const savedLang = (await cookies()).get(LANGUAGE_COOKIE)?.value;
-  const lang = isLanguage(savedLang) ? savedLang : DEFAULT_LANGUAGE;
+  const lang = await getSavedLanguage();
 
   return (
     <ClerkProvider>
