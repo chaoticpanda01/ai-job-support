@@ -267,16 +267,19 @@ class UsageTracker:
             + Decimal(output_tokens) * _OUTPUT_COST_PER_TOKEN
         )
         try:
-            repo = AIUsageRepository(db)
-            await repo.record(
-                user_id=user_id,
-                feature=feature,
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cost_usd=cost_usd,
-                latency_ms=latency_ms,
-            )
+            # A savepoint, so a failed insert rolls back only itself: the caller's
+            # session stays usable, and the rest of its transaction can still commit.
+            async with db.begin_nested():
+                repo = AIUsageRepository(db)
+                await repo.record(
+                    user_id=user_id,
+                    feature=feature,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    latency_ms=latency_ms,
+                )
         except Exception as exc:
             logger.error(
                 "Failed to record AI usage: user_id=%s feature=%s error=%s",

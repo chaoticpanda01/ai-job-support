@@ -17,12 +17,15 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from app.api.v1.resumes import _ANALYSIS_STALE_AFTER
 from app.database import get_db
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import AnalysisType, PreferredLanguage
+from app.schemas.resume import AnalysisStatusResponse
 from app.services.file_storage import StorageError
 from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
 
 from tests.conftest import make_user
 
@@ -531,7 +534,7 @@ async def test_get_analysis_no_analysis_returns_404() -> None:
         pytest.param(
             "pending",
             None,
-            timedelta(minutes=6),
+            _ANALYSIS_STALE_AFTER + timedelta(seconds=1),
             {"status": "failed", "error_code": "timed_out"},
             id="stale-pending",
         ),
@@ -597,3 +600,18 @@ async def test_get_analysis_status_resume_not_found_returns_404() -> None:
             )
 
     assert resp.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        pytest.param("failed", None, id="failed-without-code"),
+        pytest.param("pending", "ai_failed", id="pending-with-code"),
+        pytest.param("idle", "unknown", id="idle-with-code"),
+    ],
+)
+def test_analysis_status_response_has_a_code_exactly_when_failed(
+    status: str, code: str | None
+) -> None:
+    with pytest.raises(ValidationError):
+        AnalysisStatusResponse.model_validate({"status": status, "error_code": code})

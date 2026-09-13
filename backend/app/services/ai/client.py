@@ -21,7 +21,18 @@ logger = logging.getLogger(__name__)
 
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
 
-_client = genai.Client(api_key=settings.gemini_api_key)
+# Per-request timeout. Without one the SDK waits indefinitely, so a stalled call
+# never fails, and anything watching for it (such as the resume analysis stale
+# check) gives up on a task that is still running.
+_REQUEST_TIMEOUT_SECONDS = 90
+
+# The longest generate() can take: every attempt times out, plus the sleeps.
+MAX_GENERATE_SECONDS = _REQUEST_TIMEOUT_SECONDS * (len(_RETRY_DELAYS) + 1) + sum(_RETRY_DELAYS)
+
+_client = genai.Client(
+    api_key=settings.gemini_api_key,
+    http_options=types.HttpOptions(timeout=_REQUEST_TIMEOUT_SECONDS * 1000),
+)
 
 
 class AIError(Exception):

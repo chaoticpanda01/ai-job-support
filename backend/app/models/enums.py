@@ -101,12 +101,14 @@ class AnalysisType(str, enum.Enum):
     gap_analysis = "gap_analysis"
 
 
-# The next two are stored as VARCHAR on resumes, not as PostgreSQL ENUMs, so
-# they have no SAEnum.
+# The next two are stored as plain VARCHAR on resumes rather than as enum types,
+# so a stored value this version doesn't know (e.g. after a rollback) loads as a
+# string the status endpoint reports as "unknown", instead of failing the whole
+# row load. Keep AnalysisErrorCode in sync with frontend/types/api.ts.
 
 
 class AnalysisStatus(str, enum.Enum):
-    """resumes.analysis_status. NULL means no request is running or has failed."""
+    """resumes.analysis_status. NULL means none was requested or the latest succeeded."""
 
     pending = "pending"
     failed = "failed"
@@ -119,7 +121,8 @@ class AnalysisErrorCode(str, enum.Enum):
     unreadable_file = "unreadable_file"
     file_unavailable = "file_unavailable"
     ai_failed = "ai_failed"
-    # Not stored: reported for a pending request that went stale.
+    # Not stored: reported for a pending request that went stale. The task may
+    # still finish later and clear it.
     timed_out = "timed_out"
     unknown = "unknown"
 

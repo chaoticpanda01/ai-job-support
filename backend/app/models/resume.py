@@ -54,6 +54,12 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "analysis_status IN ('pending', 'failed')",
             name="resumes_analysis_status_allowed",
         ),
+        # Only 'failed' has an error code, and any status has a request time.
+        CheckConstraint(
+            "(analysis_status IS NOT DISTINCT FROM 'failed') = (analysis_error_code IS NOT NULL)"
+            " AND (analysis_status IS NULL OR analysis_requested_at IS NOT NULL)",
+            name="resumes_analysis_state_consistent",
+        ),
         # Partial unique index — only one PRIMARY per user.
         # Defined as an Index here; actual DDL is in the baseline migration.
         Index(
@@ -83,7 +89,8 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     parsed_content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # The latest analysis request: 'pending' while its background task runs,
     # 'failed' with analysis_error_code when it failed, NULL once it succeeds or
-    # if none was requested. Values are AnalysisStatus and AnalysisErrorCode.
+    # if none was requested. Values: AnalysisStatus / AnalysisErrorCode.
+    # analysis_requested_at identifies the request (see finish_analysis).
     analysis_status: Mapped[str | None] = mapped_column(String(20))
     analysis_error_code: Mapped[str | None] = mapped_column(String(50))
     analysis_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

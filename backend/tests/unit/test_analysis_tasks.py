@@ -10,21 +10,26 @@ DB, S3, text extraction, and Gemini are mocked.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from app.api.v1.resumes import _ANALYSIS_STALE_AFTER, _analysis_status
 from app.models.enums import AnalysisErrorCode
+from app.models.resume import Resume
 from app.repositories.resume import ResumeRepository
 from app.services.ai.client import AIError
 from app.services.ai.usage_tracker import AIBudgetError
 from app.services.file_storage import StorageError
 from app.services.resume_parser import ParseError
 from app.workers.analysis_tasks import _run_analysis
+from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 _VALID_RESULT = {
     "japan_market_score": 72,
@@ -65,6 +70,7 @@ class _Deps:
             number = opened
             db = MagicMock()
             db.commit = AsyncMock(side_effect=lambda: self.commits.append(number))
+            db.rollback = AsyncMock()
             yield db
 
         with (
@@ -250,11 +256,18 @@ async def test_finish_analysis_updates_only_the_matching_request(
     assert finished is True
     assert session.execute.await_args is not None
     statement = session.execute.await_args.args[0]
-    compiled = statement.compile()
-    where = str(statement.whereclause)
-    assert "resumes.id" in where and "resumes.analysis_requested_at" in where
-    params: dict[str, Any] = compiled.params
-    assert resume_id in params.values() and requested_at in params.values()
+    # Exactly this id AND this request time. compare() also checks bound values,
+    # which the second assert proves by shifting the time by a microsecond.
+    assert statement.whereclause.compare(
+        and_(Resume.id == resume_id, Resume.analysis_requested_at == requested_at)
+    )
+    assert not statement.whereclause.compare(
+        and_(
+            Resume.id == resume_id,
+            Resume.analysis_requested_at == requested_at + timedelta(microseconds=1),
+        )
+    )
+    params: dict[str, Any] = statement.compile().params
     assert params["analysis_status"] == stored_status
     assert params["analysis_error_code"] == stored_code
 
@@ -269,3 +282,146 @@ async def test_finish_analysis_reports_a_superseded_request() -> None:
     )
 
     assert finished is False
+
+
+@pytest.mark.asyncio
+async def test_mark_analysis_pending_returns_the_stored_time() -> None:
+    """finish_analysis matches on this value, so it must be what the DB holds."""
+    stored = datetime(2026, 1, 1, tzinfo=UTC)
+    session = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock(
+        side_effect=lambda obj: setattr(obj, "analysis_requested_at", stored)
+    )
+
+    assert await ResumeRepository(session).mark_analysis_pending(MagicMock()) == stored
+
+
+# ---------------------------------------------------------------------------
+# Ordering and less obvious failure paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_success_clears_the_status_before_committing() -> None:
+    """Committing first would save the analysis but leave the status pending."""
+    deps = _Deps()
+    commits_seen_by_finish: list[list[int]] = []
+
+    async def finish(*_: Any, **__: Any) -> bool:
+        commits_seen_by_finish.append(list(deps.commits))
+        return True
+
+    deps.finish.side_effect = finish
+
+    await deps.run()
+
+    assert commits_seen_by_finish == [[]]
+    assert deps.commits == [1]
+
+
+@pytest.mark.asyncio
+async def test_commit_failure_is_recorded_as_unknown() -> None:
+    deps = _Deps()
+    committed: list[int] = []
+    opened = 0
+
+    @asynccontextmanager
+    async def factory() -> AsyncIterator[MagicMock]:
+        nonlocal opened
+        opened += 1
+        number = opened
+        db = MagicMock()
+
+        async def commit() -> None:
+            if number == 1:
+                raise OperationalError("COMMIT", {}, Exception("connection lost"))
+            committed.append(number)
+
+        db.commit = commit
+        yield db
+
+    resume_id, requested_at = uuid.uuid4(), datetime.now(tz=UTC)
+    with deps.patched(), patch("app.database.AsyncSessionFactory", new=factory):
+        await _run_analysis(resume_id, uuid.uuid4(), "general", None, "en", requested_at)
+
+    codes = [call.kwargs["error_code"] for call in deps.finish.await_args_list]
+    assert codes == [None, AnalysisErrorCode.unknown]
+    assert committed == [2]
+
+
+@pytest.mark.asyncio
+async def test_unexpected_error_from_the_ai_call_is_unknown_not_ai_failed() -> None:
+    """Only AIError means the AI call failed; anything else is a bug to tell apart."""
+    deps = _Deps()
+    deps.generate.side_effect = TimeoutError("socket")
+
+    resume_id, requested_at = await deps.run()
+
+    deps.finish.assert_awaited_once_with(
+        resume_id, requested_at, error_code=AnalysisErrorCode.unknown
+    )
+
+
+@pytest.mark.asyncio
+async def test_resume_deleted_during_the_ai_call_is_discarded() -> None:
+    deps = _Deps()
+    deps.get_owned.side_effect = [deps.resume, None]
+    deps.create.side_effect = IntegrityError("INSERT", {}, Exception("resume_analyses_resume_fk"))
+
+    await deps.run()
+
+    deps.finish.assert_not_awaited()
+    assert deps.commits == []
+
+
+@pytest.mark.asyncio
+async def test_integrity_error_for_a_resume_that_still_exists_is_recorded() -> None:
+    deps = _Deps()
+    deps.create.side_effect = IntegrityError("INSERT", {}, Exception("some other constraint"))
+
+    resume_id, requested_at = await deps.run()
+
+    deps.finish.assert_awaited_once_with(
+        resume_id, requested_at, error_code=AnalysisErrorCode.unknown
+    )
+    assert deps.commits == [2]
+
+
+@pytest.mark.asyncio
+async def test_superseded_success_is_logged(caplog: pytest.LogCaptureFixture) -> None:
+    deps = _Deps()
+    deps.finish.return_value = False
+
+    with caplog.at_level(logging.INFO, logger="app.workers.analysis_tasks"):
+        await deps.run()
+
+    assert "superseded=True" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Status endpoint staleness
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("age", "expected"),
+    [
+        pytest.param(_ANALYSIS_STALE_AFTER - timedelta(microseconds=1), "pending", id="inside"),
+        pytest.param(_ANALYSIS_STALE_AFTER, "failed", id="at-threshold"),
+    ],
+)
+def test_pending_goes_stale_exactly_at_the_threshold(age: timedelta, expected: str) -> None:
+    now = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
+    resume = MagicMock(
+        analysis_status="pending", analysis_error_code=None, analysis_requested_at=now - age
+    )
+
+    assert _analysis_status(resume, now).status == expected
+
+
+def test_stale_threshold_outlasts_the_longest_ai_call() -> None:
+    """Otherwise a task still waiting on Gemini could be reported as timed out."""
+    from app.services.ai.client import MAX_GENERATE_SECONDS
+
+    assert _ANALYSIS_STALE_AFTER.total_seconds() > MAX_GENERATE_SECONDS

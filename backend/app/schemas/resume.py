@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.enums import AnalysisErrorCode, AnalysisType, PreferredLanguage
 
@@ -68,7 +68,10 @@ class AnalyzeRequest(_Base):
 
 
 class AnalyzeResponse(_Base):
-    """Returned immediately after triggering analysis. Client polls for result."""
+    """
+    Returned once the request is recorded as pending. The client then polls
+    GET /resumes/{id}/analysis/status.
+    """
 
     task_id: str
     resume_id: UUID
@@ -77,9 +80,16 @@ class AnalyzeResponse(_Base):
 
 class AnalysisStatusResponse(_Base):
     """
-    Status of a resume's latest analysis request: "idle" when none is running,
-    "pending" while one is, "failed" when it failed, with error_code saying why.
+    Status of a resume's latest analysis request: "idle" when none is running and
+    the latest did not fail, "pending" while one runs, "failed" with error_code
+    saying why. error_code is set exactly when status is "failed".
     """
 
     status: Literal["idle", "pending", "failed"]
     error_code: AnalysisErrorCode | None = None
+
+    @model_validator(mode="after")
+    def _code_only_when_failed(self) -> Self:
+        if (self.status == "failed") != (self.error_code is not None):
+            raise ValueError("error_code is required when failed and not allowed otherwise")
+        return self

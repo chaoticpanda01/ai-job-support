@@ -34,6 +34,7 @@ from app.schemas.resume import (
     ResumeListResponse,
     ResumeResponse,
 )
+from app.services.ai.client import MAX_GENERATE_SECONDS
 from app.services.file_storage import StorageError, file_storage, sanitize_filename
 
 logger = logging.getLogger(__name__)
@@ -48,9 +49,12 @@ _ALLOWED_MIME = frozenset(
 )
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB (matches DB constraint)
 
-# A pending analysis older than this is reported as failed. The task normally
-# records its own outcome; this covers one that never did, e.g. after a restart.
-_ANALYSIS_STALE_AFTER = timedelta(minutes=5)
+# A pending analysis older than this is reported as failed with timed_out. The
+# task normally records its own outcome; this covers one that never did, e.g.
+# after a restart. It allows for the longest possible AI call plus time for the
+# download, text extraction, and DB writes, so a task still running isn't
+# reported early.
+_ANALYSIS_STALE_AFTER = timedelta(seconds=MAX_GENERATE_SECONDS + 120)
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +249,9 @@ async def analyze_resume(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
     requested_at = await repo.mark_analysis_pending(resume)
-    # Commit before queueing: the task reads the request in its own DB session,
-    # and get_db's commit only runs when the request finishes.
+    # Commit before queueing: the task reads the request in its own DB session.
+    # get_db also commits before background tasks run on FastAPI 0.115, but later
+    # versions run its cleanup after the response is sent, so don't rely on it.
     await db.commit()
 
     from app.workers.analysis_tasks import _run_analysis  # call inner async fn directly
@@ -305,8 +310,9 @@ async def get_analysis_status(
 ) -> AnalysisStatusResponse:
     """
     Status of the latest analysis request, for the client to poll: "pending"
-    while it runs, "failed" with an error code, or "idle" when none is running
-    (the result, if any, is at GET /resumes/{id}/analysis).
+    while it runs, "failed" with an error code (timed_out for a request pending
+    too long), or "idle" when none is running and the latest did not fail (the
+    result, if any, is at GET /resumes/{id}/analysis).
     """
     repo = ResumeRepository(db)
     resume = await repo.get_owned(resume_id, current_user.user_id)
@@ -320,7 +326,8 @@ def _analysis_status(resume: Resume, now: datetime) -> AnalysisStatusResponse:
         requested_at = resume.analysis_requested_at
         if requested_at is not None and now - requested_at < _ANALYSIS_STALE_AFTER:
             return AnalysisStatusResponse(status="pending")
-        # The task ended without recording an outcome.
+        # Stale or missing request time: assume the task ended without recording an
+        # outcome. One that is only slow can still finish later and clear this.
         return AnalysisStatusResponse(status="failed", error_code=AnalysisErrorCode.timed_out)
     if resume.analysis_status == AnalysisStatus.failed:
         try:

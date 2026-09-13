@@ -10,9 +10,10 @@ app.api.v1.resumes), not a Celery task:
   5. Write the ResumeAnalysis row, record AI usage, and clear the resume's
      analysis status, in one commit
 
-The client polls GET /resumes/{id}/analysis/status, so every outcome is
-recorded on the resume. A failure sets analysis_status='failed' with an error
-code; raising alone would leave the request pending until it went stale.
+The client polls GET /resumes/{id}/analysis/status, so every outcome of the
+current request is recorded on the resume. A failure sets
+analysis_status='failed' with an error code; raising alone would leave the
+request pending until it went stale.
 """
 
 from __future__ import annotations
@@ -44,9 +45,10 @@ async def _run_analysis(
     requested_at: datetime,
 ) -> None:
     """
-    Run one analysis request. requested_at identifies the request: an outcome is
-    recorded only while the resume still holds that request, so a slow task
-    can't overwrite the status of a newer one.
+    Run one analysis request. requested_at identifies the request: the resume's
+    status is updated only while it still holds that request, so a slow task
+    can't overwrite the status of a newer one. A superseded success still saves
+    its analysis.
     """
     try:
         await _analyze(resume_id, user_id, analysis_type, job_posting_id, language, requested_at)
@@ -71,6 +73,8 @@ async def _analyze(
     language: str,
     requested_at: datetime,
 ) -> None:
+    from sqlalchemy.exc import IntegrityError
+
     from app.config import settings
     from app.database import AsyncSessionFactory
     from app.models.enums import AnalysisType
@@ -143,15 +147,24 @@ async def _analyze(
 
         # -- Persist analysis
         analysis_repo = ResumeAnalysisRepository(db)
-        analysis = await analysis_repo.create(
-            resume_id=resume_id,
-            analysis_type=AnalysisType(analysis_type),
-            job_posting_id=job_posting_id,
-            ai_model=settings.gemini_default_model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            result=parsed.model_dump(),
-        )
+        try:
+            analysis = await analysis_repo.create(
+                resume_id=resume_id,
+                analysis_type=AnalysisType(analysis_type),
+                job_posting_id=job_posting_id,
+                ai_model=settings.gemini_default_model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                result=parsed.model_dump(),
+            )
+        except IntegrityError:
+            # Most likely the resume was deleted during the AI call, removing the
+            # row the foreign key points at. Check before calling it a crash.
+            await db.rollback()
+            if await resume_repo.get_owned(resume_id, user_id) is None:
+                logger.info("Resume analysis discarded, resume deleted: resume_id=%s", resume_id)
+                return
+            raise
 
         # -- Record usage (never raises)
         await usage_tracker.record(
@@ -165,15 +178,16 @@ async def _analyze(
         )
 
         # -- Clear the pending status, unless a newer request now owns it
-        await resume_repo.finish_analysis(resume_id, requested_at, error_code=None)
+        is_current = await resume_repo.finish_analysis(resume_id, requested_at, error_code=None)
 
         await db.commit()
 
         logger.info(
-            "Resume analysis complete: resume_id=%s analysis_id=%s tokens=%d",
+            "Resume analysis complete: resume_id=%s analysis_id=%s tokens=%d superseded=%s",
             resume_id,
             analysis.id,
             input_tokens + output_tokens,
+            not is_current,
         )
 
 

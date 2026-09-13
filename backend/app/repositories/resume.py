@@ -61,7 +61,8 @@ class ResumeRepository(BaseRepository[Resume]):
     async def mark_analysis_pending(self, resume: Resume) -> datetime:
         """
         Record a new analysis request, replacing any earlier one, and return its
-        time. The time identifies the request for finish_analysis.
+        time as stored. The time identifies the request for finish_analysis.
+        Does not commit.
         """
         requested_at = datetime.now(tz=UTC)
         updated = await self.update(
@@ -81,8 +82,10 @@ class ResumeRepository(BaseRepository[Resume]):
     ) -> bool:
         """
         Record the outcome of the request made at requested_at: clear the status
-        on success, or mark it failed with error_code. A single conditional UPDATE,
-        so a newer request that replaced it is left alone; returns False then.
+        on success (error_code None), or mark it failed with error_code. A single
+        conditional UPDATE, so a newer request that replaced it is left alone.
+        Returns False if no row matched (superseded, or the resume was deleted).
+        Does not commit.
         """
         result = await self.session.execute(
             update(Resume)

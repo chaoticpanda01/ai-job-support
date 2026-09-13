@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api-client";
 import type {
@@ -36,8 +36,9 @@ const analysisStatusKey = (resumeId: string) => ["resumes", resumeId, "analysis-
  * the status of the latest analysis request.
  *
  * The status is polled while a request is pending. The backend records every
- * outcome on the resume, so a failure comes back as "failed" with an error code,
- * after a reload too. When a pending request ends, the analysis is fetched again.
+ * outcome of the current request on the resume, so a failure comes back as
+ * "failed" with an error code, after a reload too. When a pending request ends,
+ * the analysis is fetched again, and `finishing` stays true until it arrives.
  */
 export function useResumeAnalysis(resumeId: string) {
   const queryClient = useQueryClient();
@@ -59,26 +60,43 @@ export function useResumeAnalysis(resumeId: string) {
     queryKey: analysisStatusKey(resumeId),
     queryFn: () => apiClient.get<ResumeAnalysisStatus>(`/resumes/${resumeId}/analysis/status`),
     enabled: Boolean(resumeId),
+    // Poll while pending, but not after a failed check: the page shows that error
+    // with a retry rather than polling a failing endpoint every few seconds.
     refetchInterval: (q) =>
-      q.state.data?.status === "pending" ? ANALYSIS_POLL_INTERVAL_MS : false,
+      q.state.status !== "error" && q.state.data?.status === "pending"
+        ? ANALYSIS_POLL_INTERVAL_MS
+        : false,
   });
 
+  // Notice a pending request ending during render, not in an effect, so
+  // `finishing` is already true on that render and the page's empty state
+  // doesn't flash up before the result arrives.
   const current = status.data?.status;
-  const wasPending = useRef(false);
+  const [previous, setPrevious] = useState(current);
+  const [finishing, setFinishing] = useState(false);
+  if (current !== previous) {
+    setPrevious(current);
+    if (previous === "pending" && current !== undefined) setFinishing(true);
+  }
+
   useEffect(() => {
-    if (current === "pending") {
-      wasPending.current = true;
-    } else if (current !== undefined && wasPending.current) {
-      wasPending.current = false;
-      void queryClient.invalidateQueries({ queryKey: analysisKey(resumeId) });
-    }
-  }, [current, queryClient, resumeId]);
+    if (!finishing) return;
+    void queryClient
+      .invalidateQueries({ queryKey: analysisKey(resumeId) })
+      .finally(() => setFinishing(false));
+  }, [finishing, queryClient, resumeId]);
 
   return {
     data: analysis.data,
     isLoading: analysis.isLoading,
     error: analysis.error,
     status: status.data,
+    statusError: status.error,
+    /** Changes each time a status check fails, so its message can be re-announced. */
+    statusErrorCount: status.errorUpdateCount,
+    checkingStatus: status.isFetching,
+    refetchStatus: () => void status.refetch(),
+    finishing,
   };
 }
 
@@ -90,9 +108,11 @@ export function useAnalyzeResume() {
         analysis_type: "general",
         language,
       }),
-    onSuccess: (_data, { resumeId }) => {
-      // The request is pending on the server now. Saying so here starts polling
-      // straight away rather than after the next status fetch.
+    onSuccess: async (_data, { resumeId }) => {
+      // Polling only runs while the cached status is pending, and until now it
+      // isn't, so set it here. Cancel any status fetch in flight first: it may
+      // have read the row before this request and would overwrite pending.
+      await queryClient.cancelQueries({ queryKey: analysisStatusKey(resumeId) });
       queryClient.setQueryData<ResumeAnalysisStatus>(analysisStatusKey(resumeId), {
         status: "pending",
         error_code: null,

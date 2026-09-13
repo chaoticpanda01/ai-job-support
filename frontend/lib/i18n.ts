@@ -525,10 +525,10 @@ export const translations = {
       id: "Gagal memuat analisis. Coba lagi.",
       ja: "分析を読み込めませんでした。再試行してください。",
     },
-    queued: {
-      en: "Analysis queued — results will appear here shortly.",
-      id: "Analisis sudah diantri — hasil akan muncul sebentar lagi.",
-      ja: "分析がキューに入りました — まもなく結果が表示されます。",
+    analysisStatusError: {
+      en: "Couldn't check the analysis status.",
+      id: "Gagal memeriksa status analisis.",
+      ja: "分析の状態を確認できませんでした。",
     },
     japanScore: { en: "Japan Market Score", id: "Skor Pasar Jepang", ja: "日本市場スコア" },
     strengths: { en: "Strengths", id: "Kelebihan", ja: "強み" },

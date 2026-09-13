@@ -8,6 +8,8 @@ exemption, not SQL.
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -207,3 +209,34 @@ async def test_check_budget_unknown_user_fails_closed() -> None:
             await tracker.check_budget(uuid.uuid4(), "chatbot", AsyncMock())
 
     assert exc_info.value.scope == "user"
+
+
+@pytest.mark.asyncio
+async def test_record_failure_rolls_back_only_its_savepoint() -> None:
+    """A failed usage insert must not leave the caller's session unusable."""
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def savepoint() -> AsyncIterator[None]:
+        events.append("savepoint")
+        try:
+            yield
+        except Exception:
+            events.append("rolled back")
+            raise
+
+    db = MagicMock()
+    db.begin_nested = savepoint
+    with patch("app.services.ai.usage_tracker.AIUsageRepository") as MockUsageRepo:
+        MockUsageRepo.return_value.record = AsyncMock(side_effect=RuntimeError("insert failed"))
+        await UsageTracker().record(
+            user_id=uuid.uuid4(),
+            feature="resume_analysis",
+            model="gemini",
+            input_tokens=1,
+            output_tokens=1,
+            latency_ms=1,
+            db=db,
+        )
+
+    assert events == ["savepoint", "rolled back"]
