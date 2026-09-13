@@ -3,23 +3,36 @@ Resume analysis background task.
 
 _run_analysis is invoked via FastAPI BackgroundTasks (see
 app.api.v1.resumes), not a Celery task:
-  1. Load resume + user from DB
-  2. Check AI budget (raises AIBudgetError → caller records failure)
-  3. Extract text from the S3 file
-  4. Call Gemini via AIClient
-  5. Parse and validate response JSON
-  6. Write ResumeAnalysis row to DB
-  7. Record AI usage
+  1. Load the resume from DB
+  2. Check AI budget
+  3. Download the file from S3 and extract its text
+  4. Call Gemini via AIClient, then parse and validate the JSON
+  5. Write the ResumeAnalysis row, record AI usage, and clear the resume's
+     analysis status, in one commit
+
+The client polls GET /resumes/{id}/analysis/status, so every outcome is
+recorded on the resume. A failure sets analysis_status='failed' with an error
+code; raising alone would leave the request pending until it went stale.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from datetime import datetime
 from uuid import UUID
 
+from app.models.enums import AnalysisErrorCode
+
 logger = logging.getLogger(__name__)
+
+
+class ResumeAnalysisError(Exception):
+    """An expected failure, recorded on the resume with a code the client can explain."""
+
+    def __init__(self, code: AnalysisErrorCode, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 async def _run_analysis(
@@ -27,8 +40,37 @@ async def _run_analysis(
     user_id: UUID,
     analysis_type: str,
     job_posting_id: UUID | None,
-    language: str = "en",
-) -> dict[str, Any]:
+    language: str,
+    requested_at: datetime,
+) -> None:
+    """
+    Run one analysis request. requested_at identifies the request: an outcome is
+    recorded only while the resume still holds that request, so a slow task
+    can't overwrite the status of a newer one.
+    """
+    try:
+        await _analyze(resume_id, user_id, analysis_type, job_posting_id, language, requested_at)
+    except ResumeAnalysisError as exc:
+        logger.warning(
+            "Resume analysis failed: resume_id=%s code=%s error=%s",
+            resume_id,
+            exc.code.value,
+            exc,
+        )
+        await _record_failure(resume_id, requested_at, exc.code)
+    except Exception:
+        logger.exception("Resume analysis crashed: resume_id=%s", resume_id)
+        await _record_failure(resume_id, requested_at, AnalysisErrorCode.unknown)
+
+
+async def _analyze(
+    resume_id: UUID,
+    user_id: UUID,
+    analysis_type: str,
+    job_posting_id: UUID | None,
+    language: str,
+    requested_at: datetime,
+) -> None:
     from app.config import settings
     from app.database import AsyncSessionFactory
     from app.models.enums import AnalysisType
@@ -41,7 +83,7 @@ async def _run_analysis(
     )
     from app.services.ai.response_parser import ResponseParseError, parse_response
     from app.services.ai.usage_tracker import AIBudgetError, usage_tracker
-    from app.services.file_storage import file_storage
+    from app.services.file_storage import StorageError, file_storage
     from app.services.resume_parser import ParseError, extract_text
 
     async with AsyncSessionFactory() as db:
@@ -49,23 +91,27 @@ async def _run_analysis(
         resume_repo = ResumeRepository(db)
         resume = await resume_repo.get_owned(resume_id, user_id)
         if resume is None:
-            raise ValueError(f"Resume {resume_id} not found for user {user_id}")
+            # Deleted since the request: nothing to analyse or to record on.
+            logger.info("Resume analysis skipped, resume deleted: resume_id=%s", resume_id)
+            return
 
         # -- Budget check
         try:
             await usage_tracker.check_budget(user_id, "resume_analysis", db)
         except AIBudgetError as exc:
-            logger.warning("Budget exceeded for user=%s: %s", user_id, exc)
-            raise
+            raise ResumeAnalysisError(AnalysisErrorCode.budget_exceeded, str(exc)) from exc
 
         # -- Fetch file bytes from S3 / Backblaze B2
-        file_bytes = file_storage.download(resume.file_url)
+        try:
+            file_bytes = file_storage.download(resume.file_url)
+        except StorageError as exc:
+            raise ResumeAnalysisError(AnalysisErrorCode.file_unavailable, str(exc)) from exc
 
         # -- Extract text
         try:
             resume_text = extract_text(file_bytes, resume.mime_type)
         except ParseError as exc:
-            raise ValueError("Could not read resume file — unsupported or corrupt format") from exc
+            raise ResumeAnalysisError(AnalysisErrorCode.unreadable_file, str(exc)) from exc
 
         # -- Build prompts
         system = build_system_prompt(language)
@@ -82,14 +128,18 @@ async def _run_analysis(
                 json_mode=True,
             )
         except AIError as exc:
-            raise ValueError(f"AI call failed: {exc}") from exc
+            raise ResumeAnalysisError(
+                AnalysisErrorCode.ai_failed, f"AI call failed: {exc}"
+            ) from exc
         latency_ms = int((time.monotonic() - t0) * 1000)
 
         # -- Parse + validate response
         try:
             parsed = parse_response(response_text, ResumeAnalysisResult)
         except ResponseParseError as exc:
-            raise ValueError(f"Response parsing failed: {exc}") from exc
+            raise ResumeAnalysisError(
+                AnalysisErrorCode.ai_failed, f"Response parsing failed: {exc}"
+            ) from exc
 
         # -- Persist analysis
         analysis_repo = ResumeAnalysisRepository(db)
@@ -114,6 +164,9 @@ async def _run_analysis(
             db=db,
         )
 
+        # -- Clear the pending status, unless a newer request now owns it
+        await resume_repo.finish_analysis(resume_id, requested_at, error_code=None)
+
         await db.commit()
 
         logger.info(
@@ -122,4 +175,24 @@ async def _run_analysis(
             analysis.id,
             input_tokens + output_tokens,
         )
-        return parsed.model_dump()
+
+
+async def _record_failure(
+    resume_id: UUID,
+    requested_at: datetime,
+    code: AnalysisErrorCode,
+) -> None:
+    """
+    Mark the request failed in a fresh DB session. Best effort: if this fails
+    too, it is logged, and the status endpoint reports the request as timed out
+    once it goes stale.
+    """
+    from app.database import AsyncSessionFactory
+    from app.repositories.resume import ResumeRepository
+
+    try:
+        async with AsyncSessionFactory() as db:
+            if await ResumeRepository(db).finish_analysis(resume_id, requested_at, error_code=code):
+                await db.commit()
+    except Exception:
+        logger.exception("Failed to record resume analysis failure: resume_id=%s", resume_id)

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -5,7 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.enums import AnalysisType
+from app.models.enums import AnalysisErrorCode, AnalysisStatus, AnalysisType
 from app.models.resume import Resume, ResumeAnalysis
 from app.repositories.base import BaseRepository
 
@@ -56,6 +57,42 @@ class ResumeRepository(BaseRepository[Resume]):
         if resume is None:
             return None
         return await self.update(resume, parsed_content=parsed_content)
+
+    async def mark_analysis_pending(self, resume: Resume) -> datetime:
+        """
+        Record a new analysis request, replacing any earlier one, and return its
+        time. The time identifies the request for finish_analysis.
+        """
+        requested_at = datetime.now(tz=UTC)
+        updated = await self.update(
+            resume,
+            analysis_status=AnalysisStatus.pending.value,
+            analysis_error_code=None,
+            analysis_requested_at=requested_at,
+        )
+        return updated.analysis_requested_at or requested_at
+
+    async def finish_analysis(
+        self,
+        resume_id: UUID,
+        requested_at: datetime,
+        *,
+        error_code: AnalysisErrorCode | None,
+    ) -> bool:
+        """
+        Record the outcome of the request made at requested_at: clear the status
+        on success, or mark it failed with error_code. A single conditional UPDATE,
+        so a newer request that replaced it is left alone; returns False then.
+        """
+        result = await self.session.execute(
+            update(Resume)
+            .where(Resume.id == resume_id, Resume.analysis_requested_at == requested_at)
+            .values(
+                analysis_status=None if error_code is None else AnalysisStatus.failed.value,
+                analysis_error_code=None if error_code is None else error_code.value,
+            )
+        )
+        return bool(result.rowcount)  # type: ignore[attr-defined]
 
     async def count_by_user(self, user_id: UUID) -> int:
         from sqlalchemy import func, select

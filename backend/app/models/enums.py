@@ -101,6 +101,29 @@ class AnalysisType(str, enum.Enum):
     gap_analysis = "gap_analysis"
 
 
+# The next two are stored as VARCHAR on resumes, not as PostgreSQL ENUMs, so
+# they have no SAEnum.
+
+
+class AnalysisStatus(str, enum.Enum):
+    """resumes.analysis_status. NULL means no request is running or has failed."""
+
+    pending = "pending"
+    failed = "failed"
+
+
+class AnalysisErrorCode(str, enum.Enum):
+    """Why a resume's latest analysis failed. The client maps each code to a message."""
+
+    budget_exceeded = "budget_exceeded"
+    unreadable_file = "unreadable_file"
+    file_unavailable = "file_unavailable"
+    ai_failed = "ai_failed"
+    # Not stored: reported for a pending request that went stale.
+    timed_out = "timed_out"
+    unknown = "unknown"
+
+
 class OriginalLanguage(str, enum.Enum):
     ja = "ja"
     en = "en"

@@ -1,35 +1,44 @@
 "use client";
 
-import { use, useState } from "react";
-import {
-  ANALYSIS_POLL_TIMEOUT_MS,
-  useResume,
-  useResumeAnalysis,
-  useAnalyzeResume,
-} from "@/hooks/useResumes";
+import { use } from "react";
+import { useAnalyzeResume, useResume, useResumeAnalysis } from "@/hooks/useResumes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useToast } from "@/hooks/use-toast";
 import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { ResumeAnalysis } from "@/types/api";
+import type { AnalysisErrorCode, ResumeAnalysis } from "@/types/api";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
+const FAILURE_MESSAGE_KEYS: Record<AnalysisErrorCode, string> = {
+  budget_exceeded: "analysisFailedBudget",
+  unreadable_file: "analysisFailedUnreadable",
+  file_unavailable: "analysisFailedFile",
+  ai_failed: "analysisFailedAi",
+  timed_out: "analysisFailedTimeout",
+  unknown: "analysisFailedUnknown",
+};
+
+/** Message key for a failure code, treating a code this client doesn't know as unknown. */
+function failureMessageKey(code: string | null): string {
+  return code !== null && Object.hasOwn(FAILURE_MESSAGE_KEYS, code)
+    ? FAILURE_MESSAGE_KEYS[code as AnalysisErrorCode]
+    : FAILURE_MESSAGE_KEYS.unknown;
+}
+
 export default function ResumeDetailPage({ params }: Props) {
   const { id } = use(params);
   const { data: resume, isLoading, error } = useResume(id);
-  // Polling deadline, set when an analysis is queued. null means don't poll.
-  const [pollUntil, setPollUntil] = useState<number | null>(null);
   const {
     data: analysis,
     isLoading: analysisLoading,
     error: analysisError,
-    timedOut: analysisTimedOut,
-  } = useResumeAnalysis(id, pollUntil);
+    status: analysisStatus,
+  } = useResumeAnalysis(id);
   const analyzeMutation = useAnalyzeResume();
   const { lang } = useLang();
   const { toast } = useToast();
@@ -38,7 +47,6 @@ export default function ResumeDetailPage({ params }: Props) {
     analyzeMutation.mutate(
       { resumeId: id, language: lang },
       {
-        onSuccess: () => setPollUntil(Date.now() + ANALYSIS_POLL_TIMEOUT_MS),
         onError: (err) => {
           toast({
             variant: "destructive",
@@ -67,15 +75,19 @@ export default function ResumeDetailPage({ params }: Props) {
     month: "short",
     year: "numeric",
   });
+  const pending = analysisStatus?.status === "pending";
+  // A failure only matters while there is no analysis to show instead.
+  const failed = !analysis && !pending && analysisStatus?.status === "failed";
   // Keyed to this visit's analyse click, so an analysis that already existed
-  // on load is not read out as news. Says "queued", then "ready" when polling
-  // lands the result. A timeout is spoken by its role="alert" message instead.
-  const analysisAnnouncement =
-    analyzeMutation.isSuccess && !analysisTimedOut
-      ? analysis
+  // on load is not read out as news. Says "queued", then "ready" when the
+  // result lands. A failure is spoken by its role="alert" message instead.
+  const analysisAnnouncement = analyzeMutation.isSuccess
+    ? pending
+      ? t("resumes", "queued", lang)
+      : analysis
         ? t("resumes", "analysisReady", lang)
-        : t("resumes", "queued", lang)
-      : "";
+        : ""
+    : "";
 
   return (
     <div className="space-y-8">
@@ -116,7 +128,7 @@ export default function ResumeDetailPage({ params }: Props) {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-medium">{t("resumes", "aiAnalysis", lang)}</h2>
-          {!analysis && !analysisLoading && !analysisError && (
+          {!analysis && !analysisLoading && !analysisError && !pending && (
             <button
               onClick={handleAnalyze}
               disabled={analyzeMutation.isPending}
@@ -124,7 +136,9 @@ export default function ResumeDetailPage({ params }: Props) {
             >
               {analyzeMutation.isPending
                 ? t("resumes", "queueing", lang)
-                : t("resumes", "analyseBtn", lang)}
+                : failed
+                  ? t("common", "tryAgain", lang)
+                  : t("resumes", "analyseBtn", lang)}
             </button>
           )}
         </div>
@@ -149,19 +163,19 @@ export default function ResumeDetailPage({ params }: Props) {
           </p>
         )}
 
-        {analysisTimedOut && !analysisError && (
+        {failed && (
           <p
             role="alert"
             className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
-            {t("resumes", "analysisTimeout", lang)}
+            {t("resumes", failureMessageKey(analysisStatus.error_code), lang)}
           </p>
         )}
 
-        {!analysis && !analysisLoading && analyzeMutation.isSuccess && !analysisTimedOut && (
+        {!analysis && !analysisLoading && pending && (
           <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
             <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            {t("resumes", "queued", lang)}
+            {t("resumes", "analysing", lang)}
           </div>
         )}
       </section>

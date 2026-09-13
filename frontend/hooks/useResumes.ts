@@ -1,8 +1,15 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api-client";
-import type { AnalyzeResponse, ResumeAnalysis, ResumeDetail, ResumeList } from "@/types/api";
+import type {
+  AnalyzeResponse,
+  ResumeAnalysis,
+  ResumeAnalysisStatus,
+  ResumeDetail,
+  ResumeList,
+} from "@/types/api";
 
 export function useResumes() {
   return useQuery<ResumeList>({
@@ -20,25 +27,23 @@ export function useResume(id: string) {
 }
 
 const ANALYSIS_POLL_INTERVAL_MS = 3000;
-/** How long the detail page polls for a queued analysis before giving up. */
-export const ANALYSIS_POLL_TIMEOUT_MS = 60_000;
 
-/** When the analysis endpoint last answered, with data or with an error. */
-function lastCheckedAt(state: { dataUpdatedAt: number; errorUpdatedAt: number }) {
-  return Math.max(state.dataUpdatedAt, state.errorUpdatedAt);
-}
+const analysisKey = (resumeId: string) => ["resumes", resumeId, "analysis"];
+const analysisStatusKey = (resumeId: string) => ["resumes", resumeId, "analysis-status"];
 
 /**
- * Latest analysis for a resume, or null while none exists (the API's 404).
+ * The latest analysis for a resume (null while none exists, the API's 404), and
+ * the status of the latest analysis request.
  *
- * Pass `pollUntil` (a timestamp) after queueing an analysis to poll until the
- * result lands or that time passes. The backend has no job status to poll: it
- * only writes a row on success, so a failed background job stays a 404 and
- * `timedOut` is the only signal the client gets.
+ * The status is polled while a request is pending. The backend records every
+ * outcome on the resume, so a failure comes back as "failed" with an error code,
+ * after a reload too. When a pending request ends, the analysis is fetched again.
  */
-export function useResumeAnalysis(resumeId: string, pollUntil: number | null = null) {
-  const query = useQuery<ResumeAnalysis | null>({
-    queryKey: ["resumes", resumeId, "analysis"],
+export function useResumeAnalysis(resumeId: string) {
+  const queryClient = useQueryClient();
+
+  const analysis = useQuery<ResumeAnalysis | null>({
+    queryKey: analysisKey(resumeId),
     queryFn: async () => {
       try {
         return await apiClient.get<ResumeAnalysis>(`/resumes/${resumeId}/analysis`);
@@ -48,21 +53,32 @@ export function useResumeAnalysis(resumeId: string, pollUntil: number | null = n
       }
     },
     enabled: Boolean(resumeId),
-    refetchInterval: (q) =>
-      pollUntil !== null && !q.state.data && lastCheckedAt(q.state) < pollUntil
-        ? ANALYSIS_POLL_INTERVAL_MS
-        : false,
   });
 
-  // Same lastCheckedAt comparison as refetchInterval, so the timeout shows
-  // exactly when polling stops. Comparing Date.now() here could disagree.
-  const timedOut = pollUntil !== null && !query.data && lastCheckedAt(query) >= pollUntil;
+  const status = useQuery<ResumeAnalysisStatus>({
+    queryKey: analysisStatusKey(resumeId),
+    queryFn: () => apiClient.get<ResumeAnalysisStatus>(`/resumes/${resumeId}/analysis/status`),
+    enabled: Boolean(resumeId),
+    refetchInterval: (q) =>
+      q.state.data?.status === "pending" ? ANALYSIS_POLL_INTERVAL_MS : false,
+  });
+
+  const current = status.data?.status;
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (current === "pending") {
+      wasPending.current = true;
+    } else if (current !== undefined && wasPending.current) {
+      wasPending.current = false;
+      void queryClient.invalidateQueries({ queryKey: analysisKey(resumeId) });
+    }
+  }, [current, queryClient, resumeId]);
 
   return {
-    data: query.data,
-    isLoading: query.isLoading,
-    error: query.error,
-    timedOut,
+    data: analysis.data,
+    isLoading: analysis.isLoading,
+    error: analysis.error,
+    status: status.data,
   };
 }
 
@@ -75,9 +91,12 @@ export function useAnalyzeResume() {
         language,
       }),
     onSuccess: (_data, { resumeId }) => {
-      // Fetch now. The detail page's pollUntil keeps it polling until the
-      // result lands or the deadline passes.
-      queryClient.invalidateQueries({ queryKey: ["resumes", resumeId, "analysis"] });
+      // The request is pending on the server now. Saying so here starts polling
+      // straight away rather than after the next status fetch.
+      queryClient.setQueryData<ResumeAnalysisStatus>(analysisStatusKey(resumeId), {
+        status: "pending",
+        error_code: null,
+      });
     },
   });
 }

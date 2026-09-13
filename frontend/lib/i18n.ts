@@ -490,10 +490,35 @@ export const translations = {
       id: "Analisis resume sudah siap.",
       ja: "履歴書の分析が完了しました。",
     },
-    analysisTimeout: {
-      en: "Analysis is taking longer than expected. Refresh the page to check again, or analyse the resume again.",
-      id: "Analisis memakan waktu lebih lama dari perkiraan. Muat ulang halaman untuk memeriksa lagi, atau analisis ulang resume.",
-      ja: "分析に予想以上の時間がかかっています。ページを再読み込みして確認するか、もう一度分析してください。",
+    analysisFailedBudget: {
+      en: "You've reached your AI usage limit, so the analysis didn't run. Try again later.",
+      id: "Kamu sudah mencapai batas penggunaan AI, jadi analisis tidak dijalankan. Coba lagi nanti.",
+      ja: "AIの利用上限に達したため、分析を実行できませんでした。時間をおいて再試行してください。",
+    },
+    analysisFailedUnreadable: {
+      en: "We couldn't read the text in this file. Upload a text-based PDF or DOCX and try again.",
+      id: "Kami tidak dapat membaca teks di file ini. Unggah PDF atau DOCX berbasis teks, lalu coba lagi.",
+      ja: "このファイルのテキストを読み取れませんでした。テキスト形式のPDFまたはDOCXをアップロードして再試行してください。",
+    },
+    analysisFailedFile: {
+      en: "We couldn't open the stored file. Please try again.",
+      id: "Kami tidak dapat membuka file yang tersimpan. Coba lagi.",
+      ja: "保存されたファイルを開けませんでした。再試行してください。",
+    },
+    analysisFailedAi: {
+      en: "The AI analysis couldn't be completed. Please try again.",
+      id: "Analisis AI tidak dapat diselesaikan. Coba lagi.",
+      ja: "AI分析を完了できませんでした。再試行してください。",
+    },
+    analysisFailedTimeout: {
+      en: "The analysis stopped before it finished. Please try again.",
+      id: "Analisis berhenti sebelum selesai. Coba lagi.",
+      ja: "分析が完了する前に停止しました。再試行してください。",
+    },
+    analysisFailedUnknown: {
+      en: "Something went wrong while analysing your resume. Please try again.",
+      id: "Terjadi kesalahan saat menganalisis resume kamu. Coba lagi.",
+      ja: "履歴書の分析中にエラーが発生しました。再試行してください。",
     },
     analysisLoadError: {
       en: "Couldn't load the analysis. Please try again.",

@@ -8,11 +8,13 @@ DELETE /resumes/{id}               — delete resume + S3 object
 PUT    /resumes/{id}/primary        — set as primary resume
 POST   /resumes/{id}/analyze        — enqueue AI analysis task
 GET    /resumes/{id}/analysis       — get latest analysis result
+GET    /resumes/{id}/analysis/status — status of the latest analysis request
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -20,8 +22,11 @@ import magic
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile, status
 
 from app.dependencies import AuthUser, DbSession
+from app.models.enums import AnalysisErrorCode, AnalysisStatus
+from app.models.resume import Resume
 from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
 from app.schemas.resume import (
+    AnalysisStatusResponse,
     AnalyzeRequest,
     AnalyzeResponse,
     ResumeAnalysisResponse,
@@ -42,6 +47,10 @@ _ALLOWED_MIME = frozenset(
     ]
 )
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB (matches DB constraint)
+
+# A pending analysis older than this is reported as failed. The task normally
+# records its own outcome; this covers one that never did, e.g. after a restart.
+_ANALYSIS_STALE_AFTER = timedelta(minutes=5)
 
 
 # ---------------------------------------------------------------------------
@@ -227,12 +236,18 @@ async def analyze_resume(
 ) -> AnalyzeResponse:
     """
     Trigger resume analysis as a FastAPI background task (no Celery required).
-    Returns immediately; the client polls GET /resumes/{id}/analysis for results.
+    Returns immediately; the client polls GET /resumes/{id}/analysis/status, then
+    reads the result from GET /resumes/{id}/analysis.
     """
     repo = ResumeRepository(db)
     resume = await repo.get_owned(resume_id, current_user.user_id)
     if resume is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    requested_at = await repo.mark_analysis_pending(resume)
+    # Commit before queueing: the task reads the request in its own DB session,
+    # and get_db's commit only runs when the request finishes.
+    await db.commit()
 
     from app.workers.analysis_tasks import _run_analysis  # call inner async fn directly
 
@@ -243,6 +258,7 @@ async def analyze_resume(
         body.analysis_type.value,
         body.job_posting_id,
         body.language.value,
+        requested_at,
     )
 
     return AnalyzeResponse(task_id=str(resume_id), resume_id=resume_id)
@@ -274,3 +290,42 @@ async def get_analysis(
         )
 
     return ResumeAnalysisResponse.model_validate(analysis)
+
+
+# ---------------------------------------------------------------------------
+# Get analysis request status
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{resume_id}/analysis/status", response_model=AnalysisStatusResponse)
+async def get_analysis_status(
+    resume_id: UUID,
+    current_user: AuthUser,
+    db: DbSession,
+) -> AnalysisStatusResponse:
+    """
+    Status of the latest analysis request, for the client to poll: "pending"
+    while it runs, "failed" with an error code, or "idle" when none is running
+    (the result, if any, is at GET /resumes/{id}/analysis).
+    """
+    repo = ResumeRepository(db)
+    resume = await repo.get_owned(resume_id, current_user.user_id)
+    if resume is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    return _analysis_status(resume, datetime.now(tz=UTC))
+
+
+def _analysis_status(resume: Resume, now: datetime) -> AnalysisStatusResponse:
+    if resume.analysis_status == AnalysisStatus.pending:
+        requested_at = resume.analysis_requested_at
+        if requested_at is not None and now - requested_at < _ANALYSIS_STALE_AFTER:
+            return AnalysisStatusResponse(status="pending")
+        # The task ended without recording an outcome.
+        return AnalysisStatusResponse(status="failed", error_code=AnalysisErrorCode.timed_out)
+    if resume.analysis_status == AnalysisStatus.failed:
+        try:
+            code = AnalysisErrorCode(resume.analysis_error_code)
+        except ValueError:
+            code = AnalysisErrorCode.unknown
+        return AnalysisStatusResponse(status="failed", error_code=code)
+    return AnalysisStatusResponse(status="idle")

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import AnalysisType, PreferredLanguage
+from app.models.enums import AnalysisErrorCode, AnalysisType, PreferredLanguage
 
 
 class _Base(BaseModel):
@@ -73,3 +73,13 @@ class AnalyzeResponse(_Base):
     task_id: str
     resume_id: UUID
     status: str = "queued"
+
+
+class AnalysisStatusResponse(_Base):
+    """
+    Status of a resume's latest analysis request: "idle" when none is running,
+    "pending" while one is, "failed" when it failed, with error_code saying why.
+    """
+
+    status: Literal["idle", "pending", "failed"]
+    error_code: AnalysisErrorCode | None = None

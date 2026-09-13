@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -48,6 +50,10 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "'application/vnd.openxmlformats-officedocument.wordprocessingml.document')",
             name="resumes_mime_type_allowed",
         ),
+        CheckConstraint(
+            "analysis_status IN ('pending', 'failed')",
+            name="resumes_analysis_status_allowed",
+        ),
         # Partial unique index — only one PRIMARY per user.
         # Defined as an Index here; actual DDL is in the baseline migration.
         Index(
@@ -75,6 +81,12 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     is_primary: Mapped[bool] = mapped_column(nullable=False, server_default=text("false"))
     parsed_content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # The latest analysis request: 'pending' while its background task runs,
+    # 'failed' with analysis_error_code when it failed, NULL once it succeeds or
+    # if none was requested. Values are AnalysisStatus and AnalysisErrorCode.
+    analysis_status: Mapped[str | None] = mapped_column(String(20))
+    analysis_error_code: Mapped[str | None] = mapped_column(String(50))
+    analysis_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # --- Relationships ---
     user: Mapped["User"] = relationship("User", back_populates="resumes")

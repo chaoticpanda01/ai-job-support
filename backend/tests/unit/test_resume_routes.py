@@ -1,6 +1,6 @@
 """
 Unit tests for resume endpoints (upload, list, get, delete, set primary,
-analyze, get analysis).
+analyze, get analysis, get analysis status).
 
 All external I/O (DB, S3, MIME detection, background analysis task) is
 mocked so these run without a live database.
@@ -12,7 +12,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -391,22 +391,43 @@ async def test_set_primary_not_found_returns_404() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_resume_enqueues_task() -> None:
+async def test_analyze_resume_marks_pending_and_commits_before_enqueuing() -> None:
+    """The task reads the request time in its own session, so it must be committed first."""
     user = make_user()
     resume = _mock_resume(user_id=user.id)
+    requested_at = datetime.now(tz=UTC)
+    events: list[str] = []
+
+    async def mark_pending_effect(*_: Any) -> datetime:
+        events.append("pending")
+        return requested_at
+
+    async def run_analysis_effect(*_: Any) -> None:
+        events.append("task")
+
+    mark_pending = AsyncMock(side_effect=mark_pending_effect)
+    run_analysis = AsyncMock(side_effect=run_analysis_effect)
 
     with (
         _bypass_middleware(user),
+        _fake_db_session() as session,
         patch("app.api.v1.resumes.ResumeRepository.get_owned", new=AsyncMock(return_value=resume)),
-        patch("app.workers.analysis_tasks._run_analysis", new=AsyncMock()),
+        patch("app.api.v1.resumes.ResumeRepository.mark_analysis_pending", new=mark_pending),
+        patch("app.workers.analysis_tasks._run_analysis", new=run_analysis),
     ):
+        session.commit = AsyncMock(side_effect=lambda: events.append("commit"))
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
-                f"/api/v1/resumes/{resume.id}/analyze", headers=_auth_headers(), json={}
+                f"/api/v1/resumes/{resume.id}/analyze",
+                headers=_auth_headers(),
+                json={"language": "ja"},
             )
 
     assert resp.status_code == 202
     assert resp.json()["resume_id"] == str(resume.id)
+    assert events == ["pending", "commit", "task"]
+    mark_pending.assert_awaited_once_with(resume)
+    run_analysis.assert_awaited_once_with(resume.id, user.id, "general", None, "ja", requested_at)
 
 
 @pytest.mark.asyncio
@@ -485,6 +506,94 @@ async def test_get_analysis_no_analysis_returns_404() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get(
                 f"/api/v1/resumes/{resume.id}/analysis", headers=_auth_headers()
+            )
+
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /resumes/{id}/analysis/status
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("stored_status", "stored_code", "age", "expected"),
+    [
+        pytest.param(None, None, None, {"status": "idle", "error_code": None}, id="idle"),
+        pytest.param(
+            "pending",
+            None,
+            timedelta(seconds=30),
+            {"status": "pending", "error_code": None},
+            id="pending",
+        ),
+        pytest.param(
+            "pending",
+            None,
+            timedelta(minutes=6),
+            {"status": "failed", "error_code": "timed_out"},
+            id="stale-pending",
+        ),
+        pytest.param(
+            "pending",
+            None,
+            None,
+            {"status": "failed", "error_code": "timed_out"},
+            id="pending-without-time",
+        ),
+        pytest.param(
+            "failed",
+            "unreadable_file",
+            timedelta(seconds=5),
+            {"status": "failed", "error_code": "unreadable_file"},
+            id="failed",
+        ),
+        pytest.param(
+            "failed",
+            "retired_code",
+            None,
+            {"status": "failed", "error_code": "unknown"},
+            id="unrecognised-code",
+        ),
+    ],
+)
+async def test_get_analysis_status(
+    stored_status: str | None,
+    stored_code: str | None,
+    age: timedelta | None,
+    expected: dict[str, Any],
+) -> None:
+    user = make_user()
+    resume = _mock_resume(user_id=user.id)
+    resume.analysis_status = stored_status
+    resume.analysis_error_code = stored_code
+    resume.analysis_requested_at = None if age is None else datetime.now(tz=UTC) - age
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.resumes.ResumeRepository.get_owned", new=AsyncMock(return_value=resume)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(
+                f"/api/v1/resumes/{resume.id}/analysis/status", headers=_auth_headers()
+            )
+
+    assert resp.status_code == 200
+    assert resp.json() == expected
+
+
+@pytest.mark.asyncio
+async def test_get_analysis_status_resume_not_found_returns_404() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.resumes.ResumeRepository.get_owned", new=AsyncMock(return_value=None)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(
+                f"/api/v1/resumes/{uuid.uuid4()}/analysis/status", headers=_auth_headers()
             )
 
     assert resp.status_code == 404

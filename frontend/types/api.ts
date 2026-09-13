@@ -142,6 +142,21 @@ export interface AnalyzeResponse {
   status: string;
 }
 
+/** Why the latest resume analysis failed. The resume page maps each to a message. */
+export type AnalysisErrorCode =
+  | "budget_exceeded"
+  | "unreadable_file"
+  | "file_unavailable"
+  | "ai_failed"
+  | "timed_out"
+  | "unknown";
+
+/** GET /resumes/{id}/analysis/status: the latest analysis request. */
+export interface ResumeAnalysisStatus {
+  status: "idle" | "pending" | "failed";
+  error_code: AnalysisErrorCode | null;
+}
+
 export interface ApiError {
   // A plain HTTPException detail is a string, but FastAPI's 422
   // request-validation errors send an array of Pydantic error objects
