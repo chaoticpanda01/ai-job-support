@@ -156,6 +156,24 @@ export function useInterview() {
           }
         },
 
+        onclose() {
+          // The response ended without a "done", "summary", or "error" event:
+          // a dropped proxy connection, or a terminal event that failed to
+          // parse. The library does not retry a clean close, so without this
+          // isStreaming would stay true forever. Ignore a stream that a newer
+          // one has already replaced.
+          if (abortRef.current !== ctrl) return;
+          setState((s) =>
+            s.isStreaming
+              ? {
+                  ...s,
+                  isStreaming: false,
+                  error: "The response ended unexpectedly. Please try again.",
+                }
+              : s,
+          );
+        },
+
         onerror(err) {
           if ((err as Error).name === "AbortError") return;
           setState((s) => ({
