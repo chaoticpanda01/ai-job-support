@@ -5,10 +5,11 @@ export const DEFAULT_LANGUAGE: Language = "en";
 /** Cookie that saves the chosen language so the server can render it. */
 export const LANGUAGE_COOKIE = "preferred_language";
 
-export const LANGUAGES: { code: Language; label: string }[] = [
-  { code: "en", label: "EN" },
-  { code: "id", label: "ID" },
-  { code: "ja", label: "JP" },
+/** label is the visible short code; name is the language's own name, read by screen readers. */
+export const LANGUAGES: { code: Language; label: string; name: string }[] = [
+  { code: "en", label: "EN", name: "English" },
+  { code: "id", label: "ID", name: "Bahasa Indonesia" },
+  { code: "ja", label: "JP", name: "日本語" },
 ];
 
 /** Narrows an untrusted value, such as a cookie, to a supported language. */
