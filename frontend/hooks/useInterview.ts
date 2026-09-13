@@ -195,34 +195,36 @@ export function useInterview() {
     [_openStream, queryClient],
   );
 
+  // sendMessage and endSession take the session id instead of reading
+  // `sessionId`: that state is only set by a stream this instance opened, and
+  // the session page mounts a fresh instance after createSession navigates
+  // there, so it would stay null and both calls would silently do nothing.
+
   /** Send a user answer and stream the evaluation + next question. */
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!sessionId) return;
+    (id: string, content: string) => {
       setState((s) => ({ ...s, lastEval: null }));
-      _openStream(`/interview/sessions/${sessionId}/message`, "POST", { content }, () => {
-        if (sessionId) {
-          void queryClient.invalidateQueries({
-            queryKey: ["interview", "sessions", sessionId],
-          });
-        }
+      _openStream(`/interview/sessions/${id}/message`, "POST", { content }, () => {
+        void queryClient.invalidateQueries({
+          queryKey: ["interview", "sessions", id],
+        });
       });
     },
-    [sessionId, _openStream, queryClient],
+    [_openStream, queryClient],
   );
 
   /** End the session and stream the summary. */
-  const endSession = useCallback(() => {
-    if (!sessionId) return;
-    _openStream(`/interview/sessions/${sessionId}/end`, "PUT", null, () => {
-      void queryClient.invalidateQueries({ queryKey: ["interview", "sessions"] });
-      if (sessionId) {
+  const endSession = useCallback(
+    (id: string) => {
+      _openStream(`/interview/sessions/${id}/end`, "PUT", null, () => {
+        void queryClient.invalidateQueries({ queryKey: ["interview", "sessions"] });
         void queryClient.invalidateQueries({
-          queryKey: ["interview", "sessions", sessionId],
+          queryKey: ["interview", "sessions", id],
         });
-      }
-    });
-  }, [sessionId, _openStream, queryClient]);
+      });
+    },
+    [_openStream, queryClient],
+  );
 
   /** Abort any in-flight stream. */
   const abort = useCallback(() => {

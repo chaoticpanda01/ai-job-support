@@ -16,11 +16,9 @@ interface Props {
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
   const { data: session, isLoading } = useInterviewSession(id);
-  const { sessionId: activeId, state, sendMessage, endSession, abort } = useInterview();
+  const { state, sendMessage, endSession, abort } = useInterview();
   const { lang } = useLang();
   const confirmDialog = useConfirm();
-
-  const resolvedSessionId = activeId ?? id;
 
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState<InterviewMessage[]>([]);
@@ -69,7 +67,7 @@ export default function InterviewSessionPage({ params }: Props) {
       ...prev,
       {
         id: crypto.randomUUID(),
-        session_id: resolvedSessionId,
+        session_id: id,
         role: "user",
         content: text,
         language: session?.language ?? null,
@@ -78,7 +76,7 @@ export default function InterviewSessionPage({ params }: Props) {
       },
     ]);
     setInput("");
-    sendMessage(text);
+    sendMessage(id, text);
   }
 
   async function handleEnd() {
@@ -90,7 +88,7 @@ export default function InterviewSessionPage({ params }: Props) {
     });
     if (!ok) return;
     setEnded(true);
-    endSession();
+    endSession(id);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
