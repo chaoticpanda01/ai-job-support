@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { streamErrorMessage, useInterview, useInterviewSession } from "@/hooks/useInterview";
 import { useConfirm } from "@/components/confirm-dialog-provider";
@@ -18,24 +18,41 @@ interface Props {
 
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
-  const { data: session, isLoading } = useInterviewSession(id);
+  const { data: session, isLoading, refetch } = useInterviewSession(id);
   const { state, sendMessage, endSession, abort } = useInterview();
   const { lang } = useLang();
   const confirmDialog = useConfirm();
 
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState<InterviewMessage[]>([]);
-  const [ended, setEnded] = useState(false);
+  // The answer shown before its turn is saved, so a failed turn can be undone.
+  const pendingAnswerRef = useRef<{ id: string; text: string } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (session?.messages) {
-      setLocalMessages(session.messages);
-      if (session.status !== "active") setEnded(true);
-    }
+    if (session?.messages) setLocalMessages(session.messages);
   }, [session]);
+
+  // Put a failed or stopped answer back in the input instead of losing it. The
+  // backend saves an answer only together with its evaluation and the next
+  // question, so there is normally nothing saved to duplicate on resend. The
+  // refetch covers a stop that lands just after the save.
+  const restorePendingAnswer = useCallback(() => {
+    const pending = pendingAnswerRef.current;
+    if (!pending) return;
+    pendingAnswerRef.current = null;
+    setLocalMessages((prev) => prev.filter((m) => m.id !== pending.id));
+    setInput(pending.text);
+    void refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    if (state.isStreaming || !pendingAnswerRef.current) return;
+    if (state.error) restorePendingAnswer();
+    else pendingAnswerRef.current = null;
+  }, [state.isStreaming, state.error, restorePendingAnswer]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,7 +60,9 @@ export default function InterviewSessionPage({ params }: Props) {
 
   if (isLoading) return <PageSkeleton />;
 
-  const isActive = !ended && session?.status === "active";
+  // Ended only once the server says so or the summary arrives, so a failed end
+  // request leaves the input and End button in place to retry.
+  const isActive = session?.status === "active" && !state.summary;
 
   // Silent while tokens arrive, then one announcement when the stream closes.
   // After "done" the hook keeps streamingText until the next stream opens, so
@@ -68,10 +87,12 @@ export default function InterviewSessionPage({ params }: Props) {
     const text = input.trim();
     if (!text || state.isStreaming) return;
 
+    const pendingId = crypto.randomUUID();
+    pendingAnswerRef.current = { id: pendingId, text };
     setLocalMessages((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: pendingId,
         session_id: id,
         role: "user",
         content: text,
@@ -92,8 +113,12 @@ export default function InterviewSessionPage({ params }: Props) {
       cancelLabel: t("common", "cancel", lang),
     });
     if (!ok) return;
-    setEnded(true);
     endSession(id);
+  }
+
+  function handleStop() {
+    abort();
+    restorePendingAnswer();
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -129,7 +154,7 @@ export default function InterviewSessionPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <StatusPill status={ended ? "completed" : (session?.status ?? "active")} />
+          <StatusPill status={state.summary ? "completed" : (session?.status ?? "active")} />
           {isActive && !state.isStreaming && (
             <button
               onClick={handleEnd}
@@ -140,7 +165,7 @@ export default function InterviewSessionPage({ params }: Props) {
           )}
           {state.isStreaming && (
             <button
-              onClick={abort}
+              onClick={handleStop}
               className="rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
             >
               {t("interview", "stop", lang)}

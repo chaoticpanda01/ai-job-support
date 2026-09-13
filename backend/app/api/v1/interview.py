@@ -330,18 +330,20 @@ async def _stream_question(
             yield _sse("token", chunk)
     except AIError as exc:
         logger.error("Question stream failed: session=%s error=%s", session_id, exc)
+        await _abandon_session(session_id, user_id)
         yield _sse_error("Question generation failed. Please try again.")
         return
 
     if not full_text.strip():
         logger.error("Question stream returned empty text: session=%s", session_id)
+        await _abandon_session(session_id, user_id)
         yield _sse_error("Question generation failed. Please try again.")
         return
 
-    yield _sse_done()
     latency_ms = int((time.monotonic() - t0) * 1000)
 
-    # Persist the question and record usage in a fresh session
+    # Persist the question and record usage in a fresh session BEFORE signalling
+    # done: the client opens the session page on done, and it must see the question.
     async with AsyncSessionFactory() as db:
         msg_repo = InterviewMessageRepository(db)
         await msg_repo.add_interviewer_turn(session_id=session_id, content=full_text)
@@ -355,6 +357,24 @@ async def _stream_question(
             db=db,
         )
         await db.commit()
+
+    yield _sse_done()
+
+
+async def _abandon_session(session_id: UUID, user_id: UUID) -> None:
+    """
+    Abandon a session whose first question failed. Otherwise it stays active with
+    no question to answer. Best effort: a failure here is logged, and the client
+    still gets the error event.
+    """
+    from app.database import AsyncSessionFactory
+
+    try:
+        async with AsyncSessionFactory() as db:
+            await InterviewSessionRepository(db).abandon(session_id, user_id)
+            await db.commit()
+    except Exception:
+        logger.exception("Failed to abandon interview session: session=%s", session_id)
 
 
 # ---------------------------------------------------------------------------
@@ -503,11 +523,10 @@ async def _stream_summary(
         yield _sse_error("Summary generation failed.")
         return
 
-    yield _sse("summary", parsed_summary.model_dump())
-    yield _sse_done()
-
     latency_ms = int((time.monotonic() - t0) * 1000)
 
+    # Complete the session BEFORE sending the summary: the client treats the
+    # summary as the end, and its on-done refetch must see the completed status.
     async with AsyncSessionFactory() as db:
         sess_repo = InterviewSessionRepository(db)
         await sess_repo.complete(
@@ -525,6 +544,9 @@ async def _stream_summary(
             db=db,
         )
         await db.commit()
+
+    yield _sse("summary", parsed_summary.model_dump())
+    yield _sse_done()
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { streamErrorMessage, useInterview } from "@/hooks/useInterview";
@@ -31,10 +31,14 @@ export default function NewInterviewPage() {
     { value: "id", label: "Indonesian (Bahasa Indonesia)" },
   ];
 
-  if (sessionId) {
-    router.push(`/dashboard/interview/${sessionId}`);
-    return null;
-  }
+  // Leave only once the first question is saved. The session id arrives with
+  // the response headers, before the question is generated; leaving then would
+  // send a generation error to this unmounted page and show an empty chat.
+  const ready = sessionId !== null && !state.isStreaming && state.error === null;
+
+  useEffect(() => {
+    if (ready) router.push(`/dashboard/interview/${sessionId}`);
+  }, [ready, router, sessionId]);
 
   function handleStart() {
     createSession({
@@ -140,10 +144,10 @@ export default function NewInterviewPage() {
 
         <button
           onClick={handleStart}
-          disabled={state.isStreaming}
+          disabled={state.isStreaming || ready}
           className="w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {state.isStreaming ? (
+          {state.isStreaming || ready ? (
             <span className="flex items-center justify-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               {t("interview", "starting", lang)}
