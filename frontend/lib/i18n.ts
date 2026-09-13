@@ -185,6 +185,19 @@ export const translations = {
       id: "Gagal memperbarui. Coba lagi.",
       ja: "更新に失敗しました。再試行してください。",
     },
+    errorPageTitle: {
+      en: "Something went wrong",
+      id: "Terjadi kesalahan",
+      ja: "問題が発生しました",
+    },
+    errorPageBody: {
+      en: "This page ran into an unexpected error. Try again, or go back to the home page.",
+      id: "Halaman ini mengalami kesalahan tak terduga. Coba lagi, atau kembali ke beranda.",
+      ja: "このページで予期しないエラーが発生しました。もう一度お試しいただくか、ホームに戻ってください。",
+    },
+    tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
+    goHome: { en: "Go to home page", id: "Ke beranda", ja: "ホームへ" },
+    errorId: { en: "Error ID", id: "ID kesalahan", ja: "エラーID" },
   },
 
   // ---------------------------------------------------------------------------
