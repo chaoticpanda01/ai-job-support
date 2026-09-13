@@ -1,5 +1,7 @@
 export type Language = "en" | "id" | "ja";
 
+export const DEFAULT_LANGUAGE: Language = "en";
+
 export const LANGUAGES: { code: Language; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "id", label: "ID" },
