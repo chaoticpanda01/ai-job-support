@@ -602,9 +602,11 @@ function GlossaryTab() {
           <tbody>
             {data?.map((entry) => (
               <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/20">
-                <td className="px-4 py-2 font-medium">{entry.term_ja}</td>
+                <td lang="ja" className="px-4 py-2 font-medium">
+                  {entry.term_ja}
+                </td>
                 <td className="px-4 py-2 text-muted-foreground">{entry.reading_romaji}</td>
-                <td className="max-w-xs truncate px-4 py-2 text-muted-foreground">
+                <td lang="id" className="max-w-xs truncate px-4 py-2 text-muted-foreground">
                   {entry.definition_id}
                 </td>
                 <td className="px-4 py-2">

@@ -161,6 +161,8 @@ function JobCard({ job }: { job: JobPosting }) {
         <div className="min-w-0 space-y-1">
           <Link
             href={`/dashboard/jobs/${job.id}`}
+            // Only the untranslated original title is in the job's own language.
+            lang={!job.translated_title && job.original_title ? job.original_language : undefined}
             className="block truncate text-sm font-medium hover:underline"
           >
             {job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang)}

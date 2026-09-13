@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { useCultureTopic } from "@/hooks/useCulture";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { japaneseLangOf, t } from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -50,6 +50,7 @@ export default function CultureTopicPage({ params }: Props) {
           {topic.tags.map((tag) => (
             <span
               key={tag}
+              lang={japaneseLangOf(tag)}
               className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
             >
               {tag}

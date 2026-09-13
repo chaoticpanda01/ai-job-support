@@ -153,11 +153,11 @@ export default function InterviewSessionPage({ params }: Props) {
       <div aria-busy={state.isStreaming} className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-6">
           {localMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+            <MessageBubble key={msg.id} message={msg} sessionLanguage={session?.language} />
           ))}
 
           {state.isStreaming && state.streamingText && (
-            <StreamingBubble text={state.streamingText} />
+            <StreamingBubble text={state.streamingText} language={session?.language} />
           )}
 
           {state.lastEval && !state.isStreaming && <EvalCard eval={state.lastEval} />}
@@ -218,7 +218,15 @@ export default function InterviewSessionPage({ params }: Props) {
 // Message bubble
 // ---------------------------------------------------------------------------
 
-function MessageBubble({ message }: { message: InterviewMessage }) {
+// The interviewer is told to speak the session language. Answers can be in any
+// language, so only interviewer text is tagged.
+function MessageBubble({
+  message,
+  sessionLanguage,
+}: {
+  message: InterviewMessage;
+  sessionLanguage: string | undefined;
+}) {
   const isInterviewer = message.role === "interviewer";
 
   return (
@@ -230,7 +238,12 @@ function MessageBubble({ message }: { message: InterviewMessage }) {
             : "rounded-tr-sm bg-primary text-primary-foreground"
         }`}
       >
-        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+        <p
+          lang={isInterviewer ? sessionLanguage : undefined}
+          className="whitespace-pre-wrap leading-relaxed"
+        >
+          {message.content}
+        </p>
         <p
           className={`text-right text-xs ${
             isInterviewer ? "text-muted-foreground" : "text-primary-foreground/70"
@@ -246,11 +259,11 @@ function MessageBubble({ message }: { message: InterviewMessage }) {
   );
 }
 
-function StreamingBubble({ text }: { text: string }) {
+function StreamingBubble({ text, language }: { text: string; language: string | undefined }) {
   return (
     <div className="flex justify-start">
       <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm">
-        <p className="whitespace-pre-wrap leading-relaxed">
+        <p lang={language} className="whitespace-pre-wrap leading-relaxed">
           {text}
           <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground align-middle" />
         </p>

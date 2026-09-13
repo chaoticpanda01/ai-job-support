@@ -349,6 +349,7 @@ function RirekishoInfoSection() {
             type="text"
             value={form.name_kana ?? ""}
             onChange={(e) => handleChange("name_kana", e.target.value || undefined)}
+            lang="ja"
             placeholder="ヤマダ タロウ"
             className={inputCls}
           />

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useCultureTopics, useGlossary } from "@/hooks/useCulture";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { japaneseLangOf, t } from "@/lib/i18n";
 import type { CultureTopicSummary, GlossaryEntry } from "@/types/api";
 
 const COMMON_TAGS = ["keigo", "マナー", "報連相", "会議", "残業", "チームワーク"];
@@ -58,6 +58,7 @@ export default function CulturePage() {
             {COMMON_TAGS.map((tag) => (
               <button
                 key={tag}
+                lang={japaneseLangOf(tag)}
                 onClick={() => setSelectedTag(selectedTag === tag ? undefined : tag)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   selectedTag === tag
@@ -127,6 +128,7 @@ function TopicCard({ topic: tp }: { topic: CultureTopicSummary }) {
           {tp.tags.map((tag) => (
             <span
               key={tag}
+              lang={japaneseLangOf(tag)}
               className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
             >
               {tag}
@@ -186,11 +188,15 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
           <tbody className="divide-y">
             {filtered.map((entry) => (
               <tr key={entry.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3 font-medium">{entry.term_ja}</td>
+                <td lang="ja" className="px-4 py-3 font-medium">
+                  {entry.term_ja}
+                </td>
                 <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {entry.reading_romaji ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{entry.definition_id}</td>
+                <td lang="id" className="px-4 py-3 text-muted-foreground">
+                  {entry.definition_id}
+                </td>
               </tr>
             ))}
           </tbody>

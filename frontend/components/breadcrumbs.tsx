@@ -4,6 +4,8 @@ import type { Route } from "next";
 interface Crumb {
   label: string;
   href?: Route;
+  /** Set when the label's language differs from the page, e.g. an untranslated title. */
+  lang?: string | undefined;
 }
 
 /** Trail of links ending in the current (non-linked) page. */
@@ -21,6 +23,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
             )}
             {isLast || !item.href ? (
               <span
+                lang={item.lang}
                 aria-current={isLast ? "page" : undefined}
                 className="max-w-[240px] truncate font-medium text-foreground"
               >
@@ -29,6 +32,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
             ) : (
               <Link
                 href={item.href}
+                lang={item.lang}
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 {item.label}

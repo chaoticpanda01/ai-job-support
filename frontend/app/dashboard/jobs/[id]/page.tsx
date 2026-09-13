@@ -35,7 +35,11 @@ export default function JobDetailPage({ params }: Props) {
       <Breadcrumbs
         items={[
           { label: t("jobs", "title", lang), href: "/dashboard/jobs" },
-          { label: job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang) },
+          {
+            label: job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang),
+            // Only the untranslated original title is in the job's own language.
+            lang: !job.translated_title && job.original_title ? job.original_language : undefined,
+          },
         ]}
       />
 
@@ -62,7 +66,10 @@ function JobHeader({ job }: { job: JobPostingDetail }) {
   const { lang } = useLang();
   return (
     <div className="space-y-1">
-      <h1 className="text-2xl font-semibold">
+      <h1
+        lang={!job.translated_title && job.original_title ? job.original_language : undefined}
+        className="text-2xl font-semibold"
+      >
         {job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang)}
       </h1>
       {job.structured_data && (

@@ -582,7 +582,12 @@ function Step5({
         {t("onboarding", "s5GroupIdentity", lang)}
       </p>
       <Field label={t("onboarding", "s5NameKana", lang)} error={errors.name_kana?.message}>
-        <input {...register("name_kana")} placeholder="ヤマダ タロウ" className={inputCls} />
+        <input
+          {...register("name_kana")}
+          lang="ja"
+          placeholder="ヤマダ タロウ"
+          className={inputCls}
+        />
       </Field>
       <Field label={t("onboarding", "s5DateOfBirth", lang)} error={errors.date_of_birth?.message}>
         <input {...register("date_of_birth")} type="date" className={inputCls} />

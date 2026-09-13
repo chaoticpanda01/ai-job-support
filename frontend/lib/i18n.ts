@@ -17,6 +17,17 @@ export function isLanguage(value: unknown): value is Language {
   return LANGUAGES.some(({ code }) => code === value);
 }
 
+const JAPANESE_SCRIPT = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f]/;
+
+/**
+ * "ja" when text contains kana or kanji, for free-form data whose language isn't
+ * recorded, such as culture tags. Romanised Japanese like "keigo" stays untagged,
+ * since a Japanese voice reads Latin letters poorly.
+ */
+export function japaneseLangOf(text: string): "ja" | undefined {
+  return JAPANESE_SCRIPT.test(text) ? "ja" : undefined;
+}
+
 export const translations = {
   // ---------------------------------------------------------------------------
   // Navbar

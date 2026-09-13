@@ -25,12 +25,14 @@ export default function DocumentsPage() {
         <div className="flex shrink-0 gap-2">
           <Link
             href="/dashboard/documents/rirekisho/new"
+            lang="ja"
             className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             + 履歴書
           </Link>
           <Link
             href="/dashboard/documents/shokumu/new"
+            lang="ja"
             className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
           >
             + 職務経歴書
@@ -50,11 +52,11 @@ export default function DocumentsPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tp === "all"
-              ? t("documents", "all", lang)
-              : tp === "rirekisho"
-                ? "履歴書"
-                : "職務経歴書"}
+            {tp === "all" ? (
+              t("documents", "all", lang)
+            ) : (
+              <span lang="ja">{tp === "rirekisho" ? "履歴書" : "職務経歴書"}</span>
+            )}
           </button>
         ))}
       </div>
@@ -70,6 +72,7 @@ export default function DocumentsPage() {
             {t("documents", "generateA", lang)}{" "}
             <Link
               href="/dashboard/documents/rirekisho/new"
+              lang="ja"
               className="underline hover:text-foreground"
             >
               履歴書
@@ -77,6 +80,7 @@ export default function DocumentsPage() {
             {t("documents", "orLabel", lang)}{" "}
             <Link
               href="/dashboard/documents/shokumu/new"
+              lang="ja"
               className="underline hover:text-foreground"
             >
               職務経歴書
@@ -136,7 +140,9 @@ function DocumentCard({ doc }: { doc: Document }) {
           PDF
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{label}</p>
+          <p lang="ja" className="truncate text-sm font-medium">
+            {label}
+          </p>
           <p className="text-xs text-muted-foreground">
             {t("documents", "created", lang)} {createdAt}
           </p>
