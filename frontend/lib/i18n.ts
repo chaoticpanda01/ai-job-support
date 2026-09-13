@@ -34,6 +34,7 @@ export const translations = {
     closeMenu: { en: "Close menu", id: "Tutup menu", ja: "メニューを閉じる" },
     goToDashboard: { en: "Go to Dashboard", id: "Ke Dasbor", ja: "ダッシュボードへ" },
     admin: { en: "Admin", id: "Admin", ja: "管理" },
+    language: { en: "Language", id: "Bahasa", ja: "言語" },
   },
 
   // ---------------------------------------------------------------------------
