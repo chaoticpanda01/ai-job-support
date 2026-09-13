@@ -761,6 +761,21 @@ export const translations = {
       id: "Koneksi terputus. Coba lagi.",
       ja: "接続が切断されました。再試行してください。",
     },
+    sessionLoadError: {
+      en: "Couldn't load this interview session.",
+      id: "Gagal memuat sesi wawancara ini.",
+      ja: "この面接セッションを読み込めませんでした。",
+    },
+    sessionNotFound: {
+      en: "This interview session doesn't exist.",
+      id: "Sesi wawancara ini tidak ditemukan.",
+      ja: "この面接セッションは見つかりません。",
+    },
+    sessionRefreshError: {
+      en: "Couldn't load the latest messages, so the next question may be missing.",
+      id: "Gagal memuat pesan terbaru, jadi pertanyaan berikutnya mungkin belum muncul.",
+      ja: "最新のメッセージを読み込めなかったため、次の質問が表示されていない可能性があります。",
+    },
     score: { en: "score", id: "skor", ja: "スコア" },
     langJa: { en: "Japanese", id: "Jepang", ja: "日本語" },
     langEn: { en: "English", id: "Inggris", ja: "英語" },

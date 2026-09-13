@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
-import { apiClient, extractDetail } from "@/lib/api-client";
+import { ApiClientError, apiClient, extractDetail } from "@/lib/api-client";
 import { t, type Language } from "@/lib/i18n";
 import type {
   CreateSessionRequest,
@@ -25,6 +25,10 @@ export function useInterviewSession(id: string) {
     queryKey: ["interview", "sessions", id],
     queryFn: () => apiClient.get<InterviewSessionDetail>(`/interview/sessions/${id}`),
     enabled: Boolean(id),
+    // A missing session won't appear on retry, so show "not found" straight away.
+    // Other failures keep the app-wide single retry.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiClientError && error.status === 404) && failureCount < 1,
   });
 }
 

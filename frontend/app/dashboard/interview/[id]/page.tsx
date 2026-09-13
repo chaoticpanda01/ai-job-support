@@ -3,8 +3,10 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { streamErrorMessage, useInterview, useInterviewSession } from "@/hooks/useInterview";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { LiveAnnouncer } from "@/components/live-announcer";
+import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
@@ -23,7 +25,7 @@ type PendingTurn =
 
 export default function InterviewSessionPage({ params }: Props) {
   const { id } = use(params);
-  const { data: session, isLoading, refetch } = useInterviewSession(id);
+  const { data: session, isLoading, isError, error, isFetching, refetch } = useInterviewSession(id);
   const { state, sendMessage, endSession, abort } = useInterview();
   const { lang } = useLang();
   const confirmDialog = useConfirm();
@@ -70,9 +72,35 @@ export default function InterviewSessionPage({ params }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, state.streamingText, state.lastEval, state.summary]);
+  }, [localMessages, state.streamingText, state.lastEval, state.summary, isError]);
 
   if (isLoading) return <PageSkeleton />;
+
+  // Nothing loaded: the request failed, or the session doesn't exist for this
+  // user. Without this the page renders empty, with no input and no message.
+  if (!session) {
+    const notFound = error instanceof ApiClientError && error.status === 404;
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+        <Breadcrumbs
+          items={[{ label: t("interview", "title", lang), href: "/dashboard/interview" }]}
+        />
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {t("interview", notFound ? "sessionNotFound" : "sessionLoadError", lang)}
+        </p>
+        {!notFound && (
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            {t("common", "tryAgain", lang)}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Ended only once the fetched status says so or the summary arrives, so a
   // failed end request leaves the input and End button in place to retry.
@@ -213,6 +241,24 @@ export default function InterviewSessionPage({ params }: Props) {
             <p role="alert" className="text-center text-sm text-destructive">
               {streamErrorMessage(state.error, lang)}
             </p>
+          )}
+
+          {/* A failed refetch keeps the old messages, so after an answer the
+              next question would be missing with no sign of why. */}
+          {isError && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <p role="alert" className="text-sm text-destructive">
+                {t("interview", "sessionRefreshError", lang)}
+              </p>
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+              >
+                {t("common", "tryAgain", lang)}
+              </button>
+            </div>
           )}
 
           <div ref={bottomRef} />
