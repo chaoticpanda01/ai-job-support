@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import * as Tabs from "@radix-ui/react-tabs";
 import { useMe } from "@/hooks/useMe";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
@@ -144,27 +145,35 @@ export default function AdminPage() {
       </header>
 
       <main id="main-content" tabIndex={-1} className="container py-8 focus:outline-none">
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b">
-          {(["stats", "users", "culture", "glossary"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                tab === t
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {/* Radix Tabs supplies the tablist/tab/tabpanel roles, aria-selected, and
+            arrow-key navigation. Inactive panels render empty, so each tab's
+            queries still only run while it is open. */}
+        <Tabs.Root value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <Tabs.List aria-label="Admin sections" className="mb-6 flex gap-2 border-b">
+            {(["stats", "users", "culture", "glossary"] as Tab[]).map((t) => (
+              <Tabs.Trigger
+                key={t}
+                value={t}
+                className="-mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium capitalize text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
+              >
+                {t}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
 
-        {tab === "stats" && <StatsTab />}
-        {tab === "users" && <UsersTab />}
-        {tab === "culture" && <CultureTab />}
-        {tab === "glossary" && <GlossaryTab />}
+          <Tabs.Content value="stats">
+            <StatsTab />
+          </Tabs.Content>
+          <Tabs.Content value="users">
+            <UsersTab />
+          </Tabs.Content>
+          <Tabs.Content value="culture">
+            <CultureTab />
+          </Tabs.Content>
+          <Tabs.Content value="glossary">
+            <GlossaryTab />
+          </Tabs.Content>
+        </Tabs.Root>
       </main>
     </div>
   );
