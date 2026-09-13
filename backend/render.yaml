@@ -2,13 +2,24 @@ services:
   - type: web
     name: ai-job-support-api
     runtime: python
+    # Render applies this file only to a Blueprint-managed service. Otherwise the
+    # plan, root directory, and commands below must match the service's settings
+    # in the dashboard (Settings > Build & Deploy).
+    plan: free
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
-    # Migrations run here, not in preDeployCommand: Render only runs a pre-deploy
-    # command on paid plans, and this service is on the free tier. Upgrading an
-    # up-to-date database is a quick no-op, so this also runs harmlessly on every
-    # restart and wake from sleep. If a migration fails, uvicorn never starts, the
-    # deploy fails, and Render keeps serving the previous deploy.
-    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Migrations run here, not in preDeployCommand, which Render doesn't offer on
+    # the free plan. On an up-to-date database, alembic only reads alembic_version.
+    # The [start] lines show in the log whether this command is in effect and
+    # whether the migration finished.
+    #
+    # If a migration fails during a deploy, the deploy fails and the previous
+    # deploy keeps serving. A wake from sleep or a restart has no previous
+    # instance to fall back on: a failure then (database unreachable, a bad
+    # DATABASE_SYNC_URL, or code older than the database after a rollback) leaves
+    # the API down until it's fixed. Rolling back past a migration needs
+    # `alembic downgrade` first.
+    startCommand: echo "[start] running alembic upgrade head" && alembic upgrade head && echo "[start] migrations applied, starting uvicorn" && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: APP_ENV
         value: production

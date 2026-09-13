@@ -162,9 +162,10 @@ subsequent role change (promoting or demoting other accounts) can be done
 from the admin panel's Users tab — this script is only needed once per
 environment.
 
-> **In production:** run the identical command via Render's Shell tab for the
-> `ai-job-support-api` service — it should already run with the production
-> `DATABASE_URL` loaded, so no credentials need to leave Render's dashboard.
+> **In production:** Render's Shell tab needs a paid plan, and this service is on
+> the free tier. Run the identical command from your machine instead, with the
+> production `DATABASE_URL` copied from the service's Environment tab and set only
+> for that command (never saved to `.env`).
 
 > **Note:** Admin promotion requires direct DB/shell access by design —
 > there is no API endpoint to prevent privilege escalation.
@@ -295,14 +296,14 @@ Never commit `.env` or `.env.local` files.
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 **Deployment:**
-- Backend → Render (auto-deploys on `git push main`; the start command runs `alembic upgrade head` first, so migrations apply on every deploy)
+- Backend → Render (auto-deploys on `git push main`). The service's Start Command must match `startCommand` in [`backend/render.yaml`](backend/render.yaml), which runs `alembic upgrade head` before uvicorn, so pending migrations apply before new code starts. Render only applies that file to Blueprint-managed services, so otherwise set it in the dashboard (Settings → Build & Deploy). If a migration fails during a deploy, the deploy fails and the previous one keeps serving; if it fails when the sleeping free instance wakes, the API stays down until it's fixed.
 - Frontend → Vercel (auto-deploys on `git push main` — connected to GitHub)
 
 ---
 
 ## Known Issues
 
-- Render free tier spins down after 15 min idle → ~50s cold start on first request. Mitigate with a cron ping to `/health` every 10 min.
+- Render free tier spins down after 15 min idle → about a minute of cold start on the first request, including the start command's migration check. Mitigate with a cron ping to `/health` every 10 min.
 - GitHub Actions CI is currently failing (missing env secrets in CI config) — non-blocking, Render deploys from git push regardless.
 
 Current status: **Fully deployed and live. All AI features confirmed working.**

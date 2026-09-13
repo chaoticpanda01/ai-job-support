@@ -99,9 +99,20 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,  # No pooling needed for one-shot migration runs
+        # Migrations run unattended in the Render start command, so fail fast on an
+        # unreachable host instead of hanging startup.
+        connect_args={"connect_timeout": 10},
     )
 
     with connectable.connect() as connection:
+        # Give up on a lock after 10s rather than wait behind another session's
+        # open transaction, which would also queue live queries behind the ALTER.
+        # Set with SET, not the `options` startup parameter, which connection
+        # poolers such as Neon's can reject. Behind a transaction-mode pooler it
+        # may not carry over to later transactions, so treat it as best effort.
+        connection.exec_driver_sql("SET lock_timeout = '10s'")
+        connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

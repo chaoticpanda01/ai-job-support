@@ -2,12 +2,14 @@
 Startup/health-check guard against migration/code deploy skew.
 
 Render (this app's production host) auto-deploys backend code on every push
-to main but does NOT run Alembic migrations automatically -- confirmed via a
-real incident (2026-08-30) where new code referencing new columns went live
-before `alembic upgrade head` was run against production, crashing every
-request that touched the affected tables with a bare 500. This module lets
-that mismatch be detected and surfaced (not blocked -- see main.py's
-lifespan) instead of discovered by a user hitting a broken page.
+to main. Migrations used to be applied by hand, and in a real incident
+(2026-08-30) new code referencing new columns went live before
+`alembic upgrade head` was run against production, crashing every request
+that touched the affected tables with a bare 500. The start command in
+backend/render.yaml now runs migrations first, but only if the Render service
+actually uses that command, and it can't catch a wrong database or code rolled
+back behind the database. This module detects and surfaces a mismatch (not
+blocked -- see main.py's lifespan) instead of a user finding a broken page.
 """
 
 from __future__ import annotations
@@ -55,7 +57,9 @@ async def verify_migrations() -> bool:
     if db_version != code_head:
         logger.warning(
             "Migration version mismatch: database is at %r, code expects %r -- "
-            "run `alembic upgrade head` against this environment's database.",
+            "if the database is behind, run `alembic upgrade head` against it; if it "
+            "is at a revision this code doesn't have (e.g. after rolling back a "
+            "deploy), deploy the newer code again or `alembic downgrade` from it.",
             db_version,
             code_head,
         )

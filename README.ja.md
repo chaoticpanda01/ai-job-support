@@ -176,9 +176,9 @@ python -m scripts.promote_admin --email your@email.com
 それ以降のロール変更（他アカウントの昇格・降格）は管理パネルの Users タブから行えます
 — このスクリプトが必要なのは環境ごとに最初の一度だけです。
 
-> **本番環境の場合:** `ai-job-support-api` サービスの Render Shell タブから同じ
-> コマンドを実行してください。本番用の `DATABASE_URL` が既に読み込まれているはずなので、
-> 認証情報を Render のダッシュボード外に持ち出す必要はありません。
+> **本番環境の場合:** Render の Shell タブは有料プランが必要で、このサービスは無料プランです。
+> 代わりに、サービスの Environment タブから本番用の `DATABASE_URL` をコピーし、
+> そのコマンドの実行時だけ設定して（`.env` には保存しない）、手元のマシンから同じコマンドを実行してください。
 
 > **注意:** 権限昇格を防ぐ設計上、管理者昇格には直接的な DB/シェルアクセスが必要です
 > — API エンドポイントは提供していません。
@@ -302,14 +302,14 @@ npm run format
 | バックエンド CI | Ruff リント + フォーマット、mypy、alembic check、pytest |
 
 **デプロイ:**
-- バックエンド → Render（`git push main` で自動デプロイ。起動コマンドが最初に `alembic upgrade head` を実行するため、マイグレーションはデプロイごとに自動適用）
+- バックエンド → Render（`git push main` で自動デプロイ）。サービスの Start Command は [`backend/render.yaml`](backend/render.yaml) の `startCommand` と一致させてください。uvicorn の前に `alembic upgrade head` を実行するため、未適用のマイグレーションは新しいコードの起動前に適用されます。Render がこのファイルを適用するのは Blueprint 管理のサービスだけなので、それ以外の場合はダッシュボード（Settings → Build & Deploy）で設定してください。デプロイ中にマイグレーションが失敗するとデプロイは失敗し、前のデプロイが稼働し続けます。スリープ中の無料インスタンスの起動時に失敗した場合は、修正されるまで API は停止したままになります。
 - フロントエンド → Vercel（`git push main` で自動デプロイ — GitHub 連携済み）
 
 ---
 
 ## 既知の問題
 
-- Render 無料プランは15分アイドル後にスリープ → 初回リクエストに約50秒かかる。`/health` への定期ping（10分毎）で軽減可能。
+- Render 無料プランは15分アイドル後にスリープ → 初回リクエストに約1分かかる（起動コマンドのマイグレーション確認を含む）。`/health` への定期ping（10分毎）で軽減可能。
 - GitHub Actions CI は現在失敗中（CI設定の環境変数不足）— 非ブロッキング、git push でのRenderデプロイは正常動作。
 
 現在のステータス: **本番環境にデプロイ済み。全AI機能の動作確認済み。**

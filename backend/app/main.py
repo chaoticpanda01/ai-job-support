@@ -62,8 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
     if not await verify_migrations():
         logger.error(
-            "Database migration version mismatch detected at startup -- "
-            "run `alembic upgrade head` against this environment's database. "
+            "Database migration version mismatch detected at startup -- see the "
+            "warning above for the versions and which way to fix it. "
             "The app will keep serving requests, but routes touching "
             "out-of-sync tables may fail."
         )
