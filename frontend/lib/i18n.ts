@@ -1,4 +1,4 @@
-/** Also valid BCP 47 locale tags, so dates are formatted with toLocaleDateString(lang). */
+/** Each code must be a valid BCP 47 tag: it is the locale for Date#toLocale{Date,Time,}String and the <html lang> value. */
 export type Language = "en" | "id" | "ja";
 
 export const DEFAULT_LANGUAGE: Language = "en";

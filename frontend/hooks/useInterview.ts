@@ -42,15 +42,16 @@ export function useInterviewSessions() {
 /**
  * Why a stream failed. Failures the client detects are stored by kind and
  * translated at render, so the message follows the current language. Text the
- * server sent is shown as-is.
+ * server sent is shown untranslated.
  */
 export type StreamError =
+  /** Non-empty text from the server: an SSE "error" event or an HTTP error's detail. */
   | { kind: "server"; message: string }
-  /** The request failed and the response had no readable detail. */
+  /** An error with no usable text: a non-JSON body, a missing or empty detail, or an empty SSE error. */
   | { kind: "failed" }
   /** The response ended without a terminal event. */
   | { kind: "ended" }
-  /** The connection dropped mid-stream. */
+  /** The request could not complete: a network failure before or during the stream. */
   | { kind: "connection" };
 
 export function streamErrorMessage(error: StreamError, lang: Language): string {
@@ -132,11 +133,11 @@ export function useInterview() {
       return;
     }
     if (event.type === "error") {
-      setState((s) => ({
-        ...s,
-        isStreaming: false,
-        error: { kind: "server", message: event.content },
-      }));
+      // An empty message would render a blank alert.
+      const error: StreamError = event.content
+        ? { kind: "server", message: event.content }
+        : { kind: "failed" };
+      setState((s) => ({ ...s, isStreaming: false, error }));
     }
   }, []);
 
@@ -164,11 +165,11 @@ export function useInterview() {
             const text = await response.text();
             let error: StreamError = { kind: "failed" };
             try {
-              // A 422's detail is an array of objects, which React cannot render.
+              // extractDetail flattens a 422's array-of-objects detail into text; "" means none.
               const detail = extractDetail((JSON.parse(text) as { detail?: unknown }).detail, "");
               if (detail) error = { kind: "server", message: detail };
             } catch {
-              /* not JSON: keep the generic message */
+              /* body is not a JSON object: keep the "failed" kind */
             }
             setState((s) => ({ ...s, isStreaming: false, error }));
             ctrl.abort();

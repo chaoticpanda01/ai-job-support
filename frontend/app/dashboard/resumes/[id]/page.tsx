@@ -62,7 +62,11 @@ export default function ResumeDetailPage({ params }: Props) {
   }
 
   const fileSizeKB = Math.round(resume.file_size_bytes / 1024);
-  const uploadedAt = new Date(resume.created_at).toLocaleDateString(lang);
+  const uploadedAt = new Date(resume.created_at).toLocaleDateString(lang, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   // Keyed to this visit's analyse click, so an analysis that already existed
   // on load is not read out as news. Says "queued", then "ready" when polling
   // lands the result. A timeout is spoken by its role="alert" message instead.
@@ -217,8 +221,15 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {t("resumes", "analysedAt", lang)} {new Date(analysis.created_at).toLocaleString(lang)} ·{" "}
-        {analysis.ai_model} · {analysis.input_tokens + analysis.output_tokens} tokens
+        {t("resumes", "analysedAt", lang)}{" "}
+        {new Date(analysis.created_at).toLocaleString(lang, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}{" "}
+        · {analysis.ai_model} · {analysis.input_tokens + analysis.output_tokens} tokens
       </p>
     </div>
   );
