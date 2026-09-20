@@ -13,6 +13,7 @@ DELETE /documents/{id}               — delete a generated document + its file
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -21,20 +22,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import AuthUser, DbSession, PaginationDep
 from app.models.document import GeneratedDocument
-from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
+from app.models.enums import (
+    DocumentErrorCode,
+    DocumentOrientation,
+    DocumentStatus,
+    DocumentType,
+)
 from app.repositories.document import DocumentRepository
 from app.schemas.document import (
     CreateRirekishoRequest,
     CreateShokumuRequest,
     DocumentDetailResponse,
     DocumentListResponse,
+    DocumentResponse,
     DocumentStatusResponse,
 )
+from app.services.ai.client import MAX_GENERATE_SECONDS
 from app.services.file_storage import StorageError, file_storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+# A document still pending or processing this long after it was created is
+# reported as failed with timed_out. The background task normally records its
+# own outcome; this covers one that never did, e.g. after a restart or a
+# cancellation. It allows for the longest possible AI call plus time for the
+# download, PDF rendering, upload, and DB writes, so a generation that is only
+# slow isn't reported as failed while it's still running.
+_GENERATION_STALE_AFTER = timedelta(seconds=MAX_GENERATE_SECONDS + 120)
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +68,70 @@ async def _owned_doc(doc_id: UUID, user_id: UUID, db: AsyncSession) -> Generated
     repo = DocumentRepository(db)
     doc = await repo.get_owned(doc_id, user_id)
     return _require_doc(doc)
+
+
+def _effective_state(
+    doc: GeneratedDocument, now: datetime
+) -> tuple[DocumentStatus, DocumentErrorCode | None]:
+    """
+    The document's status as the client should see it, with the failure code
+    when it failed. A generation that has been running too long is reported as
+    failed/timed_out without being written to the database -- one that is only
+    slow can still finish later and report its real outcome.
+    """
+    if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
+        # created_at normally arrives with the INSERT, but a row that hasn't
+        # been flushed yet doesn't have one, and it is as fresh as a document
+        # gets -- never stale.
+        if doc.created_at is None or now - doc.created_at < _GENERATION_STALE_AFTER:
+            return doc.status, None
+        return DocumentStatus.failed, DocumentErrorCode.timed_out
+    if doc.status == DocumentStatus.failed:
+        return doc.status, _stored_error_code(doc)
+    return doc.status, None
+
+
+def _stored_error_code(doc: GeneratedDocument) -> DocumentErrorCode:
+    """
+    The stored code for a failed document. A code this version doesn't know --
+    written by newer code, or by none at all before the column existed -- is
+    reported as unknown rather than failing the response.
+    """
+    try:
+        return DocumentErrorCode(doc.error_code)
+    except ValueError:
+        return DocumentErrorCode.unknown
+
+
+def _status_response(doc: GeneratedDocument, now: datetime) -> DocumentStatusResponse:
+    doc_status, error_code = _effective_state(doc, now)
+    return DocumentStatusResponse(
+        id=doc.id,
+        status=doc_status,
+        orientation=doc.orientation,
+        error_code=error_code,
+        completed_at=doc.completed_at,
+    )
+
+
+def _document_response(doc: GeneratedDocument, now: datetime) -> DocumentResponse:
+    doc_status, error_code = _effective_state(doc, now)
+    return DocumentResponse(
+        id=doc.id,
+        user_id=doc.user_id,
+        resume_id=doc.resume_id,
+        document_type=doc.document_type,
+        status=doc_status,
+        orientation=doc.orientation,
+        job_context=doc.job_context,
+        ai_model=doc.ai_model,
+        input_tokens=doc.input_tokens,
+        output_tokens=doc.output_tokens,
+        error_code=error_code,
+        error_message=doc.error_message,
+        completed_at=doc.completed_at,
+        created_at=doc.created_at,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -93,13 +173,7 @@ async def create_rirekisho(
     background_tasks.add_task(_run_generation, doc.id, current_user.user_id)
 
     logger.info("Enqueued rirekisho: document_id=%s user_id=%s", doc.id, current_user.user_id)
-    return DocumentStatusResponse(
-        id=doc.id,
-        status=doc.status,
-        orientation=doc.orientation,
-        error_message=doc.error_message,
-        completed_at=doc.completed_at,
-    )
+    return _status_response(doc, datetime.now(tz=UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -141,13 +215,7 @@ async def create_shokumu(
     background_tasks.add_task(_run_generation, doc.id, current_user.user_id)
 
     logger.info("Enqueued shokumu: document_id=%s user_id=%s", doc.id, current_user.user_id)
-    return DocumentStatusResponse(
-        id=doc.id,
-        status=doc.status,
-        orientation=doc.orientation,
-        error_message=doc.error_message,
-        completed_at=doc.completed_at,
-    )
+    return _status_response(doc, datetime.now(tz=UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +247,10 @@ async def list_documents(
             limit=pagination.limit,
         )
 
-    return DocumentListResponse(items=items, total=len(items))
+    now = datetime.now(tz=UTC)
+    return DocumentListResponse(
+        items=[_document_response(doc, now) for doc in items], total=len(items)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -195,13 +266,7 @@ async def get_document_status(
 ) -> DocumentStatusResponse:
     """Lightweight status poll — used by the frontend polling loop."""
     doc = await _owned_doc(document_id, current_user.user_id, db)
-    return DocumentStatusResponse(
-        id=doc.id,
-        status=doc.status,
-        orientation=doc.orientation,
-        error_message=doc.error_message,
-        completed_at=doc.completed_at,
-    )
+    return _status_response(doc, datetime.now(tz=UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -230,19 +295,7 @@ async def download_document(
             ) from exc
 
     return DocumentDetailResponse(
-        id=doc.id,
-        user_id=doc.user_id,
-        resume_id=doc.resume_id,
-        document_type=doc.document_type,
-        status=doc.status,
-        orientation=doc.orientation,
-        job_context=doc.job_context,
-        ai_model=doc.ai_model,
-        input_tokens=doc.input_tokens,
-        output_tokens=doc.output_tokens,
-        error_message=doc.error_message,
-        completed_at=doc.completed_at,
-        created_at=doc.created_at,
+        **_document_response(doc, datetime.now(tz=UTC)).model_dump(),
         content=doc.content,
         download_url=download_url,
     )
@@ -261,16 +314,33 @@ async def delete_document(
 ) -> dict[str, Any]:
     doc = await _owned_doc(document_id, current_user.user_id, db)
 
-    if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
+    doc_status, _ = _effective_state(doc, datetime.now(tz=UTC))
+    if doc_status in (DocumentStatus.pending, DocumentStatus.processing):
         # The background generation task (_run_generation) may still be
         # running and hasn't looked up this row for the last time yet.
         # Deleting now would let it finish generating, upload a file to
         # storage, and then silently no-op on the now-missing row —
         # orphaning that file with nothing left to clean it up. Terminal
         # statuses (completed/failed) are the only safe states to delete.
+        #
+        # _effective_state reports a generation past the stale cutoff as
+        # failed, so a document left stuck by a task that died can still be
+        # deleted rather than becoming permanent. That deliberately reopens a
+        # narrow version of the orphan above: a generation that is merely slow
+        # rather than dead can be deleted and then finish, uploading a file
+        # whose row is gone. A rare orphaned file beats a row the user can
+        # never remove, and the warning below leaves a trace of it.
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete a document while it's still being generated.",
+        )
+
+    if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
+        logger.warning(
+            "Deleting document %s while it is still marked %s: its generation passed the "
+            "stale cutoff. If that task is alive, any file it uploads will be orphaned.",
+            document_id,
+            doc.status.value,
         )
 
     repo = DocumentRepository(db)

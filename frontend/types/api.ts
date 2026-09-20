@@ -173,11 +173,32 @@ export type DocumentType = "rirekisho" | "shokumukeirekisho";
 export type DocumentOrientation = "portrait" | "landscape";
 export type DocumentStatus = "pending" | "processing" | "completed" | "failed";
 
+/**
+ * Why a document's generation failed. The document page maps each to a message.
+ * Keep in sync with DocumentErrorCode in backend/app/models/enums.py.
+ */
+export type DocumentErrorCode =
+  | "budget_exceeded"
+  | "profile_incomplete"
+  | "resume_missing"
+  | "file_unavailable"
+  | "unreadable_file"
+  | "ai_failed"
+  | "pdf_failed"
+  | "upload_failed"
+  | "timed_out"
+  | "unknown";
+
 export interface DocumentStatusResponse {
   id: string;
   status: DocumentStatus;
   orientation: DocumentOrientation;
-  error_message: string | null;
+  /**
+   * Why a failed generation failed. Null unless status is "failed"; "unknown"
+   * on a document that failed before codes existed. The underlying exception
+   * text stays server-side, so this is all the client has to explain a failure.
+   */
+  error_code: DocumentErrorCode | null;
   completed_at: string | null;
 }
 
@@ -192,7 +213,7 @@ export interface Document {
   ai_model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
-  error_message: string | null;
+  error_code: DocumentErrorCode | null;
   completed_at: string | null;
   created_at: string;
 }

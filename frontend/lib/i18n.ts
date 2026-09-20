@@ -1135,6 +1135,72 @@ export const translations = {
       ja: "通常20〜60秒かかります。ページは自動で更新されます。",
     },
     genFailed: { en: "Generation failed", id: "Pembuatan gagal", ja: "生成失敗" },
+    // One per DocumentErrorCode in types/api.ts.
+    genFailedBudget: {
+      en: "You've reached your AI usage limit, so the document wasn't generated. Try again later.",
+      id: "Kamu sudah mencapai batas penggunaan AI, jadi dokumen tidak dibuat. Coba lagi nanti.",
+      ja: "AIの利用上限に達したため、書類を生成できませんでした。時間をおいて再試行してください。",
+    },
+    genFailedProfile: {
+      en: "Your profile is missing details a 履歴書 requires. Complete it, then generate the document again.",
+      id: "Profil kamu belum memuat data yang diwajibkan 履歴書. Lengkapi dulu, lalu buat dokumen lagi.",
+      ja: "履歴書に必要なプロフィール情報が不足しています。入力してから再度生成してください。",
+    },
+    genFailedResume: {
+      en: "The resume this document was built from is no longer available. Generate a new document from a resume you still have.",
+      id: "Resume sumber dokumen ini sudah tidak tersedia. Buat dokumen baru dari resume yang masih ada.",
+      ja: "この書類の元になった履歴書は利用できなくなりました。お手元の履歴書から新しい書類を作成してください。",
+    },
+    genFailedFile: {
+      en: "We couldn't open the stored resume file. Please try again.",
+      id: "Kami tidak dapat membuka file resume yang tersimpan. Coba lagi.",
+      ja: "保存された履歴書ファイルを開けませんでした。再試行してください。",
+    },
+    genFailedUnreadable: {
+      en: "We couldn't read the text in the resume file. Upload a text-based PDF or DOCX and try again.",
+      id: "Kami tidak dapat membaca teks di file resume. Unggah PDF atau DOCX berbasis teks, lalu coba lagi.",
+      ja: "履歴書ファイルのテキストを読み取れませんでした。テキスト形式のPDFまたはDOCXをアップロードして再試行してください。",
+    },
+    genFailedAi: {
+      en: "The AI couldn't produce this document. Please try again.",
+      id: "AI tidak dapat membuat dokumen ini. Coba lagi.",
+      ja: "AIがこの書類を生成できませんでした。再試行してください。",
+    },
+    genFailedPdf: {
+      en: "The document was written but the PDF couldn't be rendered. Please try again.",
+      id: "Dokumen sudah ditulis tetapi PDF gagal dirender. Coba lagi.",
+      ja: "書類は作成されましたが、PDFを生成できませんでした。再試行してください。",
+    },
+    genFailedUpload: {
+      en: "The document was created but couldn't be saved. Please try again.",
+      id: "Dokumen berhasil dibuat tetapi gagal disimpan. Coba lagi.",
+      ja: "書類は作成されましたが、保存できませんでした。再試行してください。",
+    },
+    genFailedTimeout: {
+      en: "Generation stopped before it finished. Please try again.",
+      id: "Pembuatan berhenti sebelum selesai. Coba lagi.",
+      ja: "生成が完了する前に停止しました。再試行してください。",
+    },
+    genFailedUnknown: {
+      en: "Something went wrong while generating this document. Please try again.",
+      id: "Terjadi kesalahan saat membuat dokumen ini. Coba lagi.",
+      ja: "この書類の生成中にエラーが発生しました。再試行してください。",
+    },
+    statusLoadError: {
+      en: "Failed to load this document's status. Please try again.",
+      id: "Gagal memuat status dokumen ini. Coba lagi.",
+      ja: "この書類のステータスを読み込めませんでした。再試行してください。",
+    },
+    statusPollError: {
+      en: "Automatic updates stopped, so this may be out of date. Check again to resume them.",
+      id: "Pembaruan otomatis berhenti, jadi ini mungkin sudah usang. Periksa lagi untuk melanjutkannya.",
+      ja: "自動更新が停止したため、最新でない可能性があります。再確認すると再開します。",
+    },
+    linkError: {
+      en: "Your document is ready, but the download link couldn't be prepared.",
+      id: "Dokumen kamu sudah siap, tetapi tautan unduhan gagal disiapkan.",
+      ja: "書類は完成しましたが、ダウンロードリンクを準備できませんでした。",
+    },
     genFailHint: {
       en: "You can try again by creating a new document.",
       id: "Coba lagi dengan membuat dokumen baru.",

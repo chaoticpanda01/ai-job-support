@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
-import { ApiClientError, apiClient, extractDetail } from "@/lib/api-client";
+import { apiClient, extractDetail, isMissingResourceError } from "@/lib/api-client";
 import { t, type Language } from "@/lib/i18n";
 import type {
   CreateSessionRequest,
@@ -20,13 +20,9 @@ const API_PREFIX = "/api/v1";
 // Session queries
 // ---------------------------------------------------------------------------
 
-/**
- * Whether a session request failed because there is no such session for this
- * user: 404 when it doesn't exist or isn't theirs, 422 when the id isn't a UUID.
- * Retrying can't change either.
- */
+/** Whether a session request failed because there is no such session for this user. */
 export function isMissingSessionError(error: unknown): boolean {
-  return error instanceof ApiClientError && (error.status === 404 || error.status === 422);
+  return isMissingResourceError(error);
 }
 
 export function useInterviewSession(id: string) {
