@@ -5,6 +5,10 @@ POST /chat/message — send a message, get a response from Gemini.
 
 Maintains a short conversation history in the request body (last 10 messages).
 No persistence — history is managed client-side.
+
+Every reply in a 200 is something the assistant said. A failure is a real error
+status, so the client can say what happened in the reader's language instead of
+rendering an English sentence as if the assistant had written it.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -90,9 +94,14 @@ async def chat_message(
         )
     except AIError as exc:
         logger.error("Chatbot AI error: %s", exc)
-        return ChatResponse(
-            reply="Sorry, I'm having trouble connecting right now. Please try again in a moment."
-        )
+        # A failure, not a reply. Returning it as a 200 reply put an English
+        # sentence in the chat window that the client could not tell apart from
+        # something the assistant said, and could not translate. The client
+        # renders its own message for the status instead.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The assistant is unavailable right now. Please try again.",
+        ) from exc
 
     await usage_tracker.record(
         user_id=current_user.user_id,

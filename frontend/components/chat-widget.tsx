@@ -7,7 +7,7 @@ import { SIGN_IN_ROUTE } from "@/lib/routes";
 import { ApiClientError } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { t, type translations } from "@/lib/i18n";
 
 // Backend limit for ChatRequest.message and for each history item's content,
 // counted in characters (code points). Longer values get a 422.
@@ -29,6 +29,8 @@ function recentHistory(messages: Message[]): Message[] {
     content: Array.from(m.content).slice(0, MAX_MESSAGE_LENGTH).join(""),
   }));
 }
+
+type ChatMessageKey = keyof (typeof translations)["chat"];
 
 export function ChatWidget() {
   const { lang } = useLang();
@@ -64,6 +66,10 @@ export function ChatWidget() {
 
   const retryRemainingMs = retryAt !== null ? retryAt - now : 0;
   const rateLimited = retryRemainingMs > 0;
+
+  // Annotated so a renamed key fails to compile rather than rendering itself.
+  const placeholderKey: ChatMessageKey = rateLimited ? "placeholderLimited" : "placeholder";
+  const toggleLabelKey: ChatMessageKey = open ? "closeChat" : "openChat";
 
   // Split rather than interpolated, so the timer keeps its own styling while
   // each language puts it where its grammar wants it.
@@ -112,22 +118,32 @@ export function ChatWidget() {
           ...newMessages,
           {
             role: "assistant",
-            content: apiErrorMessage(new ApiClientError(response.status, "", retryAfter), lang, {
-              // The countdown under the input is live and to the second, so
-              // this message doesn't repeat the shared table's "in about N
-              // hours".
-              429: t("chat", "limitReached", lang),
-            }),
+            content: apiErrorMessage(
+              new ApiClientError(response.status, "", retryAfter),
+              lang,
+              // Only when a countdown will actually render: without Retry-After
+              // there is no timer, and the shared "try again later" is then the
+              // only honest thing to say. The chat wording avoids a duration of
+              // its own so it can't contradict the timer ticking below it.
+              retryAfter !== null ? { 429: t("chat", "limitReached", lang) } : undefined,
+            ),
           },
         ]);
         return;
       }
 
-      const body = (await response.json()) as { reply?: string };
+      // A reply that won't parse means the server answered with something
+      // unexpected, which is not the same as not reaching it at all.
+      let reply = "";
+      try {
+        reply = ((await response.json()) as { reply?: string }).reply ?? "";
+      } catch {
+        reply = "";
+      }
       // An empty reply would leave a blank bubble with nothing to read.
       setMessages([
         ...newMessages,
-        { role: "assistant", content: body.reply || t("common", "error", lang) },
+        { role: "assistant", content: reply || t("common", "error", lang) },
       ]);
     } catch (err) {
       // Never reached the server, or came back as something other than JSON.
@@ -243,7 +259,7 @@ export function ChatWidget() {
                   onKeyDown={handleKey}
                   aria-label={t("chat", "inputLabel", lang)}
                   maxLength={MAX_MESSAGE_LENGTH}
-                  placeholder={t("chat", rateLimited ? "placeholderLimited" : "placeholder", lang)}
+                  placeholder={t("chat", placeholderKey, lang)}
                   rows={1}
                   disabled={rateLimited}
                   className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
@@ -265,7 +281,7 @@ export function ChatWidget() {
       <button
         onClick={() => setOpen(!open)}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg transition-opacity hover:opacity-90"
-        aria-label={t("chat", open ? "closeChat" : "openChat", lang)}
+        aria-label={t("chat", toggleLabelKey, lang)}
         aria-expanded={open}
       >
         {open ? "✕" : "💬"}
