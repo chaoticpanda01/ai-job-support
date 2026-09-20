@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslateJob } from "@/hooks/useJobs";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -16,13 +17,17 @@ export default function TranslateJobPage() {
 
   const canSubmit = rawText.trim().length >= 50;
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const result = await translateMutation.mutateAsync({
-      raw_text: rawText.trim(),
-      ...(sourceUrl.trim() ? { source_url: sourceUrl.trim() } : {}),
-    });
-    router.push(`/dashboard/jobs/${result.id}`);
+    translateMutation.mutate(
+      {
+        raw_text: rawText.trim(),
+        ...(sourceUrl.trim() ? { source_url: sourceUrl.trim() } : {}),
+      },
+      // mutate, not mutateAsync: a rejected mutateAsync promise had no catch,
+      // so every failed translation also raised an unhandled rejection.
+      { onSuccess: (result) => router.push(`/dashboard/jobs/${result.id}`) },
+    );
   }
 
   return (
@@ -38,7 +43,7 @@ export default function TranslateJobPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("jobs", "translateSub", lang)}</p>
       </div>
 
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Source URL */}
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="source-url">
@@ -76,14 +81,18 @@ export default function TranslateJobPage() {
             <p
               className={`text-xs tabular-nums ${rawText.trim().length < 50 ? "text-muted-foreground" : "text-green-600"}`}
             >
-              {rawText.trim().length} chars
+              {t("jobs", "charCount", lang).replace("{n}", String(rawText.trim().length))}
             </p>
           </div>
         </div>
 
-        {translateMutation.error instanceof Error && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {translateMutation.error.message}
+        {translateMutation.error && (
+          <p
+            key={translateMutation.failureCount}
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {apiErrorMessage(translateMutation.error, lang)}
           </p>
         )}
 

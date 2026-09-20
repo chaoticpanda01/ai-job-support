@@ -14,8 +14,12 @@ export default function CulturePage() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
   const { lang } = useLang();
 
-  const { data: topics, isLoading: topicsLoading } = useCultureTopics({ tag: selectedTag });
-  const { data: glossary, isLoading: glossaryLoading } = useGlossary();
+  const {
+    data: topics,
+    isLoading: topicsLoading,
+    error: topicsError,
+  } = useCultureTopics({ tag: selectedTag });
+  const { data: glossary, isLoading: glossaryLoading, error: glossaryError } = useGlossary();
 
   return (
     <div className="space-y-8">
@@ -73,6 +77,15 @@ export default function CulturePage() {
 
           {topicsLoading && <TopicsSkeleton />}
 
+          {topicsError && !topicsLoading && (
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {t("culture", "topicsLoadError", lang)}
+            </p>
+          )}
+
           {topics && topics.length === 0 && !topicsLoading && (
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="text-sm text-muted-foreground">{t("culture", "noTopics", lang)}</p>
@@ -92,6 +105,15 @@ export default function CulturePage() {
       {activeTab === "glossary" && (
         <>
           {glossaryLoading && <GlossarySkeleton />}
+
+          {glossaryError && !glossaryLoading && (
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {t("culture", "glossaryLoadError", lang)}
+            </p>
+          )}
 
           {glossary && glossary.length === 0 && !glossaryLoading && (
             <div className="rounded-lg border border-dashed p-10 text-center">

@@ -350,6 +350,9 @@ function CultureTab() {
       title: `Delete "${title}"?`,
       variant: "destructive",
       confirmLabel: "Delete",
+      // This page is English-only (it has no t() calls at all), unlike the
+      // dialog it opens, which is shown in the user's language everywhere else.
+      cancelLabel: "Cancel",
     });
     if (ok) deleteTopic.mutate(slug);
   }
@@ -538,6 +541,9 @@ function GlossaryTab() {
       title: `Delete "${termJa}"?`,
       variant: "destructive",
       confirmLabel: "Delete",
+      // This page is English-only (it has no t() calls at all), unlike the
+      // dialog it opens, which is shown in the user's language everywhere else.
+      cancelLabel: "Cancel",
     });
     if (ok) deleteEntry.mutate(id);
   }
