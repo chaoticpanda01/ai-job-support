@@ -259,16 +259,6 @@ export const translations = {
       id: "Itu tidak bisa dilakukan sekarang. Muat ulang, lalu coba lagi.",
       ja: "現在この操作は実行できません。更新してから再試行してください。",
     },
-    fileTooLarge: {
-      en: "That file is too large. The limit is {n} MB.",
-      id: "File itu terlalu besar. Batasnya {n} MB.",
-      ja: "ファイルが大きすぎます。上限は{n}MBです。",
-    },
-    fileOneAtATime: {
-      en: "Please choose one file at a time.",
-      id: "Pilih satu file saja.",
-      ja: "ファイルは1つずつ選択してください。",
-    },
     errorUnsupportedType: {
       en: "That file type isn't supported. Check the accepted formats and try again.",
       id: "Tipe file itu tidak didukung. Periksa format yang diterima, lalu coba lagi.",
@@ -305,6 +295,18 @@ export const translations = {
       en: "The server couldn't complete that. Please try again.",
       id: "Server tidak dapat menyelesaikannya. Coba lagi.",
       ja: "サーバーで処理を完了できませんでした。再試行してください。",
+    },
+    // From lib/file-rejection.ts: a file the dropzone refused before any
+    // request was made. errorUnsupportedType above is shared with the 415.
+    fileTooLarge: {
+      en: "That file is too large. The limit is {n} MB.",
+      id: "File itu terlalu besar. Batasnya {n} MB.",
+      ja: "ファイルが大きすぎます。上限は{n}MBです。",
+    },
+    fileOneAtATime: {
+      en: "Please choose one file at a time.",
+      id: "Pilih satu file saja.",
+      ja: "ファイルは1つずつ選択してください。",
     },
     tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
     retrying: { en: "Retrying…", id: "Mencoba lagi…", ja: "再試行中…" },
@@ -620,6 +622,11 @@ export const translations = {
   // Jobs
   // ---------------------------------------------------------------------------
   jobs: {
+    matchNotPossible: {
+      en: "We couldn't score this match. The posting may not be translated yet, or that resume couldn't be read — try translating it again or picking another resume.",
+      id: "Kami tidak dapat menilai kecocokan ini. Lowongan mungkin belum diterjemahkan, atau resume itu tidak terbaca — coba terjemahkan lagi atau pilih resume lain.",
+      ja: "このマッチ度を算出できませんでした。求人がまだ翻訳されていないか、その履歴書を読み取れなかった可能性があります。翻訳をやり直すか、別の履歴書を選んでください。",
+    },
     title: { en: "Job Postings", id: "Lowongan Kerja", ja: "求人一覧" },
     sub: {
       en: "Translate Japanese job postings and score them against your resume.",
@@ -848,6 +855,27 @@ export const translations = {
       id: "Gagal memuat sesi. Coba muat ulang.",
       ja: "セッションの読み込みに失敗しました。更新してください。",
     },
+    // One per InterviewStreamErrorCode in types/api.ts.
+    streamQuestionFailed: {
+      en: "The interviewer couldn't produce a question, so this session was ended. Please start a new one.",
+      id: "Pewawancara tidak dapat membuat pertanyaan, jadi sesi ini diakhiri. Mulai sesi baru.",
+      ja: "面接官が質問を生成できなかったため、このセッションを終了しました。新しいセッションを開始してください。",
+    },
+    streamAnswerNotSaved: {
+      en: "Your answer couldn't be saved. Send it again.",
+      id: "Jawaban kamu tidak dapat disimpan. Kirim lagi.",
+      ja: "回答を保存できませんでした。もう一度送信してください。",
+    },
+    streamSummaryFailed: {
+      en: "The summary couldn't be generated. Try ending the session again.",
+      id: "Ringkasan tidak dapat dibuat. Coba akhiri sesi lagi.",
+      ja: "サマリーを生成できませんでした。もう一度セッションを終了してください。",
+    },
+    streamSummaryNotSaved: {
+      en: "The summary couldn't be saved. Try ending the session again.",
+      id: "Ringkasan tidak dapat disimpan. Coba akhiri sesi lagi.",
+      ja: "サマリーを保存できませんでした。もう一度セッションを終了してください。",
+    },
     streamEnded: {
       en: "The response ended unexpectedly. Please try again.",
       id: "Respons berakhir tiba-tiba. Coba lagi.",
@@ -1020,6 +1048,16 @@ export const translations = {
   // Visa
   // ---------------------------------------------------------------------------
   visa: {
+    assessNeedsProfile: {
+      en: "Complete your profile before we can assess your visa options.",
+      id: "Lengkapi profil kamu sebelum kami bisa menilai opsi visa.",
+      ja: "ビザの選択肢を判定する前に、プロフィールを完成させてください。",
+    },
+    roadmapOptionStale: {
+      en: "That option isn't part of your latest assessment. Run the assessment again to choose from current options.",
+      id: "Opsi itu bukan bagian dari penilaian terbaru kamu. Jalankan penilaian lagi untuk memilih dari opsi saat ini.",
+      ja: "その選択肢は最新の判定に含まれていません。もう一度判定を実行して、現在の選択肢から選んでください。",
+    },
     title: { en: "Visa Guidance", id: "Panduan Visa", ja: "ビザガイダンス" },
     sub: {
       en: "Personalised Japanese work visa roadmap based on your profile.",
@@ -1491,6 +1529,11 @@ export const translations = {
       ja: "写真はすぐに保存されます。「変更を保存」をクリックする必要はありません。",
     },
     photoNone: { en: "No photo", id: "Belum ada foto", ja: "写真なし" },
+    photoTypeHint: {
+      en: "JPEG or PNG · max {n} MB",
+      id: "JPEG atau PNG · maks {n} MB",
+      ja: "JPEGまたはPNG · 最大{n}MB",
+    },
     photoUpload: { en: "Upload photo", id: "Unggah foto", ja: "写真をアップロード" },
     photoUploading: { en: "Uploading…", id: "Mengunggah…", ja: "アップロード中…" },
     hobbies: { en: "Hobbies", id: "Hobi", ja: "趣味" },

@@ -89,13 +89,21 @@ export default function VisaPage() {
 
       {assess.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {apiErrorMessage(assess.error, lang)}
+          {/* 422 here means the account has no profile yet, not that a field
+              is wrong -- this control has no fields. */}
+          {apiErrorMessage(assess.error, lang, {
+            422: t("visa", "assessNeedsProfile", lang),
+          })}
         </p>
       )}
 
       {selectRoadmap.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {apiErrorMessage(selectRoadmap.error, lang)}
+          {/* 422 here means the chosen option isn't part of the latest
+              assessment, usually because a newer one replaced it. */}
+          {apiErrorMessage(selectRoadmap.error, lang, {
+            422: t("visa", "roadmapOptionStale", lang),
+          })}
         </p>
       )}
 

@@ -171,7 +171,11 @@ function SectionFormFooter({
 }) {
   return (
     <>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <div className="flex items-center gap-3">
         <button
           type="submit"
@@ -760,7 +764,7 @@ function DangerZone() {
             />
 
             {deleteAccount.error && (
-              <p className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive">
                 {apiErrorMessage(deleteAccount.error, lang)}
               </p>
             )}

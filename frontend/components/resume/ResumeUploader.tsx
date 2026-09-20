@@ -45,7 +45,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       setFileError(null);
 
       if (rejected.length > 0) {
-        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES / 1024 / 1024, lang));
+        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES, lang));
         return;
       }
 
@@ -64,7 +64,13 @@ export function ResumeUploader({ onUploaded }: Props) {
     disabled: uploadMutation.isPending,
   });
 
-  const uploadError = uploadMutation.error ? apiErrorMessage(uploadMutation.error, lang) : null;
+  const uploadError = uploadMutation.error
+    ? apiErrorMessage(uploadMutation.error, lang, {
+        // Reachable despite the dropzone's own check: the server measures the
+        // whole multipart body, which is slightly larger than the file.
+        413: t("common", "fileTooLarge", lang).replace("{n}", String(MAX_SIZE_BYTES / 1024 / 1024)),
+      })
+    : null;
 
   const displayError = fileError ?? uploadError;
 
@@ -98,7 +104,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       </div>
 
       {displayError && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {displayError}
         </p>
       )}

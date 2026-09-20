@@ -12,9 +12,11 @@ SSE event protocol:
   data: {"type": "eval",    "content": <InterviewEvalResult JSON>}
   data: {"type": "summary", "content": <InterviewSummaryResult JSON>}
   data: {"type": "done"}
-  data: {"type": "error",   "content": "<message>"}
+  data: {"type": "error",   "content": "<message>", "code": "<InterviewStreamErrorCode>"}
 
-A stream ends with "done", or with "error" if generating or saving fails.
+A stream ends with "done", or with "error" if generating or saving fails. The
+error event's message is English, for logs and for a client that doesn't know
+the code; the client shows its own message for the code.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.dependencies import AuthUser, DbSession, PaginationDep
+from app.models.enums import InterviewStreamErrorCode
 from app.repositories.interview import InterviewMessageRepository, InterviewSessionRepository
 from app.repositories.user import ProfileRepository
 from app.schemas.interview import (
@@ -335,13 +338,19 @@ async def _stream_question(
     except AIError as exc:
         logger.error("Question stream failed: session=%s error=%s", session_id, exc)
         await _abandon_session(session_id, user_id)
-        yield _sse_error("Question generation failed. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.question_failed,
+            "Question generation failed. Please try again.",
+        )
         return
 
     if not full_text.strip():
         logger.error("Question stream returned empty text: session=%s", session_id)
         await _abandon_session(session_id, user_id)
-        yield _sse_error("Question generation failed. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.question_failed,
+            "Question generation failed. Please try again.",
+        )
         return
 
     latency_ms = int((time.monotonic() - t0) * 1000)
@@ -367,7 +376,10 @@ async def _stream_question(
     except Exception:
         logger.exception("Failed to save first question: session=%s", session_id)
         await _abandon_session(session_id, user_id)
-        yield _sse_error("Question generation failed. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.question_failed,
+            "Question generation failed. Please try again.",
+        )
         return
 
     yield _sse_done()
@@ -445,14 +457,20 @@ async def _stream_eval_and_question(
         parsed = parse_response(text, InterviewTurnResult)
     except (AIError, ResponseParseError) as exc:
         logger.error("Interview turn generation failed: session=%s error=%s", session_id, exc)
-        yield _sse_error("Question generation failed. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.question_failed,
+            "Question generation failed. Please try again.",
+        )
         return
 
     eval_result = parsed.evaluation.model_dump()
     next_question = parsed.next_question.strip()
     if not next_question:
         logger.error("Interview turn returned empty question: session=%s", session_id)
-        yield _sse_error("Question generation failed. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.question_failed,
+            "Question generation failed. Please try again.",
+        )
         return
 
     # Emit the evaluation, then the next question (as a single token event).
@@ -487,7 +505,10 @@ async def _stream_eval_and_question(
             await db.commit()
     except Exception:
         logger.exception("Failed to save interview turn: session=%s", session_id)
-        yield _sse_error("Failed to save your answer. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.answer_not_saved,
+            "Failed to save your answer. Please try again.",
+        )
         return
 
     yield _sse_done()
@@ -539,7 +560,7 @@ async def _stream_summary(
         parsed_summary = parse_response(summary_text, InterviewSummaryResult)
     except Exception as exc:
         logger.error("Summary generation failed: session=%s error=%s", session_id, exc)
-        yield _sse_error("Summary generation failed.")
+        yield _sse_error(InterviewStreamErrorCode.summary_failed, "Summary generation failed.")
         return
 
     latency_ms = int((time.monotonic() - t0) * 1000)
@@ -568,7 +589,10 @@ async def _stream_summary(
             await db.commit()
     except Exception:
         logger.exception("Failed to save interview summary: session=%s", session_id)
-        yield _sse_error("Failed to save the summary. Please try again.")
+        yield _sse_error(
+            InterviewStreamErrorCode.summary_not_saved,
+            "Failed to save the summary. Please try again.",
+        )
         return
 
     yield _sse("summary", parsed_summary.model_dump())
@@ -589,6 +613,10 @@ def _sse_done() -> str:
     return f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
-def _sse_error(message: str) -> str:
-    payload = json.dumps({"type": "error", "content": message})
+def _sse_error(code: InterviewStreamErrorCode, message: str) -> str:
+    """
+    End a stream with a failure. The code is what the client explains to the
+    user; the message is the English wording kept for logs.
+    """
+    payload = json.dumps({"type": "error", "content": message, "code": code.value})
     return f"data: {payload}\n\n"

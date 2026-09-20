@@ -290,7 +290,7 @@ function JobIdCard({ jobId }: { jobId: string }) {
         )}
 
         {createApplication.error && (
-          <p className="text-xs text-destructive">
+          <p role="alert" className="text-xs text-destructive">
             {apiErrorMessage(createApplication.error, lang)}
           </p>
         )}
@@ -391,7 +391,11 @@ function MatchSection({ jobId }: { jobId: string }) {
 
           {matchMutation.error && (
             <p role="alert" className="text-xs text-destructive">
-              {apiErrorMessage(matchMutation.error, lang)}
+              {/* 422 here is a precondition, not a bad request: either the
+                  posting has no translation yet or the resume can't be read. */}
+              {apiErrorMessage(matchMutation.error, lang, {
+                422: t("jobs", "matchNotPossible", lang),
+              })}
             </p>
           )}
         </>

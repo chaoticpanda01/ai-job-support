@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.api.v1.interview import _stream_eval_and_question, _stream_question, _stream_summary
+from app.models.enums import InterviewStreamErrorCode
 from app.services.ai.client import AIError
 
 _QUESTION_REPO = "app.repositories.interview.InterviewMessageRepository"
@@ -218,6 +219,7 @@ async def test_failed_first_question_abandons_the_session(
         events = await _drain(_stream_question(**_question_kwargs(session_id, user_id)), log)
 
     assert events[-1]["type"] == "error"
+    assert events[-1]["code"] == InterviewStreamErrorCode.question_failed.value
     assert "done" not in log
     _assert_order(log, "abandon:db1", "commit:db1", "error")
     assert abandon.calls == [((session_id, user_id), {})]
@@ -247,6 +249,7 @@ async def test_first_question_save_failure_abandons_and_sends_an_error(failing: 
         events = await _drain(_stream_question(**_question_kwargs(session_id, user_id)), log)
 
     assert [e["type"] for e in events] == ["token", "error"]
+    assert events[-1]["code"] == InterviewStreamErrorCode.question_failed.value
     assert "commit:db1" not in log
     _assert_order(log, "abandon:db2", "commit:db2", "error")
     assert abandon.calls == [((session_id, user_id), {})]
@@ -331,6 +334,7 @@ async def test_failed_turn_saves_nothing(generate: AsyncMock) -> None:
         events = await _drain(_stream_eval_and_question(**_turn_kwargs(session_id, user_id)), log)
 
     assert [e["type"] for e in events] == ["error"]
+    assert events[0]["code"] == InterviewStreamErrorCode.question_failed.value
     assert add_user.calls == []
     assert not any(entry.startswith("commit") for entry in log)
 
@@ -352,6 +356,7 @@ async def test_turn_save_failure_sends_an_error_instead_of_done() -> None:
         events = await _drain(_stream_eval_and_question(**_turn_kwargs(session_id, user_id)), log)
 
     assert [e["type"] for e in events] == ["eval", "token", "error"]
+    assert events[-1]["code"] == InterviewStreamErrorCode.answer_not_saved.value
     assert not any(entry.startswith("commit") for entry in log)
 
 
@@ -411,6 +416,7 @@ async def test_failed_summary_leaves_the_session_active(generate: AsyncMock) -> 
         events = await _drain(_stream_summary(**_summary_kwargs(session_id, user_id)), log)
 
     assert [e["type"] for e in events] == ["error"]
+    assert events[0]["code"] == InterviewStreamErrorCode.summary_failed.value
     assert complete.calls == []
     assert not any(entry.startswith("commit") for entry in log)
 
@@ -432,4 +438,5 @@ async def test_summary_save_failure_sends_an_error_without_the_summary() -> None
         events = await _drain(_stream_summary(**_summary_kwargs(session_id, user_id)), log)
 
     assert [e["type"] for e in events] == ["error"]
+    assert events[0]["code"] == InterviewStreamErrorCode.summary_not_saved.value
     assert not any(entry.startswith("commit") for entry in log)

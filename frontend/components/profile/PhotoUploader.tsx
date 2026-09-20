@@ -24,7 +24,7 @@ export function PhotoUploader() {
     (accepted: File[], rejected: FileRejection[]) => {
       setFileError(null);
       if (rejected.length > 0) {
-        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES / 1024 / 1024, lang));
+        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES, lang));
         return;
       }
       const file = accepted[0];
@@ -44,7 +44,13 @@ export function PhotoUploader() {
 
   const photoUrl = me?.profile?.photo_url ?? null;
 
-  const uploadError = uploadPhoto.error ? apiErrorMessage(uploadPhoto.error, lang) : null;
+  const uploadError = uploadPhoto.error
+    ? apiErrorMessage(uploadPhoto.error, lang, {
+        // Reachable despite the dropzone's own check: the server measures the
+        // whole multipart body, which is slightly larger than the file.
+        413: t("common", "fileTooLarge", lang).replace("{n}", String(MAX_SIZE_BYTES / 1024 / 1024)),
+      })
+    : null;
 
   const displayError = fileError ?? uploadError;
 
@@ -75,9 +81,21 @@ export function PhotoUploader() {
           {uploadPhoto.isPending
             ? t("settings", "photoUploading", lang)
             : t("settings", "photoUpload", lang)}
+          {/* The refusal messages tell the reader to check the accepted
+              formats, so the accepted formats have to be on screen. */}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("settings", "photoTypeHint", lang).replace(
+              "{n}",
+              String(MAX_SIZE_BYTES / 1024 / 1024),
+            )}
+          </p>
         </div>
       </div>
-      {displayError && <p className="text-xs text-destructive">{displayError}</p>}
+      {displayError && (
+        <p role="alert" className="text-xs text-destructive">
+          {displayError}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { FileRejection } from "react-dropzone";
+import type { CommonMessageKey } from "@/lib/api-error";
 import { t, type Language } from "@/lib/i18n";
 
 /**
@@ -11,19 +12,24 @@ import { t, type Language } from "@/lib/i18n";
  */
 export function fileRejectionMessage(
   rejection: FileRejection | undefined,
-  maxSizeMb: number,
+  maxSizeBytes: number,
   lang: Language,
 ): string {
-  switch (rejection?.errors[0]?.code) {
-    case "file-too-large":
-      return t("common", "fileTooLarge", lang).replace("{n}", String(maxSizeMb));
-    case "file-invalid-type":
-      return t("common", "errorUnsupportedType", lang);
-    case "too-many-files":
-      return t("common", "fileOneAtATime", lang);
-    default:
-      // Includes file-too-small and any code a later version of the library
-      // adds: the file was refused, and the control states what it accepts.
-      return t("common", "errorUnsupportedType", lang);
+  const code = rejection?.errors[0]?.code;
+  if (code === "file-too-large") {
+    // Bytes in, MB out: every size limit in this codebase is declared in bytes,
+    // and no reader wants to be told a limit in bytes.
+    const megabytes = Math.round(maxSizeBytes / 1024 / 1024);
+    return t("common", "fileTooLarge", lang).replace("{n}", String(megabytes));
   }
+  const key: CommonMessageKey =
+    code === "file-invalid-type"
+      ? "errorUnsupportedType"
+      : code === "too-many-files"
+        ? "fileOneAtATime"
+        : // file-too-small (neither uploader sets minSize) and any code a later
+          // version of the library or a custom validator adds. Saying the type
+          // is wrong would be a guess, so this stays neutral.
+          "error";
+  return t("common", key, lang);
 }

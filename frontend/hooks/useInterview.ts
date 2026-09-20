@@ -3,13 +3,15 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source";
-import { apiClient, extractDetail, isMissingResourceError } from "@/lib/api-client";
-import { t, type Language } from "@/lib/i18n";
+import { ApiClientError, apiClient, isMissingResourceError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
+import { t, type Language, type translations } from "@/lib/i18n";
 import type {
   CreateSessionRequest,
   InterviewEvaluation,
   InterviewSession,
   InterviewSessionDetail,
+  InterviewStreamErrorCode,
   InterviewSummary,
   SseEvent,
 } from "@/types/api";
@@ -48,24 +50,41 @@ export function useInterviewSessions() {
 // ---------------------------------------------------------------------------
 
 /**
- * Why a stream failed. Failures the client detects are stored by kind and
- * translated at render, so the message follows the current language. Text the
- * server sent is shown untranslated.
+ * Why a stream failed. Every failure is stored by kind and translated at
+ * render, so the message follows the current language -- the server's own
+ * wording is English and never shown.
  */
 export type StreamError =
-  /** Non-empty text from the server: an SSE "error" event or an HTTP error's detail. */
-  | { kind: "server"; message: string }
-  /** An error with no usable text: a non-JSON body, a missing or empty detail, or an empty SSE error. */
+  /** An SSE "error" event: the stream opened and then gave up. */
+  | { kind: "stream"; code: InterviewStreamErrorCode }
+  /** The request failed before the stream opened, with an HTTP status. */
+  | { kind: "http"; status: number; retryAfterSeconds: number | null }
+  /** An error with no usable code or status: a non-JSON body, or an empty SSE error. */
   | { kind: "failed" }
   /** The response ended without a terminal event. */
   | { kind: "ended" }
   /** The request could not complete: a network failure before or during the stream. */
   | { kind: "connection" };
 
+type InterviewMessageKey = keyof (typeof translations)["interview"];
+
+// Typed as real message keys: t() returns an unknown key as-is, so a typo here
+// would show the raw key instead of failing to compile.
+const STREAM_ERROR_KEYS: Record<InterviewStreamErrorCode, InterviewMessageKey> = {
+  question_failed: "streamQuestionFailed",
+  answer_not_saved: "streamAnswerNotSaved",
+  summary_failed: "streamSummaryFailed",
+  summary_not_saved: "streamSummaryNotSaved",
+};
+
 export function streamErrorMessage(error: StreamError, lang: Language): string {
   switch (error.kind) {
-    case "server":
-      return error.message;
+    case "stream":
+      return t("interview", STREAM_ERROR_KEYS[error.code], lang);
+    case "http":
+      // Reuses the app-wide status table, so an interview hitting the AI cap
+      // says how long to wait, like everywhere else.
+      return apiErrorMessage(new ApiClientError(error.status, "", error.retryAfterSeconds), lang);
     case "failed":
       return t("common", "error", lang);
     case "ended":
@@ -158,10 +177,12 @@ export function useInterview() {
       return;
     }
     if (event.type === "error") {
-      // An empty message would render a blank alert.
-      const error: StreamError = event.content
-        ? { kind: "server", message: event.content }
-        : { kind: "failed" };
+      // A stream from a backend that doesn't send codes has nothing to
+      // translate, so it falls back to the generic failure.
+      const error: StreamError =
+        event.code && Object.hasOwn(STREAM_ERROR_KEYS, event.code)
+          ? { kind: "stream", code: event.code }
+          : { kind: "failed" };
       setState((s) => interruptedState(s, error, evalInStream.current));
     }
   }, []);
@@ -187,15 +208,14 @@ export function useInterview() {
 
         async onopen(response) {
           if (!response.ok) {
-            const text = await response.text();
-            let error: StreamError = { kind: "failed" };
-            try {
-              // extractDetail flattens a 422's array-of-objects detail into text; "" means none.
-              const detail = extractDetail((JSON.parse(text) as { detail?: unknown }).detail, "");
-              if (detail) error = { kind: "server", message: detail };
-            } catch {
-              /* body is not a JSON object: keep the "failed" kind */
-            }
+            // The body is the backend's English detail; the status and
+            // Retry-After are what the client can say in the user's language.
+            const retryAfter = Number(response.headers.get("Retry-After"));
+            const error: StreamError = {
+              kind: "http",
+              status: response.status,
+              retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+            };
             setState((s) => interruptedState(s, error, evalInStream.current));
             ctrl.abort();
             return;
