@@ -63,6 +63,60 @@ export const translations = {
   },
 
   // ---------------------------------------------------------------------------
+  // Chat widget
+  // ---------------------------------------------------------------------------
+  chat: {
+    title: {
+      en: "Japan Job Assistant",
+      id: "Asisten Kerja Jepang",
+      ja: "日本就職アシスタント",
+    },
+    poweredBy: { en: "Powered by Gemini AI", id: "Didukung Gemini AI", ja: "Gemini AI 搭載" },
+    greeting: {
+      en: "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips! 🇯🇵",
+      id: "Hai! Saya asisten Japan Job Support kamu. Tanya apa saja soal bekerja di Jepang, visa, budaya kerja Jepang, atau tips resume! 🇯🇵",
+      ja: "こんにちは！日本就職サポートのアシスタントです。日本での就労、ビザ、職場文化、履歴書のコツなど、何でも聞いてください！🇯🇵",
+    },
+    signedOutPrompt: {
+      en: "Sign in first before chatting with the Japan Job Assistant.",
+      id: "Masuk dulu sebelum mengobrol dengan Asisten Kerja Jepang.",
+      ja: "日本就職アシスタントとチャットするには、先にログインしてください。",
+    },
+    conversation: { en: "Conversation", id: "Percakapan", ja: "会話" },
+    thinking: { en: "Thinking…", id: "Berpikir…", ja: "考え中…" },
+    // An accessible name for the field, not an instruction: a screen reader
+    // reads this as the label of the text box.
+    inputLabel: {
+      en: "Message to the assistant",
+      id: "Pesan untuk asisten",
+      ja: "アシスタントへのメッセージ",
+    },
+    placeholder: { en: "Ask me anything…", id: "Tanya apa saja…", ja: "何でも聞いてください…" },
+    placeholderLimited: {
+      en: "Chat limit reached…",
+      id: "Batas chat tercapai…",
+      ja: "チャットの上限に達しました…",
+    },
+    send: { en: "Send", id: "Kirim", ja: "送信" },
+    openChat: { en: "Open chat", id: "Buka chat", ja: "チャットを開く" },
+    closeChat: { en: "Close chat", id: "Tutup chat", ja: "チャットを閉じる" },
+    // No duration and no pointer to the countdown: this bubble stays in the log
+    // after the timer has run out, so anything it says about timing goes stale.
+    limitReached: {
+      en: "You've reached the chat limit. Please wait before sending another message.",
+      id: "Kamu sudah mencapai batas chat. Tunggu sebentar sebelum mengirim pesan lagi.",
+      ja: "チャットの上限に達しました。しばらく待ってから次のメッセージを送信してください。",
+    },
+    // {n} is replaced by the live countdown, so each language decides where in
+    // the sentence it goes.
+    limitCountdown: {
+      en: "Chat limit reached — you can send another message in {n}",
+      id: "Batas chat tercapai — kamu bisa mengirim pesan lagi dalam {n}",
+      ja: "チャットの上限に達しました。次のメッセージは {n} 後に送信できます",
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // Landing page
   // ---------------------------------------------------------------------------
   landing: {

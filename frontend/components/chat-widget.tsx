@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
-import { extractDetail } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
+import { useLang } from "@/lib/language-context";
+import { t, type translations } from "@/lib/i18n";
 
 // Backend limit for ChatRequest.message and for each history item's content,
 // counted in characters (code points). Longer values get a 422.
 const MAX_MESSAGE_LENGTH = 8000;
-const GENERIC_ERROR = "Sorry, something went wrong. Please try again.";
 
 interface Message {
   role: "user" | "assistant";
@@ -28,15 +30,15 @@ function recentHistory(messages: Message[]): Message[] {
   }));
 }
 
+type ChatMessageKey = keyof (typeof translations)["chat"];
+
 export function ChatWidget() {
+  const { lang } = useLang();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips! 🇯🇵",
-    },
-  ]);
+  // The greeting is rendered from the current language rather than stored as a
+  // message: a stored one would stay in whichever language was active when the
+  // widget mounted, and it is not part of the conversation the backend needs.
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [retryAt, setRetryAt] = useState<number | null>(null);
@@ -65,6 +67,16 @@ export function ChatWidget() {
   const retryRemainingMs = retryAt !== null ? retryAt - now : 0;
   const rateLimited = retryRemainingMs > 0;
 
+  // Annotated so a renamed key fails to compile rather than rendering itself.
+  const placeholderKey: ChatMessageKey = rateLimited ? "placeholderLimited" : "placeholder";
+  const toggleLabelKey: ChatMessageKey = open ? "closeChat" : "openChat";
+
+  // Split rather than interpolated, so the timer keeps its own styling while
+  // each language puts it where its grammar wants it.
+  const [countdownBefore = "", countdownAfter = ""] = t("chat", "limitCountdown", lang).split(
+    "{n}",
+  );
+
   function formatCountdown(ms: number): string {
     const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
     const hours = Math.floor(totalSeconds / 3600);
@@ -91,35 +103,51 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history: recentHistory(messages) }),
       });
-      const body = (await response.json()) as { reply?: string; detail?: unknown };
-
       if (!response.ok) {
-        if (response.status === 429) {
-          const retryAfterSeconds = Number(response.headers.get("Retry-After"));
-          if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-            const nowMs = Date.now();
-            setNow(nowMs);
-            setRetryAt(nowMs + retryAfterSeconds * 1000);
-          }
+        // The body holds the backend's English detail, which is never shown.
+        // The status and Retry-After are what the reader can be told.
+        const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+        const retryAfter =
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : null;
+        if (response.status === 429 && retryAfter !== null) {
+          const nowMs = Date.now();
+          setNow(nowMs);
+          setRetryAt(nowMs + retryAfter * 1000);
         }
-        const fallback =
-          response.status === 401
-            ? "Please sign in to chat with the assistant."
-            : response.status === 429
-              ? "You've reached the chat limit — try again in a few hours."
-              : GENERIC_ERROR;
-        // A 422's detail is an array of objects, which React cannot render.
         setMessages([
           ...newMessages,
-          { role: "assistant", content: extractDetail(body.detail, fallback) },
+          {
+            role: "assistant",
+            content: apiErrorMessage(
+              new ApiClientError(response.status, "", retryAfter),
+              lang,
+              // Only when a countdown will actually render: without Retry-After
+              // there is no timer, and the shared "try again later" is then the
+              // only honest thing to say. The chat wording avoids a duration of
+              // its own so it can't contradict the timer ticking below it.
+              retryAfter !== null ? { 429: t("chat", "limitReached", lang) } : undefined,
+            ),
+          },
         ]);
         return;
       }
 
+      // A reply that won't parse means the server answered with something
+      // unexpected, which is not the same as not reaching it at all.
+      let reply = "";
+      try {
+        reply = ((await response.json()) as { reply?: string }).reply ?? "";
+      } catch {
+        reply = "";
+      }
       // An empty reply would leave a blank bubble with nothing to read.
-      setMessages([...newMessages, { role: "assistant", content: body.reply || GENERIC_ERROR }]);
-    } catch {
-      setMessages([...newMessages, { role: "assistant", content: GENERIC_ERROR }]);
+      setMessages([
+        ...newMessages,
+        { role: "assistant", content: reply || t("common", "error", lang) },
+      ]);
+    } catch (err) {
+      // Never reached the server, or came back as something other than JSON.
+      setMessages([...newMessages, { role: "assistant", content: apiErrorMessage(err, lang) }]);
     } finally {
       setLoading(false);
     }
@@ -141,14 +169,12 @@ export function ChatWidget() {
             <span aria-hidden="true" className="text-3xl">
               🤖
             </span>
-            <p className="text-sm text-muted-foreground">
-              Sign in first before chatting with the Japan Job Assistant.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("chat", "signedOutPrompt", lang)}</p>
             <Link
               href={SIGN_IN_ROUTE}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Sign in
+              {t("nav", "signIn", lang)}
             </Link>
           </div>
         </SignedOut>
@@ -164,14 +190,16 @@ export function ChatWidget() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-primary-foreground">
-                    Japan Job Assistant
+                    {t("chat", "title", lang)}
                   </p>
-                  <p className="text-xs text-primary-foreground/70">Powered by Gemini AI</p>
+                  <p className="text-xs text-primary-foreground/70">
+                    {t("chat", "poweredBy", lang)}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close chat"
+                aria-label={t("chat", "closeChat", lang)}
                 className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground"
               >
                 ✕
@@ -181,9 +209,14 @@ export function ChatWidget() {
             {/* Messages */}
             <div
               role="log"
-              aria-label="Conversation"
+              aria-label={t("chat", "conversation", lang)}
               className="flex-1 space-y-3 overflow-y-auto p-4"
             >
+              <div className="flex justify-start">
+                <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-foreground">
+                  {t("chat", "greeting", lang)}
+                </div>
+              </div>
               {messages.map((msg, i) => (
                 <div
                   key={i}
@@ -203,7 +236,7 @@ export function ChatWidget() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    Thinking…
+                    {t("chat", "thinking", lang)}
                   </div>
                 </div>
               )}
@@ -214,8 +247,9 @@ export function ChatWidget() {
             <div className="border-t p-3">
               {rateLimited && (
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Chat limit reached — you can send another message in{" "}
+                  {countdownBefore}
                   <span className="font-mono font-medium">{formatCountdown(retryRemainingMs)}</span>
+                  {countdownAfter}
                 </p>
               )}
               <div className="flex gap-2">
@@ -223,9 +257,9 @@ export function ChatWidget() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
-                  aria-label="Message the assistant"
+                  aria-label={t("chat", "inputLabel", lang)}
                   maxLength={MAX_MESSAGE_LENGTH}
-                  placeholder={rateLimited ? "Chat limit reached…" : "Ask me anything…"}
+                  placeholder={t("chat", placeholderKey, lang)}
                   rows={1}
                   disabled={rateLimited}
                   className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
@@ -235,7 +269,7 @@ export function ChatWidget() {
                   disabled={loading || !input.trim() || rateLimited}
                   className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
-                  Send
+                  {t("chat", "send", lang)}
                 </button>
               </div>
             </div>
@@ -247,7 +281,7 @@ export function ChatWidget() {
       <button
         onClick={() => setOpen(!open)}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg transition-opacity hover:opacity-90"
-        aria-label={open ? "Close chat" : "Open chat"}
+        aria-label={t("chat", toggleLabelKey, lang)}
         aria-expanded={open}
       >
         {open ? "✕" : "💬"}
