@@ -229,6 +229,68 @@ export const translations = {
       id: "Halaman ini mengalami kesalahan tak terduga. Coba lagi, atau kembali ke beranda.",
       ja: "このページで予期しないエラーが発生しました。もう一度お試しいただくか、ホームに戻ってください。",
     },
+    close: { en: "Close", id: "Tutup", ja: "閉じる" },
+    // One per HTTP status in lib/api-error.ts. The backend's own detail text is
+    // English, so these stand in for it wherever a request failure is shown.
+    errorConnection: {
+      en: "Couldn't reach the server. Check your connection and try again.",
+      id: "Tidak dapat menghubungi server. Periksa koneksi kamu, lalu coba lagi.",
+      ja: "サーバーに接続できませんでした。接続を確認して再試行してください。",
+    },
+    // Not always an expired session: a 401 is also what comes back when Clerk
+    // briefly fails to issue a token, and a retry works then.
+    errorSignedOut: {
+      en: "We couldn't verify your session. Try again, or sign in again if this keeps happening.",
+      id: "Kami tidak dapat memverifikasi sesi kamu. Coba lagi, atau masuk lagi jika terus terjadi.",
+      ja: "セッションを確認できませんでした。再試行するか、繰り返す場合は再度ログインしてください。",
+    },
+    errorNotAllowed: {
+      en: "You don't have permission to do that.",
+      id: "Kamu tidak memiliki izin untuk melakukan itu.",
+      ja: "この操作を行う権限がありません。",
+    },
+    errorNotFound: {
+      en: "That's no longer available. It may have been deleted.",
+      id: "Itu sudah tidak tersedia. Mungkin sudah dihapus.",
+      ja: "対象が見つかりません。削除された可能性があります。",
+    },
+    errorConflict: {
+      en: "That can't be done right now. Refresh and try again.",
+      id: "Itu tidak bisa dilakukan sekarang. Muat ulang, lalu coba lagi.",
+      ja: "現在この操作は実行できません。更新してから再試行してください。",
+    },
+    errorTooLarge: {
+      en: "That's too large to send. Try again with less content.",
+      id: "Terlalu besar untuk dikirim. Coba lagi dengan konten yang lebih sedikit.",
+      ja: "データが大きすぎます。内容を減らして再試行してください。",
+    },
+    errorInvalidInput: {
+      en: "Some of what you entered isn't valid. Check it and try again.",
+      id: "Sebagian yang kamu isi tidak valid. Periksa kembali, lalu coba lagi.",
+      ja: "入力内容に誤りがあります。確認して再試行してください。",
+    },
+    // Used only when the response carried no Retry-After; the two below say how
+    // long to wait when it did.
+    errorRateLimited: {
+      en: "You've reached your usage limit for now. Please try again later.",
+      id: "Kamu sudah mencapai batas penggunaan untuk saat ini. Coba lagi nanti.",
+      ja: "現在の利用上限に達しました。時間をおいて再試行してください。",
+    },
+    errorRateLimitedMinutes: {
+      en: "You've reached your usage limit. Try again in about {n} minutes.",
+      id: "Kamu sudah mencapai batas penggunaan. Coba lagi sekitar {n} menit lagi.",
+      ja: "利用上限に達しました。約{n}分後に再試行してください。",
+    },
+    errorRateLimitedHours: {
+      en: "You've reached your usage limit. Try again in about {n} hours.",
+      id: "Kamu sudah mencapai batas penggunaan. Coba lagi sekitar {n} jam lagi.",
+      ja: "利用上限に達しました。約{n}時間後に再試行してください。",
+    },
+    errorServer: {
+      en: "The server couldn't complete that. Please try again.",
+      id: "Server tidak dapat menyelesaikannya. Coba lagi.",
+      ja: "サーバーで処理を完了できませんでした。再試行してください。",
+    },
     tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
     retrying: { en: "Retrying…", id: "Mencoba lagi…", ja: "再試行中…" },
     goHome: { en: "Go to home page", id: "Ke beranda", ja: "ホームへ" },
@@ -656,6 +718,11 @@ export const translations = {
       en: "Paste the full Japanese job posting text here…",
       id: "Tempel teks lengkap lowongan kerja Jepang di sini…",
       ja: "日本語求人の全文をここに貼り付けてください…",
+    },
+    charCount: {
+      en: "{n} / {max} characters",
+      id: "{n} / {max} karakter",
+      ja: "{n} / {max}文字",
     },
     minChars: {
       en: "Minimum 50 characters required.",
@@ -1320,6 +1387,16 @@ export const translations = {
     },
     searchPlaceholder: { en: "Search terms…", id: "Cari istilah…", ja: "用語を検索…" },
     searchLabel: { en: "Search glossary", id: "Cari glosarium", ja: "用語集を検索" },
+    topicsLoadError: {
+      en: "Failed to load culture topics.",
+      id: "Gagal memuat topik budaya.",
+      ja: "文化トピックの読み込みに失敗しました。",
+    },
+    glossaryLoadError: {
+      en: "Failed to load the glossary.",
+      id: "Gagal memuat glosarium.",
+      ja: "用語集の読み込みに失敗しました。",
+    },
     colTerm: { en: "Term", id: "Istilah", ja: "用語" },
     colReading: { en: "Reading", id: "Bacaan", ja: "読み方" },
     colDefinition: { en: "Definition (ID)", id: "Definisi (ID)", ja: "定義（ID）" },

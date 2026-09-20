@@ -13,8 +13,10 @@ import {
 interface ConfirmOptions {
   title: string;
   description?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  // Required, not defaulted: a default would have to be written in one
+  // language, and this dialog is shown in three. Callers already have `t`.
+  confirmLabel: string;
+  cancelLabel: string;
   variant?: "default" | "destructive";
 }
 
@@ -28,9 +30,10 @@ interface PendingConfirm {
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 /**
- * Imperative confirm dialog — `await confirm({ title, variant: "destructive" })`
+ * Imperative confirm dialog — `await confirm({ title, confirmLabel, cancelLabel })`
  * resolves true/false, same call shape as window.confirm() but as a real,
- * styled, accessible dialog instead of a blocking browser popup.
+ * styled, accessible dialog instead of a blocking browser popup. Both button
+ * labels are required; see ConfirmOptions.
  */
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
@@ -72,7 +75,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
                 onClick={() => settle(false)}
                 className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
               >
-                {pending.options.cancelLabel ?? "Cancel"}
+                {pending.options.cancelLabel}
               </button>
               <button
                 type="button"
@@ -83,7 +86,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
                     : "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                 }
               >
-                {pending.options.confirmLabel ?? "Confirm"}
+                {pending.options.confirmLabel}
               </button>
             </DialogFooter>
           </DialogContent>

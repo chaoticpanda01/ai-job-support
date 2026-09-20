@@ -19,10 +19,28 @@ export class ApiClientError extends Error {
   constructor(
     public readonly status: number,
     public readonly detail: string,
+    /**
+     * Seconds from the response's Retry-After header, when it sent one. The AI
+     * usage caps and the rate limiter both do, and it is the only part of a 429
+     * that says how long to wait -- the detail text carrying the same figure is
+     * English prose, so this is what a translated message can use. Null when
+     * the header was absent or wasn't a plain number.
+     */
+    public readonly retryAfterSeconds: number | null = null,
   ) {
     super(detail);
     this.name = "ApiClientError";
   }
+}
+
+/** Seconds from a Retry-After header, or null if absent or not a number. */
+function parseRetryAfter(response: Response): number | null {
+  const header = response.headers.get("Retry-After");
+  if (header === null) return null;
+  const seconds = Number(header);
+  // The header also allows an HTTP date; nothing here sends one, so a value
+  // that isn't a plain number is treated as absent rather than guessed at.
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
 /**
@@ -99,7 +117,7 @@ async function request<T>(
     } catch {
       // ignore — use the status code message
     }
-    throw new ApiClientError(response.status, detail);
+    throw new ApiClientError(response.status, detail, parseRetryAfter(response));
   }
 
   // 204 No Content
@@ -136,7 +154,7 @@ async function upload<T>(
     } catch {
       // ignore
     }
-    throw new ApiClientError(response.status, detail);
+    throw new ApiClientError(response.status, detail, parseRetryAfter(response));
   }
 
   return response.json() as Promise<T>;

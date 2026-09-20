@@ -4,8 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslateJob } from "@/hooks/useJobs";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+
+// Matches TranslateJobRequest.raw_text's max_length in backend/app/schemas/job.py.
+// Enforced here too: a 422 from exceeding it is a field-level error, and the
+// page can only report the status, so the limit is better shown than explained.
+const MAX_JOB_TEXT = 20_000;
 
 export default function TranslateJobPage() {
   const router = useRouter();
@@ -16,13 +22,17 @@ export default function TranslateJobPage() {
 
   const canSubmit = rawText.trim().length >= 50;
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const result = await translateMutation.mutateAsync({
-      raw_text: rawText.trim(),
-      ...(sourceUrl.trim() ? { source_url: sourceUrl.trim() } : {}),
-    });
-    router.push(`/dashboard/jobs/${result.id}`);
+    translateMutation.mutate(
+      {
+        raw_text: rawText.trim(),
+        ...(sourceUrl.trim() ? { source_url: sourceUrl.trim() } : {}),
+      },
+      // mutate, not mutateAsync: a rejected mutateAsync promise had no catch,
+      // so every failed translation also raised an unhandled rejection.
+      { onSuccess: (result) => router.push(`/dashboard/jobs/${result.id}`) },
+    );
   }
 
   return (
@@ -38,7 +48,7 @@ export default function TranslateJobPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("jobs", "translateSub", lang)}</p>
       </div>
 
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Source URL */}
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="source-url">
@@ -67,6 +77,7 @@ export default function TranslateJobPage() {
             id="raw-text"
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
+            maxLength={MAX_JOB_TEXT}
             rows={16}
             placeholder={t("jobs", "jobTextPlaceholder", lang)}
             className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -76,14 +87,19 @@ export default function TranslateJobPage() {
             <p
               className={`text-xs tabular-nums ${rawText.trim().length < 50 ? "text-muted-foreground" : "text-green-600"}`}
             >
-              {rawText.trim().length} chars
+              {t("jobs", "charCount", lang)
+                .replace("{n}", String(rawText.trim().length))
+                .replace("{max}", String(MAX_JOB_TEXT))}
             </p>
           </div>
         </div>
 
-        {translateMutation.error instanceof Error && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {translateMutation.error.message}
+        {translateMutation.error && (
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {apiErrorMessage(translateMutation.error, lang)}
           </p>
         )}
 
