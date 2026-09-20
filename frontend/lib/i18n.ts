@@ -237,10 +237,12 @@ export const translations = {
       id: "Tidak dapat menghubungi server. Periksa koneksi kamu, lalu coba lagi.",
       ja: "サーバーに接続できませんでした。接続を確認して再試行してください。",
     },
+    // Not always an expired session: a 401 is also what comes back when Clerk
+    // briefly fails to issue a token, and a retry works then.
     errorSignedOut: {
-      en: "Your session has expired. Sign in again to continue.",
-      id: "Sesi kamu sudah berakhir. Masuk lagi untuk melanjutkan.",
-      ja: "セッションの有効期限が切れました。再度ログインしてください。",
+      en: "We couldn't verify your session. Try again, or sign in again if this keeps happening.",
+      id: "Kami tidak dapat memverifikasi sesi kamu. Coba lagi, atau masuk lagi jika terus terjadi.",
+      ja: "セッションを確認できませんでした。再試行するか、繰り返す場合は再度ログインしてください。",
     },
     errorNotAllowed: {
       en: "You don't have permission to do that.",
@@ -267,10 +269,22 @@ export const translations = {
       id: "Sebagian yang kamu isi tidak valid. Periksa kembali, lalu coba lagi.",
       ja: "入力内容に誤りがあります。確認して再試行してください。",
     },
+    // Used only when the response carried no Retry-After; the two below say how
+    // long to wait when it did.
     errorRateLimited: {
       en: "You've reached your usage limit for now. Please try again later.",
       id: "Kamu sudah mencapai batas penggunaan untuk saat ini. Coba lagi nanti.",
       ja: "現在の利用上限に達しました。時間をおいて再試行してください。",
+    },
+    errorRateLimitedMinutes: {
+      en: "You've reached your usage limit. Try again in about {n} minutes.",
+      id: "Kamu sudah mencapai batas penggunaan. Coba lagi sekitar {n} menit lagi.",
+      ja: "利用上限に達しました。約{n}分後に再試行してください。",
+    },
+    errorRateLimitedHours: {
+      en: "You've reached your usage limit. Try again in about {n} hours.",
+      id: "Kamu sudah mencapai batas penggunaan. Coba lagi sekitar {n} jam lagi.",
+      ja: "利用上限に達しました。約{n}時間後に再試行してください。",
     },
     errorServer: {
       en: "The server couldn't complete that. Please try again.",
@@ -705,7 +719,11 @@ export const translations = {
       id: "Tempel teks lengkap lowongan kerja Jepang di sini…",
       ja: "日本語求人の全文をここに貼り付けてください…",
     },
-    charCount: { en: "{n} characters", id: "{n} karakter", ja: "{n}文字" },
+    charCount: {
+      en: "{n} / {max} characters",
+      id: "{n} / {max} karakter",
+      ja: "{n} / {max}文字",
+    },
     minChars: {
       en: "Minimum 50 characters required.",
       id: "Minimal 50 karakter diperlukan.",
@@ -1304,14 +1322,14 @@ export const translations = {
     searchPlaceholder: { en: "Search terms…", id: "Cari istilah…", ja: "用語を検索…" },
     searchLabel: { en: "Search glossary", id: "Cari glosarium", ja: "用語集を検索" },
     topicsLoadError: {
-      en: "Failed to load culture topics. Please refresh.",
-      id: "Gagal memuat topik budaya. Coba muat ulang.",
-      ja: "文化トピックの読み込みに失敗しました。更新してください。",
+      en: "Failed to load culture topics.",
+      id: "Gagal memuat topik budaya.",
+      ja: "文化トピックの読み込みに失敗しました。",
     },
     glossaryLoadError: {
-      en: "Failed to load the glossary. Please refresh.",
-      id: "Gagal memuat glosarium. Coba muat ulang.",
-      ja: "用語集の読み込みに失敗しました。更新してください。",
+      en: "Failed to load the glossary.",
+      id: "Gagal memuat glosarium.",
+      ja: "用語集の読み込みに失敗しました。",
     },
     colTerm: { en: "Term", id: "Istilah", ja: "用語" },
     colReading: { en: "Reading", id: "Bacaan", ja: "読み方" },

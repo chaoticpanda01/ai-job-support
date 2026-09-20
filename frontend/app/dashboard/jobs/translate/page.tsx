@@ -8,6 +8,11 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
+// Matches TranslateJobRequest.raw_text's max_length in backend/app/schemas/job.py.
+// Enforced here too: a 422 from exceeding it is a field-level error, and the
+// page can only report the status, so the limit is better shown than explained.
+const MAX_JOB_TEXT = 20_000;
+
 export default function TranslateJobPage() {
   const router = useRouter();
   const [sourceUrl, setSourceUrl] = useState("");
@@ -72,6 +77,7 @@ export default function TranslateJobPage() {
             id="raw-text"
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
+            maxLength={MAX_JOB_TEXT}
             rows={16}
             placeholder={t("jobs", "jobTextPlaceholder", lang)}
             className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -81,14 +87,15 @@ export default function TranslateJobPage() {
             <p
               className={`text-xs tabular-nums ${rawText.trim().length < 50 ? "text-muted-foreground" : "text-green-600"}`}
             >
-              {t("jobs", "charCount", lang).replace("{n}", String(rawText.trim().length))}
+              {t("jobs", "charCount", lang)
+                .replace("{n}", String(rawText.trim().length))
+                .replace("{max}", String(MAX_JOB_TEXT))}
             </p>
           </div>
         </div>
 
         {translateMutation.error && (
           <p
-            key={translateMutation.failureCount}
             role="alert"
             className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >

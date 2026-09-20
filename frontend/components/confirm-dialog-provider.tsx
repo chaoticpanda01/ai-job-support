@@ -30,9 +30,10 @@ interface PendingConfirm {
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 /**
- * Imperative confirm dialog — `await confirm({ title, variant: "destructive" })`
+ * Imperative confirm dialog — `await confirm({ title, confirmLabel, cancelLabel })`
  * resolves true/false, same call shape as window.confirm() but as a real,
- * styled, accessible dialog instead of a blocking browser popup.
+ * styled, accessible dialog instead of a blocking browser popup. Both button
+ * labels are required; see ConfirmOptions.
  */
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);

@@ -18,8 +18,16 @@ export default function CulturePage() {
     data: topics,
     isLoading: topicsLoading,
     error: topicsError,
+    isFetching: topicsFetching,
+    refetch: refetchTopics,
   } = useCultureTopics({ tag: selectedTag });
-  const { data: glossary, isLoading: glossaryLoading, error: glossaryError } = useGlossary();
+  const {
+    data: glossary,
+    isLoading: glossaryLoading,
+    error: glossaryError,
+    isFetching: glossaryFetching,
+    refetch: refetchGlossary,
+  } = useGlossary();
 
   return (
     <div className="space-y-8">
@@ -78,12 +86,11 @@ export default function CulturePage() {
           {topicsLoading && <TopicsSkeleton />}
 
           {topicsError && !topicsLoading && (
-            <p
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {t("culture", "topicsLoadError", lang)}
-            </p>
+            <LoadFailure
+              messageKey="topicsLoadError"
+              isRetrying={topicsFetching}
+              onRetry={() => void refetchTopics()}
+            />
           )}
 
           {topics && topics.length === 0 && !topicsLoading && (
@@ -107,12 +114,11 @@ export default function CulturePage() {
           {glossaryLoading && <GlossarySkeleton />}
 
           {glossaryError && !glossaryLoading && (
-            <p
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {t("culture", "glossaryLoadError", lang)}
-            </p>
+            <LoadFailure
+              messageKey="glossaryLoadError"
+              isRetrying={glossaryFetching}
+              onRetry={() => void refetchGlossary()}
+            />
           )}
 
           {glossary && glossary.length === 0 && !glossaryLoading && (
@@ -124,6 +130,46 @@ export default function CulturePage() {
           {glossary && glossary.length > 0 && <GlossaryTable entries={glossary} />}
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Load failure
+// ---------------------------------------------------------------------------
+
+/**
+ * A failed load, with a way out of it. Both of this page's lists are fetched
+ * from the client, so a retry is a button press -- the older list pages tell
+ * the reader to refresh only because they were written before this existed.
+ */
+function LoadFailure({
+  messageKey,
+  isRetrying,
+  onRetry,
+}: {
+  messageKey: "topicsLoadError" | "glossaryLoadError";
+  isRetrying: boolean;
+  onRetry: () => void;
+}) {
+  const { lang } = useLang();
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        {t("culture", messageKey, lang)}
+      </p>
+      {/* aria-disabled rather than disabled, so the button keeps keyboard
+          focus while the retry runs. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (!isRetrying) onRetry();
+        }}
+        aria-disabled={isRetrying}
+        className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent aria-disabled:opacity-50"
+      >
+        {t("common", isRetrying ? "retrying" : "tryAgain", lang)}
+      </button>
     </div>
   );
 }
