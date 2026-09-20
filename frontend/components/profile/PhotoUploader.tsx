@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { useMe, useUploadPhoto } from "@/hooks/useMe";
-import { ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
+import { fileRejectionMessage } from "@/lib/file-rejection";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -23,8 +24,7 @@ export function PhotoUploader() {
     (accepted: File[], rejected: FileRejection[]) => {
       setFileError(null);
       if (rejected.length > 0) {
-        const firstError = rejected[0]?.errors[0]?.message ?? t("settings", "photoInvalid", lang);
-        setFileError(firstError);
+        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES / 1024 / 1024, lang));
         return;
       }
       const file = accepted[0];
@@ -44,12 +44,7 @@ export function PhotoUploader() {
 
   const photoUrl = me?.profile?.photo_url ?? null;
 
-  const uploadError =
-    uploadPhoto.error instanceof ApiClientError
-      ? uploadPhoto.error.detail
-      : uploadPhoto.error
-        ? t("settings", "photoUploadFail", lang)
-        : null;
+  const uploadError = uploadPhoto.error ? apiErrorMessage(uploadPhoto.error, lang) : null;
 
   const displayError = fileError ?? uploadError;
 

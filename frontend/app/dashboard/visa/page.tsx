@@ -12,6 +12,7 @@ import {
   useSelectRoadmap,
   useVisaConsultations,
 } from "@/hooks/useVisa";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -88,13 +89,13 @@ export default function VisaPage() {
 
       {assess.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(assess.error as { detail?: string }).detail ?? t("visa", "assessFail", lang)}
+          {apiErrorMessage(assess.error, lang)}
         </p>
       )}
 
       {selectRoadmap.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(selectRoadmap.error as { detail?: string }).detail ?? t("visa", "buildFail", lang)}
+          {apiErrorMessage(selectRoadmap.error, lang)}
         </p>
       )}
 

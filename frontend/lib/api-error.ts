@@ -69,6 +69,10 @@ function errorKeyForStatus(status: number): CommonMessageKey {
       return "errorConflict";
     case 413:
       return "errorTooLarge";
+    case 415:
+      // The uploads that send this state their accepted formats next to the
+      // control, so this doesn't have to list them.
+      return "errorUnsupportedType";
     default:
       // 5xx, and any status without a message of its own. A 502 from a failed
       // AI call lands here, which is why this one suggests trying again.

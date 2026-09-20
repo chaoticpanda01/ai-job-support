@@ -6,9 +6,9 @@ import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
 import { useApplications, useCreateApplication } from "@/hooks/useApplications";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import { ApiClientError } from "@/lib/api-client";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
 
 interface Props {
@@ -291,9 +291,7 @@ function JobIdCard({ jobId }: { jobId: string }) {
 
         {createApplication.error && (
           <p className="text-xs text-destructive">
-            {createApplication.error instanceof ApiClientError
-              ? createApplication.error.detail
-              : t("jobs", "addToTrackerFailed", lang)}
+            {apiErrorMessage(createApplication.error, lang)}
           </p>
         )}
       </div>
@@ -391,8 +389,10 @@ function MatchSection({ jobId }: { jobId: string }) {
             )}
           </button>
 
-          {matchMutation.error instanceof Error && (
-            <p className="text-xs text-destructive">{matchMutation.error.message}</p>
+          {matchMutation.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {apiErrorMessage(matchMutation.error, lang)}
+            </p>
           )}
         </>
       )}

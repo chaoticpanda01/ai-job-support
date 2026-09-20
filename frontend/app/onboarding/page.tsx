@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
-import { ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { PhotoUploader } from "@/components/profile/PhotoUploader";
@@ -64,7 +64,7 @@ type Step5Data = z.infer<typeof step5BaseSchema>;
 const TOTAL_STEPS = 5;
 
 function errorMessage(err: unknown, lang: Parameters<typeof t>[2]): string {
-  return err instanceof ApiClientError ? err.detail : t("common", "error", lang);
+  return apiErrorMessage(err, lang);
 }
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import { useClerk } from "@clerk/nextjs";
 import { z } from "zod";
 import { useMe, useUpdateProfile } from "@/hooks/useMe";
 import { useDeleteAccount } from "@/hooks/useAccount";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t, type Language } from "@/lib/i18n";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
@@ -493,12 +494,7 @@ function RirekishoInfoSection() {
         </Field>
 
         <SectionFormFooter
-          error={
-            updateProfile.error
-              ? ((updateProfile.error as { detail?: string }).detail ??
-                t("settings", "saveFail", lang))
-              : null
-          }
+          error={updateProfile.error ? apiErrorMessage(updateProfile.error, lang) : null}
           pending={updateProfile.isPending}
           saved={saved}
           lang={lang}
@@ -696,12 +692,7 @@ function JobPreferencesSection() {
         </Field>
 
         <SectionFormFooter
-          error={
-            updateProfile.error
-              ? ((updateProfile.error as { detail?: string }).detail ??
-                t("settings", "saveFail", lang))
-              : null
-          }
+          error={updateProfile.error ? apiErrorMessage(updateProfile.error, lang) : null}
           pending={updateProfile.isPending}
           saved={saved}
           lang={lang}
@@ -770,8 +761,7 @@ function DangerZone() {
 
             {deleteAccount.error && (
               <p className="text-sm text-destructive">
-                {(deleteAccount.error as { detail?: string }).detail ??
-                  t("settings", "deleteFail", lang)}
+                {apiErrorMessage(deleteAccount.error, lang)}
               </p>
             )}
 

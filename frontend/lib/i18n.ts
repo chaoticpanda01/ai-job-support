@@ -259,6 +259,21 @@ export const translations = {
       id: "Itu tidak bisa dilakukan sekarang. Muat ulang, lalu coba lagi.",
       ja: "現在この操作は実行できません。更新してから再試行してください。",
     },
+    fileTooLarge: {
+      en: "That file is too large. The limit is {n} MB.",
+      id: "File itu terlalu besar. Batasnya {n} MB.",
+      ja: "ファイルが大きすぎます。上限は{n}MBです。",
+    },
+    fileOneAtATime: {
+      en: "Please choose one file at a time.",
+      id: "Pilih satu file saja.",
+      ja: "ファイルは1つずつ選択してください。",
+    },
+    errorUnsupportedType: {
+      en: "That file type isn't supported. Check the accepted formats and try again.",
+      id: "Tipe file itu tidak didukung. Periksa format yang diterima, lalu coba lagi.",
+      ja: "このファイル形式は対応していません。対応形式を確認して再試行してください。",
+    },
     errorTooLarge: {
       en: "That's too large to send. Try again with less content.",
       id: "Terlalu besar untuk dikirim. Coba lagi dengan konten yang lebih sedikit.",
@@ -520,12 +535,6 @@ export const translations = {
     },
     chooseFile: { en: "Choose file", id: "Pilih file", ja: "ファイルを選択" },
     uploading: { en: "Uploading…", id: "Mengunggah…", ja: "アップロード中…" },
-    invalidFile: { en: "Invalid file", id: "File tidak valid", ja: "無効なファイルです" },
-    uploadFailed: {
-      en: "Upload failed. Please try again.",
-      id: "Unggah gagal. Coba lagi.",
-      ja: "アップロードに失敗しました。再試行してください。",
-    },
     uploadSuccess: {
       en: "Resume uploaded successfully.",
       id: "Resume berhasil diunggah.",
@@ -677,11 +686,6 @@ export const translations = {
       en: "Tracking:",
       id: "Dilacak:",
       ja: "追跡中：",
-    },
-    addToTrackerFailed: {
-      en: "Failed to add to tracker. Please try again.",
-      id: "Gagal menambahkan ke pelacak. Coba lagi.",
-      ja: "トラッカーへの追加に失敗しました。もう一度お試しください。",
     },
     loadError: {
       en: "Failed to load job postings. Please refresh.",
@@ -1072,11 +1076,6 @@ export const translations = {
       id: "Nilai opsi kamu untuk melihat kategori visa mana yang memenuhi syarat.",
       ja: "診断すると、条件を満たすビザカテゴリが分かります。",
     },
-    assessFail: {
-      en: "Failed to assess your options. Please try again.",
-      id: "Gagal menilai opsi kamu. Coba lagi.",
-      ja: "診断に失敗しました。再試行してください。",
-    },
     loadFail: {
       en: "Couldn't load your visa assessment. Refresh the page to try again.",
       id: "Gagal memuat penilaian visamu. Muat ulang halaman untuk mencoba lagi.",
@@ -1112,11 +1111,6 @@ export const translations = {
       en: "Your roadmap is ready.",
       id: "Peta jalanmu sudah siap.",
       ja: "ロードマップが表示されました。",
-    },
-    buildFail: {
-      en: "Failed to build the roadmap. Please try again.",
-      id: "Gagal membuat peta jalan. Coba lagi.",
-      ja: "ロードマップの作成に失敗しました。再試行してください。",
     },
     backToOptions: { en: "Back to options", id: "Kembali ke opsi", ja: "選択肢に戻る" },
     switchRoadmap: { en: "Your roadmaps", id: "Peta jalanmu", ja: "あなたのロードマップ" },
@@ -1155,11 +1149,6 @@ export const translations = {
       en: "Delete this document?",
       id: "Hapus dokumen ini?",
       ja: "この書類を削除しますか？",
-    },
-    createFailed: {
-      en: "Failed to start generation. Please try again.",
-      id: "Gagal memulai pembuatan. Coba lagi.",
-      ja: "生成を開始できませんでした。もう一度お試しください。",
     },
     profileIncompleteTitle: {
       en: "Complete your profile to generate a rirekisho",
@@ -1504,16 +1493,6 @@ export const translations = {
     photoNone: { en: "No photo", id: "Belum ada foto", ja: "写真なし" },
     photoUpload: { en: "Upload photo", id: "Unggah foto", ja: "写真をアップロード" },
     photoUploading: { en: "Uploading…", id: "Mengunggah…", ja: "アップロード中…" },
-    photoInvalid: {
-      en: "Please choose a JPEG or PNG image under 5 MB",
-      id: "Pilih gambar JPEG atau PNG di bawah 5 MB",
-      ja: "5MB以下のJPEGまたはPNG画像を選択してください",
-    },
-    photoUploadFail: {
-      en: "Photo upload failed. Please try again.",
-      id: "Unggah foto gagal. Silakan coba lagi.",
-      ja: "写真のアップロードに失敗しました。もう一度お試しください。",
-    },
     hobbies: { en: "Hobbies", id: "Hobi", ja: "趣味" },
     specialSkills: { en: "Special skills", id: "Keahlian khusus", ja: "特技" },
     commuteTime: { en: "Commute time", id: "Waktu perjalanan", ja: "通勤時間" },
@@ -1533,11 +1512,6 @@ export const translations = {
       ja: "標準の文言のままでも構いません。特に希望があれば編集してください。",
     },
     preferredLang: { en: "Preferred language", id: "Bahasa yang digunakan", ja: "使用言語" },
-    saveFail: {
-      en: "Failed to save. Please try again.",
-      id: "Gagal menyimpan. Coba lagi.",
-      ja: "保存に失敗しました。再試行してください。",
-    },
     dangerZone: { en: "Danger zone", id: "Zona berbahaya", ja: "危険ゾーン" },
     deleteAccount: { en: "Delete account", id: "Hapus akun", ja: "アカウント削除" },
     deleteDesc: {
@@ -1551,11 +1525,6 @@ export const translations = {
     toConfirm: { en: "to confirm.", id: "untuk konfirmasi.", ja: "" },
     confirmDeletion: { en: "Confirm deletion", id: "Konfirmasi penghapusan", ja: "削除を確認" },
     deleting: { en: "Deleting…", id: "Menghapus…", ja: "削除中…" },
-    deleteFail: {
-      en: "Failed to delete account. Please try again.",
-      id: "Gagal menghapus akun. Coba lagi.",
-      ja: "アカウントの削除に失敗しました。再試行してください。",
-    },
   },
 
   // ---------------------------------------------------------------------------
