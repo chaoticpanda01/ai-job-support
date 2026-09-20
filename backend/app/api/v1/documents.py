@@ -80,8 +80,9 @@ def _effective_state(
     slow can still finish later and report its real outcome.
     """
     if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
-        # created_at is filled in by the database, so it is still None on a row
-        # this request just created -- which is as fresh as a document gets.
+        # created_at normally arrives with the INSERT, but a row that hasn't
+        # been flushed yet doesn't have one, and it is as fresh as a document
+        # gets -- never stale.
         if doc.created_at is None or now - doc.created_at < _GENERATION_STALE_AFTER:
             return doc.status, None
         return DocumentStatus.failed, DocumentErrorCode.timed_out
@@ -109,7 +110,6 @@ def _status_response(doc: GeneratedDocument, now: datetime) -> DocumentStatusRes
         status=doc_status,
         orientation=doc.orientation,
         error_code=error_code,
-        error_message=doc.error_message,
         completed_at=doc.completed_at,
     )
 
@@ -322,12 +322,25 @@ async def delete_document(
         # storage, and then silently no-op on the now-missing row —
         # orphaning that file with nothing left to clean it up. Terminal
         # statuses (completed/failed) are the only safe states to delete.
+        #
         # _effective_state reports a generation past the stale cutoff as
         # failed, so a document left stuck by a task that died can still be
-        # deleted rather than becoming permanent.
+        # deleted rather than becoming permanent. That deliberately reopens a
+        # narrow version of the orphan above: a generation that is merely slow
+        # rather than dead can be deleted and then finish, uploading a file
+        # whose row is gone. A rare orphaned file beats a row the user can
+        # never remove, and the warning below leaves a trace of it.
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete a document while it's still being generated.",
+        )
+
+    if doc.status in (DocumentStatus.pending, DocumentStatus.processing):
+        logger.warning(
+            "Deleting document %s while it is still marked %s: its generation passed the "
+            "stale cutoff. If that task is alive, any file it uploads will be orphaned.",
+            document_id,
+            doc.status.value,
         )
 
     repo = DocumentRepository(db)

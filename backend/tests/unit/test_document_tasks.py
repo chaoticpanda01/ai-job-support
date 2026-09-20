@@ -22,6 +22,7 @@ import pytest
 from app.api.v1.documents import _GENERATION_STALE_AFTER, _effective_state
 from app.models.enums import DocumentErrorCode, DocumentStatus
 from app.repositories.document import DocumentRepository
+from app.services.ai.client import MAX_GENERATE_SECONDS
 from app.services.document_generator import (
     DocumentGenerationError,
     GeneratedDocumentOutput,
@@ -325,21 +326,50 @@ def test_a_generation_running_too_long_is_reported_as_timed_out(status: Document
     )
 
 
-def test_the_stale_cutoff_is_not_reached_at_exactly_the_cutoff() -> None:
-    """A generation is only timed out once it is strictly past the cutoff."""
+@pytest.mark.parametrize(
+    ("age", "expected"),
+    [
+        pytest.param(
+            _GENERATION_STALE_AFTER - timedelta(seconds=1),
+            (DocumentStatus.processing, None),
+            id="inside",
+        ),
+        pytest.param(
+            _GENERATION_STALE_AFTER,
+            (DocumentStatus.failed, DocumentErrorCode.timed_out),
+            id="at-the-cutoff",
+        ),
+    ],
+)
+def test_the_cutoff_is_reached_at_exactly_the_cutoff(
+    age: timedelta, expected: tuple[DocumentStatus, DocumentErrorCode | None]
+) -> None:
+    """A generation is running right up to the cutoff, and stale from it on."""
     now = datetime.now(tz=UTC)
-    doc = MagicMock(
-        status=DocumentStatus.processing,
-        error_code=None,
-        created_at=now - _GENERATION_STALE_AFTER,
-    )
-    assert _effective_state(doc, now) == (DocumentStatus.failed, DocumentErrorCode.timed_out)
+    doc = MagicMock(status=DocumentStatus.processing, error_code=None, created_at=now - age)
+    assert _effective_state(doc, now) == expected
 
 
-def test_a_document_this_request_just_created_is_not_stale() -> None:
-    """created_at is assigned by the database, so it is None until the row is reloaded."""
+def test_a_document_with_no_creation_time_yet_is_not_stale() -> None:
+    """
+    A row that hasn't been flushed has no created_at, and nothing to measure
+    staleness against. It is newly created, so it must read as running rather
+    than as a generation that timed out before it began.
+    """
     doc = MagicMock(status=DocumentStatus.pending, error_code=None, created_at=None)
     assert _effective_state(doc, datetime.now(tz=UTC)) == (DocumentStatus.pending, None)
+
+
+# Fix 5: guard the cutoff against being shortened below what a generation can take.
+def test_the_cutoff_outlasts_the_longest_possible_generation() -> None:
+    """
+    A cutoff shorter than a generation would report a healthy run as timed out.
+    The margin covers what generation does around the AI call: rendering the
+    HTML, converting it to a PDF in a worker thread, uploading it, and the DB
+    writes -- more post-AI work than resume analysis does, so the same
+    MAX_GENERATE_SECONDS + 120 budget is tighter here.
+    """
+    assert _GENERATION_STALE_AFTER.total_seconds() > MAX_GENERATE_SECONDS
 
 
 def test_a_failed_document_reports_its_stored_code() -> None:

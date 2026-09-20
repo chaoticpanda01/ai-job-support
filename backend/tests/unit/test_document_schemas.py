@@ -6,7 +6,12 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
+from app.models.enums import (
+    DocumentErrorCode,
+    DocumentOrientation,
+    DocumentStatus,
+    DocumentType,
+)
 from app.schemas.document import (
     CreateRirekishoRequest,
     CreateShokumuRequest,
@@ -29,7 +34,7 @@ def _doc_data(**overrides: object) -> dict:
         "ai_model": None,
         "input_tokens": None,
         "output_tokens": None,
-        "error_message": None,
+        "error_code": None,
         "completed_at": None,
         "created_at": datetime.now(tz=UTC),
     }
@@ -117,18 +122,49 @@ def test_document_status_response_pending() -> None:
         id=uuid.uuid4(),
         status=DocumentStatus.pending,
         orientation=DocumentOrientation.portrait,
-        error_message=None,
+        error_code=None,
         completed_at=None,
     )
     assert resp.status == DocumentStatus.pending
 
 
-def test_document_status_response_failed_has_error() -> None:
+def test_document_status_response_failed_has_a_code() -> None:
     resp = DocumentStatusResponse(
         id=uuid.uuid4(),
         status=DocumentStatus.failed,
         orientation=DocumentOrientation.portrait,
-        error_message="AI budget exceeded",
+        error_code=DocumentErrorCode.budget_exceeded,
         completed_at=datetime.now(tz=UTC),
     )
-    assert resp.error_message == "AI budget exceeded"
+    assert resp.error_code is DocumentErrorCode.budget_exceeded
+
+
+def test_document_status_response_never_carries_the_underlying_message() -> None:
+    """
+    The stored message holds exception text -- SQL, storage keys, whatever the
+    driver put in it. The client is told the code and nothing else.
+    """
+    assert "error_message" not in DocumentStatusResponse.model_fields
+    assert "error_message" not in DocumentResponse.model_fields
+
+
+@pytest.mark.parametrize(
+    ("status", "error_code"),
+    [
+        pytest.param(DocumentStatus.failed, None, id="failed-without-a-code"),
+        pytest.param(
+            DocumentStatus.completed, DocumentErrorCode.ai_failed, id="completed-with-a-code"
+        ),
+    ],
+)
+def test_document_status_response_rejects_a_code_that_contradicts_the_status(
+    status: DocumentStatus, error_code: DocumentErrorCode | None
+) -> None:
+    with pytest.raises(ValidationError):
+        DocumentStatusResponse(
+            id=uuid.uuid4(),
+            status=status,
+            orientation=DocumentOrientation.portrait,
+            error_code=error_code,
+            completed_at=datetime.now(tz=UTC),
+        )

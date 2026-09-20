@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.enums import (
     DocumentErrorCode,
@@ -37,14 +37,19 @@ class DocumentResponse(_Base):
     input_tokens: int | None
     output_tokens: int | None
     # content is the structured AI output (JSON), not returned in list views
-    # Why a failed generation failed. NULL on a document that didn't fail, and
-    # on one that failed before the column existed.
+    # Why a failed generation failed; set exactly when status is "failed". The
+    # row's error_message is deliberately not exposed: it holds the underlying
+    # exception text, which can name SQL, storage keys and other internals, and
+    # the client shows its own message for the code instead.
     error_code: DocumentErrorCode | None = None
-    # The underlying English message. Kept for support; the client shows its own
-    # message for error_code instead.
-    error_message: str | None
     completed_at: datetime | None
     created_at: datetime
+
+    @model_validator(mode="after")
+    def _code_only_when_failed(self) -> Self:
+        if (self.status == DocumentStatus.failed) != (self.error_code is not None):
+            raise ValueError("error_code is required when failed and not allowed otherwise")
+        return self
 
 
 class DocumentDetailResponse(DocumentResponse):
@@ -82,9 +87,20 @@ class CreateShokumuRequest(_Base):
 
 
 class DocumentStatusResponse(_Base):
+    """
+    A document's state for the polling client. error_code says why a failed
+    generation failed and is set exactly when status is "failed"; see
+    DocumentResponse for why the row's error_message stays server-side.
+    """
+
     id: UUID
     status: DocumentStatus
     orientation: DocumentOrientation
     error_code: DocumentErrorCode | None = None
-    error_message: str | None
     completed_at: datetime | None
+
+    @model_validator(mode="after")
+    def _code_only_when_failed(self) -> Self:
+        if (self.status == DocumentStatus.failed) != (self.error_code is not None):
+            raise ValueError("error_code is required when failed and not allowed otherwise")
+        return self

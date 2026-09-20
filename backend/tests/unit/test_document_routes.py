@@ -90,7 +90,7 @@ def _mock_document(
     doc.input_tokens = 100
     doc.output_tokens = 200
     doc.error_code = error_code
-    doc.error_message = None
+    doc.error_message = None  # stored for support; never in a response
     doc.completed_at = datetime.now(tz=UTC)
     doc.created_at = datetime.now(tz=UTC) - age
     doc.content = {"summary": "test"}

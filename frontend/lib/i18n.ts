@@ -1192,9 +1192,14 @@ export const translations = {
       ja: "この書類のステータスを読み込めませんでした。再試行してください。",
     },
     statusPollError: {
-      en: "Couldn't check for updates, so this may be out of date.",
-      id: "Tidak dapat memeriksa pembaruan, jadi ini mungkin sudah usang.",
-      ja: "更新を確認できなかったため、最新でない可能性があります。",
+      en: "Automatic updates stopped, so this may be out of date. Check again to resume them.",
+      id: "Pembaruan otomatis berhenti, jadi ini mungkin sudah usang. Periksa lagi untuk melanjutkannya.",
+      ja: "自動更新が停止したため、最新でない可能性があります。再確認すると再開します。",
+    },
+    linkError: {
+      en: "Your document is ready, but the download link couldn't be prepared.",
+      id: "Dokumen kamu sudah siap, tetapi tautan unduhan gagal disiapkan.",
+      ja: "書類は完成しましたが、ダウンロードリンクを準備できませんでした。",
     },
     genFailHint: {
       en: "You can try again by creating a new document.",

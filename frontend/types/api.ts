@@ -193,10 +193,12 @@ export interface DocumentStatusResponse {
   id: string;
   status: DocumentStatus;
   orientation: DocumentOrientation;
-  /** Set when status is "failed"; null on documents that failed before codes existed. */
+  /**
+   * Why a failed generation failed. Null unless status is "failed"; "unknown"
+   * on a document that failed before codes existed. The underlying exception
+   * text stays server-side, so this is all the client has to explain a failure.
+   */
   error_code: DocumentErrorCode | null;
-  /** The backend's own English message. For support, not for display. */
-  error_message: string | null;
   completed_at: string | null;
 }
 
@@ -212,7 +214,6 @@ export interface Document {
   input_tokens: number | null;
   output_tokens: number | null;
   error_code: DocumentErrorCode | null;
-  error_message: string | null;
   completed_at: string | null;
   created_at: string;
 }

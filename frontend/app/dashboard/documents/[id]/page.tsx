@@ -51,7 +51,13 @@ export default function DocumentDetailPage({ params }: Props) {
   const { lang } = useLang();
 
   // Fetch detail (with presigned URL) only once the document is completed
-  const { data: detail, refetch: refetchDetail } = useDocumentDetail(id, false);
+  const {
+    data: detail,
+    error: detailError,
+    errorCount: detailErrorCount,
+    isFetching: fetchingDetail,
+    refetch: refetchDetail,
+  } = useDocumentDetail(id, false);
 
   useEffect(() => {
     if (statusData?.status === "completed") {
@@ -125,6 +131,10 @@ export default function DocumentDetailPage({ params }: Props) {
           errorCode={statusData.error_code}
           completedAt={statusData.completed_at}
           downloadUrl={detail?.download_url ?? null}
+          downloadError={detailError !== null}
+          downloadErrorCount={detailErrorCount}
+          retryingDownload={fetchingDetail}
+          onRetryDownload={() => void refetchDetail()}
         />
       </div>
     </div>
@@ -140,11 +150,19 @@ function StatusBody({
   errorCode,
   completedAt,
   downloadUrl,
+  downloadError,
+  downloadErrorCount,
+  retryingDownload,
+  onRetryDownload,
 }: {
   status: DocumentStatus;
   errorCode: DocumentErrorCode | null;
   completedAt: string | null;
   downloadUrl: string | null;
+  downloadError: boolean;
+  downloadErrorCount: number;
+  retryingDownload: boolean;
+  onRetryDownload: () => void;
 }) {
   const { lang } = useLang();
 
@@ -226,6 +244,19 @@ function StatusBody({
         >
           {t("documents", "downloadPdf", lang)}
         </a>
+      ) : downloadError ? (
+        // The document was generated; only the link failed. Saying so beats a
+        // spinner that never resolves.
+        <div className="flex flex-wrap items-center gap-2">
+          <p
+            key={downloadErrorCount}
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {t("documents", "linkError", lang)}
+          </p>
+          <RetryButton isChecking={retryingDownload} onRetry={onRetryDownload} />
+        </div>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />

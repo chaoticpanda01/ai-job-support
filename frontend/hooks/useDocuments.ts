@@ -46,8 +46,9 @@ export function useDocumentStatus(id: string) {
     queryFn: () => apiClient.get<DocumentStatusResponse>(`/documents/${id}`),
     enabled: Boolean(id),
     refetchInterval: (query) => {
-      // Nothing has loaded and the query has given up: polling would just
-      // repeat a failing request behind an error the page already shows.
+      // The query has given up -- whether or not a document loaded first.
+      // Polling on would repeat a failing request behind an error the page
+      // already shows, and the page's Try again is what resumes it.
       if (query.state.status === "error") return false;
       const status = query.state.data?.status;
       if (status === "completed" || status === "failed") return false;
@@ -68,7 +69,7 @@ export function useDocumentStatus(id: string) {
     /** Changes on every new failure, so the page can re-announce it. */
     errorCount: query.errorUpdateCount,
     isChecking: query.isFetching,
-    recheck: query.refetch,
+    recheck: () => void query.refetch(),
   };
 }
 
@@ -76,14 +77,33 @@ export function useDocumentStatus(id: string) {
 // Detail (with presigned download URL) — fetched on demand
 // ---------------------------------------------------------------------------
 
+/**
+ * Fetch a completed document's presigned download link.
+ *
+ * The link is the whole point of a finished generation, and this request can
+ * fail on its own (the API returns 502 when it can't sign the URL), so the
+ * error is returned for the page to show. Without it a failure here is
+ * indistinguishable from a link still being prepared.
+ */
 export function useDocumentDetail(id: string, enabled = true) {
-  return useQuery<DocumentDetail>({
+  const query = useQuery<DocumentDetail>({
     queryKey: ["documents", id, "detail"],
     queryFn: () => apiClient.get<DocumentDetail>(`/documents/${id}/download`),
     enabled: Boolean(id) && enabled,
     // Presigned URLs expire in 15 min — refetch after 14 min
     staleTime: 14 * 60 * 1_000,
+    retry: (failureCount, error) =>
+      !isMissingResourceError(error) && failureCount < POLL_RETRY_ATTEMPTS,
   });
+
+  return {
+    data: query.data,
+    error: query.error,
+    /** Changes on every new failure, so the page can re-announce it. */
+    errorCount: query.errorUpdateCount,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+  };
 }
 
 // ---------------------------------------------------------------------------

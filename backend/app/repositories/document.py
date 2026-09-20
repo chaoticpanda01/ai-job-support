@@ -42,6 +42,9 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
         return await self.update(
             doc,
             status=DocumentStatus.completed,
+            # Cleared, not left as it was: the row's CHECK allows an error code
+            # only on a failed document.
+            error_code=None,
             content=content,
             file_url=file_url,
             ai_model=ai_model,
@@ -62,6 +65,11 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
         is not an error: the user can delete it while the task is still running.
         A document that already finished is left alone, so a late failure from a
         superseded run can't overwrite a completed result.
+
+        That check reads before it writes, unlike ResumeRepository.finish_analysis,
+        which pins its update with a WHERE clause. A resume can have several
+        analysis requests racing for one row; a document is written only by the
+        single task that generates it, so there is no second writer to lose to.
         """
         doc = await self.get(document_id)
         if doc is None:
