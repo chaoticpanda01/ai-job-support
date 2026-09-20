@@ -12,6 +12,7 @@ import {
   useSelectRoadmap,
   useVisaConsultations,
 } from "@/hooks/useVisa";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -88,13 +89,21 @@ export default function VisaPage() {
 
       {assess.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(assess.error as { detail?: string }).detail ?? t("visa", "assessFail", lang)}
+          {/* 422 here means the account has no profile yet, not that a field
+              is wrong -- this control has no fields. */}
+          {apiErrorMessage(assess.error, lang, {
+            422: t("visa", "assessNeedsProfile", lang),
+          })}
         </p>
       )}
 
       {selectRoadmap.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {(selectRoadmap.error as { detail?: string }).detail ?? t("visa", "buildFail", lang)}
+          {/* 422 here means the chosen option isn't part of the latest
+              assessment, usually because a newer one replaced it. */}
+          {apiErrorMessage(selectRoadmap.error, lang, {
+            422: t("visa", "roadmapOptionStale", lang),
+          })}
         </p>
       )}
 

@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
-import { ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { PhotoUploader } from "@/components/profile/PhotoUploader";
@@ -62,10 +62,6 @@ type Step4Data = z.infer<typeof step4Schema>;
 type Step5Data = z.infer<typeof step5BaseSchema>;
 
 const TOTAL_STEPS = 5;
-
-function errorMessage(err: unknown, lang: Parameters<typeof t>[2]): string {
-  return err instanceof ApiClientError ? err.detail : t("common", "error", lang);
-}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -159,7 +155,7 @@ export default function OnboardingPage() {
                 await recordConsent.mutateAsync();
                 setStep(2);
               } catch (err) {
-                setError(errorMessage(err, lang));
+                setError(apiErrorMessage(err, lang));
               }
             }}
             loading={recordConsent.isPending}
@@ -179,7 +175,7 @@ export default function OnboardingPage() {
                 });
                 setStep(3);
               } catch (err) {
-                setError(errorMessage(err, lang));
+                setError(apiErrorMessage(err, lang));
               }
             }}
             onBack={() => setStep(1)}
@@ -202,7 +198,7 @@ export default function OnboardingPage() {
                 });
                 setStep(4);
               } catch (err) {
-                setError(errorMessage(err, lang));
+                setError(apiErrorMessage(err, lang));
               }
             }}
             onBack={() => setStep(2)}
@@ -231,7 +227,7 @@ export default function OnboardingPage() {
                 });
                 setStep(5);
               } catch (err) {
-                setError(errorMessage(err, lang));
+                setError(apiErrorMessage(err, lang));
               }
             }}
             onBack={() => setStep(3)}
@@ -273,7 +269,7 @@ export default function OnboardingPage() {
                 });
                 router.push("/dashboard/resumes");
               } catch (err) {
-                setError(errorMessage(err, lang));
+                setError(apiErrorMessage(err, lang));
               }
             }}
             onBack={() => setStep(4)}

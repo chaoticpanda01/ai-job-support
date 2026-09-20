@@ -6,9 +6,9 @@ import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
 import { useApplications, useCreateApplication } from "@/hooks/useApplications";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import { ApiClientError } from "@/lib/api-client";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
 
 interface Props {
@@ -290,10 +290,8 @@ function JobIdCard({ jobId }: { jobId: string }) {
         )}
 
         {createApplication.error && (
-          <p className="text-xs text-destructive">
-            {createApplication.error instanceof ApiClientError
-              ? createApplication.error.detail
-              : t("jobs", "addToTrackerFailed", lang)}
+          <p role="alert" className="text-xs text-destructive">
+            {apiErrorMessage(createApplication.error, lang)}
           </p>
         )}
       </div>
@@ -391,8 +389,14 @@ function MatchSection({ jobId }: { jobId: string }) {
             )}
           </button>
 
-          {matchMutation.error instanceof Error && (
-            <p className="text-xs text-destructive">{matchMutation.error.message}</p>
+          {matchMutation.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {/* 422 here is a precondition, not a bad request: either the
+                  posting has no translation yet or the resume can't be read. */}
+              {apiErrorMessage(matchMutation.error, lang, {
+                422: t("jobs", "matchNotPossible", lang),
+              })}
+            </p>
           )}
         </>
       )}

@@ -5,7 +5,7 @@ import { useAnalyzeResume, useResume, useResumeAnalysis } from "@/hooks/useResum
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useToast } from "@/hooks/use-toast";
-import { ApiClientError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t, type translations } from "@/lib/i18n";
 import type { AnalysisErrorCode, ResumeAnalysis } from "@/types/api";
@@ -59,7 +59,7 @@ export default function ResumeDetailPage({ params }: Props) {
         onError: (err) => {
           toast({
             variant: "destructive",
-            description: err instanceof ApiClientError ? err.detail : t("common", "error", lang),
+            description: apiErrorMessage(err, lang),
           });
         },
       },

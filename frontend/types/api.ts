@@ -402,12 +402,24 @@ export interface CreateSessionRequest {
 }
 
 // SSE events received from the stream
+/**
+ * Why an interview stream ended early. Keep in sync with
+ * InterviewStreamErrorCode in backend/app/models/enums.py.
+ */
+export type InterviewStreamErrorCode =
+  | "question_failed"
+  | "answer_not_saved"
+  | "summary_failed"
+  | "summary_not_saved";
+
 export type SseEvent =
   | { type: "token"; content: string }
   | { type: "eval"; content: InterviewEvaluation }
   | { type: "summary"; content: InterviewSummary }
   | { type: "done" }
-  | { type: "error"; content: string };
+  // content is the English wording, kept for logs; the client shows its own
+  // message for code. code is absent on a stream from an older backend.
+  | { type: "error"; content: string; code?: InterviewStreamErrorCode };
 
 // ---------------------------------------------------------------------------
 // Visa

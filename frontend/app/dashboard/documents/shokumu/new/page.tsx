@@ -6,9 +6,9 @@ import Link from "next/link";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
 import { DocumentWizard } from "@/components/documents/DocumentWizard";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import { ApiClientError } from "@/lib/api-client";
 
 export default function NewShokumuPage() {
   return (
@@ -52,13 +52,7 @@ function NewShokumuPageInner() {
         resumesLoading={resumesLoading}
         {...(initialJobPostingId ? { initialJobPostingId } : {})}
         isPending={createMutation.isPending}
-        error={
-          createMutation.error instanceof ApiClientError
-            ? createMutation.error.detail
-            : createMutation.error
-              ? t("documents", "createFailed", lang)
-              : null
-        }
+        error={createMutation.error ? apiErrorMessage(createMutation.error, lang) : null}
         submitLabel={t("documents", "generateShokumu", lang)}
         onSubmit={handleSubmit}
       />

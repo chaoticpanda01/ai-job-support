@@ -259,6 +259,11 @@ export const translations = {
       id: "Itu tidak bisa dilakukan sekarang. Muat ulang, lalu coba lagi.",
       ja: "現在この操作は実行できません。更新してから再試行してください。",
     },
+    errorUnsupportedType: {
+      en: "That file type isn't supported. Check the accepted formats and try again.",
+      id: "Tipe file itu tidak didukung. Periksa format yang diterima, lalu coba lagi.",
+      ja: "このファイル形式は対応していません。対応形式を確認して再試行してください。",
+    },
     errorTooLarge: {
       en: "That's too large to send. Try again with less content.",
       id: "Terlalu besar untuk dikirim. Coba lagi dengan konten yang lebih sedikit.",
@@ -290,6 +295,18 @@ export const translations = {
       en: "The server couldn't complete that. Please try again.",
       id: "Server tidak dapat menyelesaikannya. Coba lagi.",
       ja: "サーバーで処理を完了できませんでした。再試行してください。",
+    },
+    // From lib/file-rejection.ts: a file the dropzone refused before any
+    // request was made. errorUnsupportedType above is shared with the 415.
+    fileTooLarge: {
+      en: "That file is too large. The limit is {n} MB.",
+      id: "File itu terlalu besar. Batasnya {n} MB.",
+      ja: "ファイルが大きすぎます。上限は{n}MBです。",
+    },
+    fileOneAtATime: {
+      en: "Please choose one file at a time.",
+      id: "Pilih satu file saja.",
+      ja: "ファイルは1つずつ選択してください。",
     },
     tryAgain: { en: "Try again", id: "Coba lagi", ja: "再試行" },
     retrying: { en: "Retrying…", id: "Mencoba lagi…", ja: "再試行中…" },
@@ -520,12 +537,6 @@ export const translations = {
     },
     chooseFile: { en: "Choose file", id: "Pilih file", ja: "ファイルを選択" },
     uploading: { en: "Uploading…", id: "Mengunggah…", ja: "アップロード中…" },
-    invalidFile: { en: "Invalid file", id: "File tidak valid", ja: "無効なファイルです" },
-    uploadFailed: {
-      en: "Upload failed. Please try again.",
-      id: "Unggah gagal. Coba lagi.",
-      ja: "アップロードに失敗しました。再試行してください。",
-    },
     uploadSuccess: {
       en: "Resume uploaded successfully.",
       id: "Resume berhasil diunggah.",
@@ -611,6 +622,11 @@ export const translations = {
   // Jobs
   // ---------------------------------------------------------------------------
   jobs: {
+    matchNotPossible: {
+      en: "We couldn't score this match. The posting may not be translated yet, or that resume couldn't be read — try translating it again or picking another resume.",
+      id: "Kami tidak dapat menilai kecocokan ini. Lowongan mungkin belum diterjemahkan, atau resume itu tidak terbaca — coba terjemahkan lagi atau pilih resume lain.",
+      ja: "このマッチ度を算出できませんでした。求人がまだ翻訳されていないか、その履歴書を読み取れなかった可能性があります。翻訳をやり直すか、別の履歴書を選んでください。",
+    },
     title: { en: "Job Postings", id: "Lowongan Kerja", ja: "求人一覧" },
     sub: {
       en: "Translate Japanese job postings and score them against your resume.",
@@ -677,11 +693,6 @@ export const translations = {
       en: "Tracking:",
       id: "Dilacak:",
       ja: "追跡中：",
-    },
-    addToTrackerFailed: {
-      en: "Failed to add to tracker. Please try again.",
-      id: "Gagal menambahkan ke pelacak. Coba lagi.",
-      ja: "トラッカーへの追加に失敗しました。もう一度お試しください。",
     },
     loadError: {
       en: "Failed to load job postings. Please refresh.",
@@ -843,6 +854,27 @@ export const translations = {
       en: "Failed to load sessions. Please refresh.",
       id: "Gagal memuat sesi. Coba muat ulang.",
       ja: "セッションの読み込みに失敗しました。更新してください。",
+    },
+    // One per InterviewStreamErrorCode in types/api.ts.
+    streamQuestionFailed: {
+      en: "The interviewer couldn't produce a question, so this session was ended. Please start a new one.",
+      id: "Pewawancara tidak dapat membuat pertanyaan, jadi sesi ini diakhiri. Mulai sesi baru.",
+      ja: "面接官が質問を生成できなかったため、このセッションを終了しました。新しいセッションを開始してください。",
+    },
+    streamAnswerNotSaved: {
+      en: "Your answer couldn't be saved. Send it again.",
+      id: "Jawaban kamu tidak dapat disimpan. Kirim lagi.",
+      ja: "回答を保存できませんでした。もう一度送信してください。",
+    },
+    streamSummaryFailed: {
+      en: "The summary couldn't be generated. Try ending the session again.",
+      id: "Ringkasan tidak dapat dibuat. Coba akhiri sesi lagi.",
+      ja: "サマリーを生成できませんでした。もう一度セッションを終了してください。",
+    },
+    streamSummaryNotSaved: {
+      en: "The summary couldn't be saved. Try ending the session again.",
+      id: "Ringkasan tidak dapat disimpan. Coba akhiri sesi lagi.",
+      ja: "サマリーを保存できませんでした。もう一度セッションを終了してください。",
     },
     streamEnded: {
       en: "The response ended unexpectedly. Please try again.",
@@ -1016,6 +1048,16 @@ export const translations = {
   // Visa
   // ---------------------------------------------------------------------------
   visa: {
+    assessNeedsProfile: {
+      en: "Complete your profile before we can assess your visa options.",
+      id: "Lengkapi profil kamu sebelum kami bisa menilai opsi visa.",
+      ja: "ビザの選択肢を判定する前に、プロフィールを完成させてください。",
+    },
+    roadmapOptionStale: {
+      en: "That option isn't part of your latest assessment. Run the assessment again to choose from current options.",
+      id: "Opsi itu bukan bagian dari penilaian terbaru kamu. Jalankan penilaian lagi untuk memilih dari opsi saat ini.",
+      ja: "その選択肢は最新の判定に含まれていません。もう一度判定を実行して、現在の選択肢から選んでください。",
+    },
     title: { en: "Visa Guidance", id: "Panduan Visa", ja: "ビザガイダンス" },
     sub: {
       en: "Personalised Japanese work visa roadmap based on your profile.",
@@ -1072,11 +1114,6 @@ export const translations = {
       id: "Nilai opsi kamu untuk melihat kategori visa mana yang memenuhi syarat.",
       ja: "診断すると、条件を満たすビザカテゴリが分かります。",
     },
-    assessFail: {
-      en: "Failed to assess your options. Please try again.",
-      id: "Gagal menilai opsi kamu. Coba lagi.",
-      ja: "診断に失敗しました。再試行してください。",
-    },
     loadFail: {
       en: "Couldn't load your visa assessment. Refresh the page to try again.",
       id: "Gagal memuat penilaian visamu. Muat ulang halaman untuk mencoba lagi.",
@@ -1112,11 +1149,6 @@ export const translations = {
       en: "Your roadmap is ready.",
       id: "Peta jalanmu sudah siap.",
       ja: "ロードマップが表示されました。",
-    },
-    buildFail: {
-      en: "Failed to build the roadmap. Please try again.",
-      id: "Gagal membuat peta jalan. Coba lagi.",
-      ja: "ロードマップの作成に失敗しました。再試行してください。",
     },
     backToOptions: { en: "Back to options", id: "Kembali ke opsi", ja: "選択肢に戻る" },
     switchRoadmap: { en: "Your roadmaps", id: "Peta jalanmu", ja: "あなたのロードマップ" },
@@ -1155,11 +1187,6 @@ export const translations = {
       en: "Delete this document?",
       id: "Hapus dokumen ini?",
       ja: "この書類を削除しますか？",
-    },
-    createFailed: {
-      en: "Failed to start generation. Please try again.",
-      id: "Gagal memulai pembuatan. Coba lagi.",
-      ja: "生成を開始できませんでした。もう一度お試しください。",
     },
     profileIncompleteTitle: {
       en: "Complete your profile to generate a rirekisho",
@@ -1502,18 +1529,13 @@ export const translations = {
       ja: "写真はすぐに保存されます。「変更を保存」をクリックする必要はありません。",
     },
     photoNone: { en: "No photo", id: "Belum ada foto", ja: "写真なし" },
+    photoTypeHint: {
+      en: "JPEG or PNG · max {n} MB",
+      id: "JPEG atau PNG · maks {n} MB",
+      ja: "JPEGまたはPNG · 最大{n}MB",
+    },
     photoUpload: { en: "Upload photo", id: "Unggah foto", ja: "写真をアップロード" },
     photoUploading: { en: "Uploading…", id: "Mengunggah…", ja: "アップロード中…" },
-    photoInvalid: {
-      en: "Please choose a JPEG or PNG image under 5 MB",
-      id: "Pilih gambar JPEG atau PNG di bawah 5 MB",
-      ja: "5MB以下のJPEGまたはPNG画像を選択してください",
-    },
-    photoUploadFail: {
-      en: "Photo upload failed. Please try again.",
-      id: "Unggah foto gagal. Silakan coba lagi.",
-      ja: "写真のアップロードに失敗しました。もう一度お試しください。",
-    },
     hobbies: { en: "Hobbies", id: "Hobi", ja: "趣味" },
     specialSkills: { en: "Special skills", id: "Keahlian khusus", ja: "特技" },
     commuteTime: { en: "Commute time", id: "Waktu perjalanan", ja: "通勤時間" },
@@ -1533,11 +1555,6 @@ export const translations = {
       ja: "標準の文言のままでも構いません。特に希望があれば編集してください。",
     },
     preferredLang: { en: "Preferred language", id: "Bahasa yang digunakan", ja: "使用言語" },
-    saveFail: {
-      en: "Failed to save. Please try again.",
-      id: "Gagal menyimpan. Coba lagi.",
-      ja: "保存に失敗しました。再試行してください。",
-    },
     dangerZone: { en: "Danger zone", id: "Zona berbahaya", ja: "危険ゾーン" },
     deleteAccount: { en: "Delete account", id: "Hapus akun", ja: "アカウント削除" },
     deleteDesc: {
@@ -1551,11 +1568,6 @@ export const translations = {
     toConfirm: { en: "to confirm.", id: "untuk konfirmasi.", ja: "" },
     confirmDeletion: { en: "Confirm deletion", id: "Konfirmasi penghapusan", ja: "削除を確認" },
     deleting: { en: "Deleting…", id: "Menghapus…", ja: "削除中…" },
-    deleteFail: {
-      en: "Failed to delete account. Please try again.",
-      id: "Gagal menghapus akun. Coba lagi.",
-      ja: "アカウントの削除に失敗しました。再試行してください。",
-    },
   },
 
   // ---------------------------------------------------------------------------

@@ -149,6 +149,20 @@ class DocumentErrorCode(str, enum.Enum):
     unknown = "unknown"
 
 
+class InterviewStreamErrorCode(str, enum.Enum):
+    """
+    Why an interview stream ended early. Sent with the SSE "error" event so the
+    client can say what happened in the user's language; the event's message
+    stays for logs and for a client that doesn't know the code. Keep in sync
+    with InterviewStreamErrorCode in frontend/types/api.ts.
+    """
+
+    question_failed = "question_failed"
+    answer_not_saved = "answer_not_saved"
+    summary_failed = "summary_failed"
+    summary_not_saved = "summary_not_saved"
+
+
 class OriginalLanguage(str, enum.Enum):
     ja = "ja"
     en = "en"

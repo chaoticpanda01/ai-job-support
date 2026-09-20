@@ -4,7 +4,7 @@ import { t, type Language, type translations } from "@/lib/i18n";
 // Typed as real message keys: t() returns an unknown key as-is, so a typo here
 // would show the raw key to users in three languages instead of failing to
 // compile.
-type CommonMessageKey = keyof (typeof translations)["common"];
+export type CommonMessageKey = keyof (typeof translations)["common"];
 
 /**
  * A message for a failed request, in the reader's language.
@@ -15,11 +15,22 @@ type CommonMessageKey = keyof (typeof translations)["common"];
  * it says what kind of thing went wrong, which is what the reader needs to
  * know whether to fix their input, wait, or try again.
  *
- * Callers that can act on more than the status -- a form that can point at the
- * field a 422 names, say -- should add to this message rather than rely on it
- * alone.
+ * `overrides` replaces the message for one status at one call site. Some
+ * endpoints answer with a status for a reason unrelated to the request -- the
+ * visa assessment sends 422 when the account has no profile yet, not because
+ * anything was typed wrong -- and only the caller knows that. Everything else
+ * still comes from here, so the knowledge stays where it applies and the
+ * status table stays in one place.
  */
-export function apiErrorMessage(error: unknown, lang: Language): string {
+export function apiErrorMessage(
+  error: unknown,
+  lang: Language,
+  overrides?: Partial<Record<number, string>>,
+): string {
+  if (error instanceof ApiClientError) {
+    const override = overrides?.[error.status];
+    if (override !== undefined) return override;
+  }
   // Not an ApiClientError: the request never came back with a status. Usually
   // the network or an aborted request, though a bug thrown inside a query
   // function also lands here.
@@ -69,6 +80,10 @@ function errorKeyForStatus(status: number): CommonMessageKey {
       return "errorConflict";
     case 413:
       return "errorTooLarge";
+    case 415:
+      // The uploads that send this state their accepted formats next to the
+      // control, so this doesn't have to list them.
+      return "errorUnsupportedType";
     default:
       // 5xx, and any status without a message of its own. A 502 from a failed
       // AI call lands here, which is why this one suggests trying again.

@@ -216,7 +216,9 @@ export function DocumentWizard({
       <p className="text-sm text-muted-foreground">{t("documents", "wizGenWait", lang)}</p>
 
       {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
       )}
 
       <div className="flex justify-between">

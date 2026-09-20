@@ -3,8 +3,10 @@
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, ApiClientError } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/hooks/use-toast";
+import { apiErrorMessage } from "@/lib/api-error";
+import { fileRejectionMessage } from "@/lib/file-rejection";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
@@ -43,8 +45,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       setFileError(null);
 
       if (rejected.length > 0) {
-        const firstError = rejected[0]?.errors[0]?.message ?? t("resumes", "invalidFile", lang);
-        setFileError(firstError);
+        setFileError(fileRejectionMessage(rejected[0], MAX_SIZE_BYTES, lang));
         return;
       }
 
@@ -63,12 +64,13 @@ export function ResumeUploader({ onUploaded }: Props) {
     disabled: uploadMutation.isPending,
   });
 
-  const uploadError =
-    uploadMutation.error instanceof ApiClientError
-      ? uploadMutation.error.detail
-      : uploadMutation.error
-        ? t("resumes", "uploadFailed", lang)
-        : null;
+  const uploadError = uploadMutation.error
+    ? apiErrorMessage(uploadMutation.error, lang, {
+        // Reachable despite the dropzone's own check: the server measures the
+        // whole multipart body, which is slightly larger than the file.
+        413: t("common", "fileTooLarge", lang).replace("{n}", String(MAX_SIZE_BYTES / 1024 / 1024)),
+      })
+    : null;
 
   const displayError = fileError ?? uploadError;
 
@@ -102,7 +104,7 @@ export function ResumeUploader({ onUploaded }: Props) {
       </div>
 
       {displayError && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {displayError}
         </p>
       )}
