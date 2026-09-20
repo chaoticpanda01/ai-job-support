@@ -8,7 +8,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType
+from app.models.enums import (
+    DocumentErrorCode,
+    DocumentOrientation,
+    DocumentStatus,
+    DocumentType,
+)
 
 
 class _Base(BaseModel):
@@ -32,6 +37,11 @@ class DocumentResponse(_Base):
     input_tokens: int | None
     output_tokens: int | None
     # content is the structured AI output (JSON), not returned in list views
+    # Why a failed generation failed. NULL on a document that didn't fail, and
+    # on one that failed before the column existed.
+    error_code: DocumentErrorCode | None = None
+    # The underlying English message. Kept for support; the client shows its own
+    # message for error_code instead.
     error_message: str | None
     completed_at: datetime | None
     created_at: datetime
@@ -75,5 +85,6 @@ class DocumentStatusResponse(_Base):
     id: UUID
     status: DocumentStatus
     orientation: DocumentOrientation
+    error_code: DocumentErrorCode | None = None
     error_message: str | None
     completed_at: datetime | None

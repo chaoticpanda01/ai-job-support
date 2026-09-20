@@ -1,10 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, isMissingResourceError } from "@/lib/api-client";
 import type {
   CreateDocumentRequest,
-  Document,
   DocumentDetail,
   DocumentList,
   DocumentStatusResponse,
@@ -12,7 +11,9 @@ import type {
 } from "@/types/api";
 
 const POLL_INTERVAL_MS = 3_000;
-const POLL_MAX_ATTEMPTS = 60; // 3 min ceiling
+// Retries per poll, before the failure is shown. Low on purpose: the page keeps
+// polling on its own, so these only decide how long a blip stays invisible.
+const POLL_RETRY_ATTEMPTS = 2;
 
 // ---------------------------------------------------------------------------
 // List
@@ -30,19 +31,45 @@ export function useDocuments(type?: DocumentType) {
 // Status poll — refetches every 3 s until completed or failed
 // ---------------------------------------------------------------------------
 
+/**
+ * Poll one document until it finishes. The generation runs in the background,
+ * so the document's own status is the only report of how it went.
+ *
+ * Separates the two ways this can fail, because the page shows them
+ * differently: `loadError` is a document that never loaded (nothing to show),
+ * `pollError` is a poll that failed after one succeeded (keep showing the
+ * document, warn that it may be out of date).
+ */
 export function useDocumentStatus(id: string) {
-  return useQuery<DocumentStatusResponse>({
+  const query = useQuery<DocumentStatusResponse>({
     queryKey: ["documents", id, "status"],
     queryFn: () => apiClient.get<DocumentStatusResponse>(`/documents/${id}`),
     enabled: Boolean(id),
     refetchInterval: (query) => {
+      // Nothing has loaded and the query has given up: polling would just
+      // repeat a failing request behind an error the page already shows.
+      if (query.state.status === "error") return false;
       const status = query.state.data?.status;
       if (status === "completed" || status === "failed") return false;
       return POLL_INTERVAL_MS;
     },
-    retry: (failureCount) => failureCount < POLL_MAX_ATTEMPTS,
+    // A document that isn't there won't appear on a retry.
+    retry: (failureCount, error) =>
+      !isMissingResourceError(error) && failureCount < POLL_RETRY_ATTEMPTS,
     retryDelay: POLL_INTERVAL_MS,
   });
+
+  const loaded = query.data !== undefined;
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    loadError: loaded ? null : query.error,
+    pollError: loaded ? query.error : null,
+    /** Changes on every new failure, so the page can re-announce it. */
+    errorCount: query.errorUpdateCount,
+    isChecking: query.isFetching,
+    recheck: query.refetch,
+  };
 }
 
 // ---------------------------------------------------------------------------

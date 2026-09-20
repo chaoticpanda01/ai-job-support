@@ -26,6 +26,16 @@ export class ApiClientError extends Error {
 }
 
 /**
+ * Whether a request failed because the resource doesn't exist for this user:
+ * 404 when it isn't there or isn't theirs, 422 when the id isn't a UUID.
+ * Retrying can't change either, so callers show "not found" instead of an
+ * error they invite the user to retry.
+ */
+export function isMissingResourceError(error: unknown): boolean {
+  return error instanceof ApiClientError && (error.status === 404 || error.status === 422);
+}
+
+/**
  * FastAPI's `detail` field is a plain string for HTTPException, but for a
  * 422 request-validation failure it's an array of Pydantic error objects
  * (each with a `msg` field) — not a string. Passing that array straight to

@@ -37,7 +37,13 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.enums import DocumentOrientation, DocumentType, Gender, VisaStatus
+from app.models.enums import (
+    DocumentErrorCode,
+    DocumentOrientation,
+    DocumentType,
+    Gender,
+    VisaStatus,
+)
 from app.repositories.document import DocumentRepository
 from app.repositories.resume import ResumeRepository
 from app.repositories.user import ProfileRepository, UserRepository
@@ -59,7 +65,15 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentGenerationError(Exception):
-    """Raised when any step of the pipeline fails."""
+    """
+    An expected failure of one pipeline step, recorded on the document with a
+    code the client can explain in the user's language. The message is for logs
+    and support, not for display.
+    """
+
+    def __init__(self, code: DocumentErrorCode, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass
@@ -85,17 +99,21 @@ class DocumentGenerator:
     ) -> GeneratedDocumentOutput:
         """
         Run the full generation pipeline for a single document.
-        Raises DocumentGenerationError with a human-readable message on any failure.
+        Raises DocumentGenerationError, carrying the code for the step that
+        failed, on any expected failure.
         """
         # -- Load document row
         doc_repo = DocumentRepository(db)
         doc = await doc_repo.get(document_id)
         if doc is None:
-            raise DocumentGenerationError(f"Document {document_id} not found")
+            raise DocumentGenerationError(
+                DocumentErrorCode.unknown, f"Document {document_id} not found"
+            )
 
         if doc.resume_id is None:
             raise DocumentGenerationError(
-                "Source resume was deleted before generation could complete"
+                DocumentErrorCode.resume_missing,
+                "Source resume was deleted before generation could complete",
             )
 
         # -- Load resume
@@ -103,7 +121,8 @@ class DocumentGenerator:
         resume = await resume_repo.get_owned(doc.resume_id, user_id)
         if resume is None:
             raise DocumentGenerationError(
-                f"Resume {doc.resume_id} not found or not owned by user {user_id}"
+                DocumentErrorCode.resume_missing,
+                f"Resume {doc.resume_id} not found or not owned by user {user_id}",
             )
 
         # -- Load profile (optional — used for prompt enrichment)
@@ -127,7 +146,9 @@ class DocumentGenerator:
             user_repo = UserRepository(db)
             user = await user_repo.get(user_id)
             if user is None:
-                raise DocumentGenerationError(f"User {user_id} not found")
+                raise DocumentGenerationError(
+                    DocumentErrorCode.unknown, f"User {user_id} not found"
+                )
             _check_rirekisho_profile_complete(user, profile)
 
         # -- Fetch resume bytes from S3 and extract text
@@ -143,7 +164,7 @@ class DocumentGenerator:
         try:
             await usage_tracker.check_budget(user_id, feature, db)
         except AIBudgetError as exc:
-            raise DocumentGenerationError(str(exc)) from exc
+            raise DocumentGenerationError(DocumentErrorCode.budget_exceeded, str(exc)) from exc
 
         # -- Build prompts and call Gemini
         t0 = time.monotonic()
@@ -155,7 +176,9 @@ class DocumentGenerator:
                 job_posting_text,
             )
         except AIError as exc:
-            raise DocumentGenerationError(f"AI generation failed: {exc}") from exc
+            raise DocumentGenerationError(
+                DocumentErrorCode.ai_failed, f"AI generation failed: {exc}"
+            ) from exc
         latency_ms = int((time.monotonic() - t0) * 1000)
 
         # -- Parse response
@@ -166,7 +189,8 @@ class DocumentGenerator:
         if doc.document_type == DocumentType.rirekisho:
             if user is None or profile is None:
                 raise DocumentGenerationError(
-                    "Missing user or profile data for rirekisho generation"
+                    DocumentErrorCode.unknown,
+                    "Missing user or profile data for rirekisho generation",
                 )
             content["personal"] = _build_rirekisho_personal(user, profile)
             content["visa_info"] = _build_rirekisho_visa_info(profile)
@@ -181,7 +205,9 @@ class DocumentGenerator:
                 html_to_pdf, html, landscape=doc.orientation == DocumentOrientation.landscape
             )
         except PDFGenerationError as exc:
-            raise DocumentGenerationError(f"PDF rendering failed: {exc}") from exc
+            raise DocumentGenerationError(
+                DocumentErrorCode.pdf_failed, f"PDF rendering failed: {exc}"
+            ) from exc
 
         # -- Upload PDF to S3
         try:
@@ -191,7 +217,9 @@ class DocumentGenerator:
                 document_type=doc.document_type.value,
             )
         except StorageError as exc:
-            raise DocumentGenerationError(f"S3 upload failed: {exc}") from exc
+            raise DocumentGenerationError(
+                DocumentErrorCode.upload_failed, f"S3 upload failed: {exc}"
+            ) from exc
 
         # -- Record usage (never raises)
         await usage_tracker.record(
@@ -221,13 +249,15 @@ class DocumentGenerator:
         try:
             file_bytes = file_storage.download(s3_key)
         except StorageError as exc:
-            raise DocumentGenerationError("Failed to fetch resume file. Please try again.") from exc
+            raise DocumentGenerationError(
+                DocumentErrorCode.file_unavailable, "Failed to fetch the stored resume file"
+            ) from exc
 
         try:
             return extract_text(file_bytes, mime_type)
         except ParseError as exc:
             raise DocumentGenerationError(
-                "Could not read this resume file. Please re-upload it in a supported format."
+                DocumentErrorCode.unreadable_file, "Could not extract text from the resume file"
             ) from exc
 
     async def _call_ai(
@@ -277,7 +307,9 @@ class DocumentGenerator:
 
                 result = parse_response(response_text, ShokumuResult)
         except ResponseParseError as exc:
-            raise DocumentGenerationError(f"Response validation failed: {exc}") from exc
+            raise DocumentGenerationError(
+                DocumentErrorCode.ai_failed, f"Response validation failed: {exc}"
+            ) from exc
 
         return result.model_dump()
 
@@ -297,15 +329,18 @@ _DEFAULT_PERSONAL_REQUESTS = "貴社の規定に従います。"
 def _check_rirekisho_profile_complete(user: User, profile: Profile | None) -> None:
     """
     Raise DocumentGenerationError listing every missing field if the profile
-    isn't complete enough to generate a rirekisho. Called before any AI work
-    so a doomed generation fails fast and cheaply, with a message that lets
-    the user fix everything in one pass instead of one field at a time.
+    isn't complete enough to generate a rirekisho. Called before any AI work so
+    a doomed generation fails fast and cheaply. The client normally gates on the
+    same list from /auth/me and never gets here; when it does, it shows its own
+    message for profile_incomplete, so the field names logged here are for
+    support, not for display.
     """
     missing = rirekisho_missing_fields(user, profile)
     if missing:
         labels = [m["label"] for m in missing]
         raise DocumentGenerationError(
-            "Complete your profile before generating a 履歴書. Missing: " + ", ".join(labels) + "."
+            DocumentErrorCode.profile_incomplete,
+            "Profile incomplete for 履歴書. Missing: " + ", ".join(labels) + ".",
         )
 
 
@@ -318,9 +353,13 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
 
     dob = profile.date_of_birth
     if dob is None:
-        raise DocumentGenerationError("date_of_birth missing after completeness check")
+        raise DocumentGenerationError(
+            DocumentErrorCode.unknown, "date_of_birth missing after completeness check"
+        )
     if profile.gender is None:
-        raise DocumentGenerationError("gender missing after completeness check")
+        raise DocumentGenerationError(
+            DocumentErrorCode.unknown, "gender missing after completeness check"
+        )
 
     today = date.today()
     age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
@@ -356,7 +395,9 @@ def _build_rirekisho_personal(user: User, profile: Profile) -> dict[str, Any]:
             dependents=profile.dependents or None,
         )
     except ValidationError as exc:
-        raise DocumentGenerationError(f"Invalid personal info for rirekisho: {exc}") from exc
+        raise DocumentGenerationError(
+            DocumentErrorCode.unknown, f"Invalid personal info for rirekisho: {exc}"
+        ) from exc
     return personal.model_dump()
 
 
@@ -373,10 +414,13 @@ def _build_rirekisho_visa_info(profile: Profile) -> dict[str, Any]:
 
     if profile.visa_status == VisaStatus.held:
         if not profile.visa_category:
-            raise DocumentGenerationError("visa_category missing after completeness check")
+            raise DocumentGenerationError(
+                DocumentErrorCode.unknown, "visa_category missing after completeness check"
+            )
         if profile.residence_card_expiration is None:
             raise DocumentGenerationError(
-                "residence_card_expiration missing after completeness check"
+                DocumentErrorCode.unknown,
+                "residence_card_expiration missing after completeness check",
             )
         visa_category = profile.visa_category
         d = profile.residence_card_expiration

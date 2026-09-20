@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import GeneratedDocument
-from app.models.enums import DocumentStatus, DocumentType
+from app.models.enums import DocumentErrorCode, DocumentStatus, DocumentType
 from app.repositories.base import BaseRepository
 
 
@@ -50,13 +50,28 @@ class DocumentRepository(BaseRepository[GeneratedDocument]):
             completed_at=datetime.now(tz=UTC),
         )
 
-    async def set_failed(self, document_id: UUID, error_message: str) -> GeneratedDocument | None:
+    async def set_failed(
+        self,
+        document_id: UUID,
+        *,
+        error_code: DocumentErrorCode,
+        error_message: str,
+    ) -> GeneratedDocument | None:
+        """
+        Record a failed generation. Returns None if the document is gone, which
+        is not an error: the user can delete it while the task is still running.
+        A document that already finished is left alone, so a late failure from a
+        superseded run can't overwrite a completed result.
+        """
         doc = await self.get(document_id)
         if doc is None:
             return None
+        if doc.status in (DocumentStatus.completed, DocumentStatus.failed):
+            return doc
         return await self.update(
             doc,
             status=DocumentStatus.failed,
+            error_code=error_code.value,
             error_message=error_message,
             completed_at=datetime.now(tz=UTC),
         )

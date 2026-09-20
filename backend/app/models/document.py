@@ -40,7 +40,8 @@ class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         pending → processing → completed | failed
 
     - content and file_url are NULL until status = 'completed'
-    - error_message is populated when status = 'failed'
+    - error_code and error_message are populated when status = 'failed'
+      (error_code is NULL on rows that failed before it was introduced)
     - resume_id SET NULL when source resume is deleted (document is still
       downloadable via file_url if previously completed)
     """
@@ -58,6 +59,13 @@ class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         CheckConstraint(
             "completed_at IS NULL OR completed_at >= created_at",
             name="generated_documents_timing",
+        ),
+        # Only a failed document carries an error code. Not the reverse: rows
+        # that failed before the column existed have status 'failed' and a NULL
+        # error_code, and the client reports those as an unknown failure.
+        CheckConstraint(
+            "error_code IS NULL OR status = 'failed'",
+            name="gen_docs_error_code_failed_only",
         ),
         Index(
             "idx_gen_docs_status",
@@ -90,6 +98,13 @@ class GeneratedDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     output_tokens: Mapped[int | None] = mapped_column(Integer)
     content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     file_url: Mapped[str | None] = mapped_column(Text)
+    # Plain VARCHAR, not an enum type: a code this version doesn't know (e.g.
+    # after a rollback) loads as a string the status endpoint reports as
+    # "unknown", instead of failing the whole row load. Values come from
+    # DocumentErrorCode.
+    error_code: Mapped[str | None] = mapped_column(String(50))
+    # The underlying English message, kept for logs and support. The client
+    # shows a translated message chosen by error_code instead.
     error_message: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

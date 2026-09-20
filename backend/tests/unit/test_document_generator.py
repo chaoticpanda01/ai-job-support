@@ -11,7 +11,14 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.models.enums import DocumentOrientation, DocumentStatus, DocumentType, Gender, VisaStatus
+from app.models.enums import (
+    DocumentErrorCode,
+    DocumentOrientation,
+    DocumentStatus,
+    DocumentType,
+    Gender,
+    VisaStatus,
+)
 from app.services.document_generator import (
     DocumentGenerationError,
     DocumentGenerator,
@@ -835,8 +842,9 @@ async def test_generate_rirekisho_raises_when_profile_incomplete() -> None:
         # raise before either would ever be reached. If it doesn't run early
         # enough, this test fails with an unmocked-call error instead of
         # the expected DocumentGenerationError, which is itself the proof.
-        with pytest.raises(DocumentGenerationError, match="Complete your profile"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.profile_incomplete
 
 
 @pytest.mark.asyncio
@@ -862,8 +870,9 @@ async def test_generate_rirekisho_raises_when_visa_held_but_category_missing() -
         MockProfileRepo.return_value.get_by_user_id = AsyncMock(return_value=profile)
         MockUserRepo.return_value.get = AsyncMock(return_value=user)
 
-        with pytest.raises(DocumentGenerationError, match="Complete your profile"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.profile_incomplete
 
 
 @pytest.mark.asyncio
@@ -889,8 +898,9 @@ async def test_generate_rirekisho_raises_when_age_out_of_range() -> None:
 
         # No _fetch_and_extract/_call_ai mocks — same early-exit proof as
         # the other completeness tests above.
-        with pytest.raises(DocumentGenerationError, match="Complete your profile"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.profile_incomplete
 
 
 # ---------------------------------------------------------------------------
@@ -903,8 +913,9 @@ async def test_generate_raises_when_document_not_found() -> None:
     generator = DocumentGenerator()
     with patch("app.services.document_generator.DocumentRepository") as MockDocRepo:
         MockDocRepo.return_value.get = AsyncMock(return_value=None)
-        with pytest.raises(DocumentGenerationError, match="not found"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(uuid.uuid4(), uuid.uuid4(), AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.unknown
 
 
 @pytest.mark.asyncio
@@ -915,8 +926,9 @@ async def test_generate_raises_when_resume_id_is_null() -> None:
     generator = DocumentGenerator()
     with patch("app.services.document_generator.DocumentRepository") as MockDocRepo:
         MockDocRepo.return_value.get = AsyncMock(return_value=doc)
-        with pytest.raises(DocumentGenerationError, match="deleted"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.resume_missing
 
 
 @pytest.mark.asyncio
@@ -933,8 +945,9 @@ async def test_generate_raises_when_resume_not_owned() -> None:
         MockResumeRepo.return_value.get_owned = AsyncMock(return_value=None)
         MockProfileRepo.return_value.get_by_user_id = AsyncMock(return_value=None)
 
-        with pytest.raises(DocumentGenerationError, match="not found or not owned"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.resume_missing
 
 
 @pytest.mark.asyncio
@@ -962,8 +975,9 @@ async def test_generate_raises_on_ai_error() -> None:
         MockResumeRepo.return_value.get_owned = AsyncMock(return_value=resume)
         MockProfileRepo.return_value.get_by_user_id = AsyncMock(return_value=None)
 
-        with pytest.raises(DocumentGenerationError, match="AI generation failed"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.ai_failed
 
 
 @pytest.mark.asyncio
@@ -990,5 +1004,6 @@ async def test_generate_raises_on_pdf_error() -> None:
         MockResumeRepo.return_value.get_owned = AsyncMock(return_value=resume)
         MockProfileRepo.return_value.get_by_user_id = AsyncMock(return_value=None)
 
-        with pytest.raises(DocumentGenerationError, match="PDF rendering failed"):
+        with pytest.raises(DocumentGenerationError) as excinfo:
             await generator.generate(doc.id, doc.user_id, AsyncMock())
+        assert excinfo.value.code is DocumentErrorCode.pdf_failed

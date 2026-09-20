@@ -101,10 +101,11 @@ class AnalysisType(str, enum.Enum):
     gap_analysis = "gap_analysis"
 
 
-# The next two are stored as plain VARCHAR on resumes rather than as enum types,
-# so a stored value this version doesn't know (e.g. after a rollback) loads as a
-# string the status endpoint reports as "unknown", instead of failing the whole
-# row load. Keep AnalysisErrorCode in sync with frontend/types/api.ts.
+# AnalysisStatus and AnalysisErrorCode are stored as plain VARCHAR on resumes
+# rather than as enum types, so a stored value this version doesn't know (e.g.
+# after a rollback) loads as a string the status endpoint reports as "unknown",
+# instead of failing the whole row load. Keep AnalysisErrorCode in sync with
+# frontend/types/api.ts.
 
 
 class AnalysisStatus(str, enum.Enum):
@@ -123,6 +124,27 @@ class AnalysisErrorCode(str, enum.Enum):
     ai_failed = "ai_failed"
     # Not stored: reported for a pending request that went stale. The task may
     # still finish later and clear it.
+    timed_out = "timed_out"
+    unknown = "unknown"
+
+
+class DocumentErrorCode(str, enum.Enum):
+    """
+    Why a document's generation failed. The client maps each code to a message.
+    Stored as plain VARCHAR on generated_documents (same reasoning as
+    AnalysisErrorCode above). Keep in sync with frontend/types/api.ts.
+    """
+
+    budget_exceeded = "budget_exceeded"
+    profile_incomplete = "profile_incomplete"
+    resume_missing = "resume_missing"
+    file_unavailable = "file_unavailable"
+    unreadable_file = "unreadable_file"
+    ai_failed = "ai_failed"
+    pdf_failed = "pdf_failed"
+    upload_failed = "upload_failed"
+    # Not stored: reported for a generation that has been running too long. The
+    # task may still finish later and replace it.
     timed_out = "timed_out"
     unknown = "unknown"
 

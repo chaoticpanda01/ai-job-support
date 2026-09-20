@@ -11,11 +11,12 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from app.api.v1.documents import _GENERATION_STALE_AFTER
 from app.database import get_db
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
@@ -74,6 +75,8 @@ def _mock_document(
     status: DocumentStatus = DocumentStatus.completed,
     user_id: uuid.UUID | None = None,
     file_url: str | None = "documents/user123/abc.pdf",
+    error_code: str | None = None,
+    age: timedelta = timedelta(seconds=5),
 ) -> MagicMock:
     doc = MagicMock()
     doc.id = uuid.uuid4()
@@ -86,9 +89,10 @@ def _mock_document(
     doc.ai_model = "gemini-2.5-flash"
     doc.input_tokens = 100
     doc.output_tokens = 200
+    doc.error_code = error_code
     doc.error_message = None
     doc.completed_at = datetime.now(tz=UTC)
-    doc.created_at = datetime.now(tz=UTC)
+    doc.created_at = datetime.now(tz=UTC) - age
     doc.content = {"summary": "test"}
     doc.file_url = file_url
     return doc
@@ -276,6 +280,79 @@ async def test_get_document_status_returns_status() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_document_status_reports_the_failure_code() -> None:
+    user = make_user()
+    doc = _mock_document(
+        user_id=user.id, status=DocumentStatus.failed, error_code="budget_exceeded"
+    )
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "failed"
+    assert resp.json()["error_code"] == "budget_exceeded"
+
+
+@pytest.mark.asyncio
+async def test_get_document_status_reports_a_stuck_generation_as_timed_out() -> None:
+    """
+    Without this the client polls a document whose task died -- and so never
+    recorded an outcome -- until it gives up, with a spinner the whole time.
+    """
+    user = make_user()
+    doc = _mock_document(
+        user_id=user.id,
+        status=DocumentStatus.processing,
+        age=_GENERATION_STALE_AFTER + timedelta(minutes=1),
+    )
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "failed"
+    assert resp.json()["error_code"] == "timed_out"
+
+
+@pytest.mark.asyncio
+async def test_listed_documents_report_a_stuck_generation_as_timed_out() -> None:
+    """The list and the detail page must not disagree about the same document."""
+    user = make_user()
+    docs = [
+        _mock_document(
+            user_id=user.id,
+            status=DocumentStatus.processing,
+            age=_GENERATION_STALE_AFTER + timedelta(minutes=1),
+        )
+    ]
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch(
+            "app.api.v1.documents.DocumentRepository.list_by_user",
+            new=AsyncMock(return_value=docs),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/documents", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert item["status"] == "failed"
+    assert item["error_code"] == "timed_out"
+
+
+@pytest.mark.asyncio
 async def test_get_document_status_not_found_returns_404() -> None:
     user = make_user()
 
@@ -427,6 +504,34 @@ async def test_delete_document_rejects_in_flight_status(in_flight_status: Docume
     assert resp.status_code == 409
     mock_delete.assert_not_called()
     mock_storage_delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stuck_status", [DocumentStatus.pending, DocumentStatus.processing])
+async def test_delete_document_allows_a_stuck_generation(stuck_status: DocumentStatus) -> None:
+    """
+    A generation past the stale cutoff is treated as failed, so a document left
+    behind by a task that died can be deleted instead of being stuck forever.
+    """
+    user = make_user()
+    doc = _mock_document(
+        user_id=user.id,
+        status=stuck_status,
+        age=_GENERATION_STALE_AFTER + timedelta(minutes=1),
+        file_url=None,
+    )
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch("app.api.v1.documents.DocumentRepository.get_owned", new=AsyncMock(return_value=doc)),
+        patch("app.api.v1.documents.DocumentRepository.delete", new=AsyncMock()) as mock_delete,
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.delete(f"/api/v1/documents/{doc.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    mock_delete.assert_awaited_once()
 
 
 @pytest.mark.asyncio
