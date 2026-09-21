@@ -85,7 +85,7 @@ export default function CulturePage() {
 
           {topicsLoading && <TopicsSkeleton />}
 
-          {topicsError && !topicsLoading && (
+          {topicsError && (
             <LoadFailure
               messageKey="topicsLoadError"
               isRetrying={topicsFetching}
@@ -113,7 +113,7 @@ export default function CulturePage() {
         <>
           {glossaryLoading && <GlossarySkeleton />}
 
-          {glossaryError && !glossaryLoading && (
+          {glossaryError && (
             <LoadFailure
               messageKey="glossaryLoadError"
               isRetrying={glossaryFetching}

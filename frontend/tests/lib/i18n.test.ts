@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { translations, type Language } from "@/lib/i18n";
-
-const LANGS: Language[] = ["en", "id", "ja"];
+import { LANGS } from "../helpers";
+import { translations } from "@/lib/i18n";
 
 type StringTable = Record<string, Record<string, Record<string, string>>>;
 const table = translations as unknown as StringTable;
