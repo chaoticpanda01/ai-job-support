@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { FileRejection } from "react-dropzone";
 import { fileRejectionMessage } from "@/lib/file-rejection";
-import { t, type Language } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import { LANGS } from "../helpers";
 
-const LANGS: Language[] = ["en", "id", "ja"];
 const TEN_MB = 10 * 1024 * 1024;
 
 /** A rejection shaped like react-dropzone's, carrying one error code. */

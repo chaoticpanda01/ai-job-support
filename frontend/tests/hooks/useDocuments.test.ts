@@ -8,6 +8,13 @@ import { ApiClientError } from "@/lib/api-client";
  * This tests the policy — stop when the document is finished, stop when the
  * query has given up, never retry a document that isn't there — and not
  * react-query's scheduler, which is react-query's to test.
+ *
+ * `useDocumentStatus` is called below from plain functions, outside any
+ * React render. That only works because `@tanstack/react-query` is mocked
+ * out entirely (see the `vi.mock` below) -- there is no real hook machinery
+ * underneath to violate the rules of hooks. If `useDocumentStatus` ever grew
+ * its own `useState`/`useRef`/etc., these calls would break for a real
+ * reason, not a mock bug.
  */
 interface CapturedOptions {
   refetchInterval: (query: {
@@ -39,6 +46,11 @@ function optionsFor(): CapturedOptions {
     isFetching: false,
     refetch: () => {},
   };
+  // Not a real hook call: react-query is fully mocked (see the vi.mock
+  // above), so this only ever reaches the mock's own body, never React's
+  // hook machinery. Safe to call from a helper the rule doesn't recognize
+  // as a hook.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useDocumentStatus("d1");
   if (captured === null) throw new Error("useQuery was never called");
   return captured;

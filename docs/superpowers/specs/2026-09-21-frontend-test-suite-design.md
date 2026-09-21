@@ -77,7 +77,7 @@ Three kinds of test, one boundary each.
 
 **Hook policy tests** mock `@tanstack/react-query` to capture the options object passed to `useQuery`, then call `refetchInterval` and `retry` directly.
 
-This boundary is chosen deliberately, and its limit should be stated plainly: it tests *this project's polling policy* — stop when the document reaches a terminal state, stop when the query has given up, do not retry a 404 — not react-query's scheduler. Running a real client with fake timers would test the library instead, and would be slower and prone to timer flake.
+This boundary is chosen deliberately, and its limit should be stated plainly: it tests _this project's polling policy_ — stop when the document reaches a terminal state, stop when the query has given up, do not retry a 404 — not react-query's scheduler. Running a real client with fake timers would test the library instead, and would be slower and prone to timer flake.
 
 **The chat widget** mocks `@clerk/nextjs` so `SignedIn` and `SignedOut` render their children, and stubs `global.fetch` per test. This is the one test that interacts: `fireEvent.click` on the send button, then asserts the assistant bubble that appears. That path is how the 429-without-`Retry-After` defect was found.
 
@@ -113,7 +113,7 @@ Reading the Python source from a TypeScript test is unusual and worth justifying
 
 ## CI
 
-One step in the existing `frontend` job in `.github/workflows/ci.yml`, between *Format check* and *Build*:
+One step in the existing `frontend` job in `.github/workflows/ci.yml`, between _Format check_ and _Build_:
 
 ```yaml
 - name: Test
@@ -124,7 +124,7 @@ Blocking, matching the backend's pytest step. No coverage threshold.
 
 ## Risks and decisions taken
 
-**Deduplication reduces the headline count.** The four harnesses total 401 checks, but translation-completeness appears in three of them and several structural regexes become single real assertions. Expect roughly 250–300 tests covering the same ground. A drop in the number is expected and is not a loss of coverage.
+**Deduplication reduces the headline count.** The four harnesses total 401 checks, but translation-completeness appears in three of them and several structural regexes become single real assertions. 107 tests landed, built from roughly 100 `expect` call sites; `it.each` and in-test `for` loops mean many of those sites each run several times across languages or cases, so the assertion count run is well above the test count. A drop in the test-file headline number is expected and is not a loss of coverage.
 
 **Mocking react-query means the scheduler is untested.** Accepted; stated in the test file so the next reader knows what the green tick does and does not mean.
 

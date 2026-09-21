@@ -67,9 +67,12 @@ describe("no page renders the server's own error text", () => {
     ]) {
       const lines = readFileSync(file, "utf8").split("\n");
       lines.forEach((line, i) => {
-        // step.detail is a visa roadmap field and body.detail is the chat
-        // widget's own parse of a response — neither is an error on screen.
-        const reads = /\.detail\b/.test(line) && !/step\.detail|body\.detail/.test(line);
+        // step.detail is a visa roadmap field, not an error on screen. (The
+        // chat widget used to read body.detail from the response too, but it
+        // no longer parses the body at all -- there is nothing left under
+        // app/ or components/ for that exclusion to cover, so it is not
+        // carried here. Confirmed by grep before removing it.)
+        const reads = /\.detail\b/.test(line) && !/step\.detail/.test(line);
         if (reads || /\berror\.message\b/.test(line)) {
           offenders.push(`${relative(FRONTEND, file)}:${i + 1}`);
         }
@@ -104,5 +107,14 @@ describe("the error code contracts match the backend", () => {
     // _sse_error("...") with a bare string means a failure the client cannot
     // translate.
     expect(route).not.toMatch(/_sse_error\("/);
+
+    // Positive anchor: the check above only asserts an absence, so renaming
+    // _sse_error to anything else -- or deleting every call to it -- would
+    // leave it green while verifying nothing. Pin that the coded form is
+    // actually present, in at least as many places as exist today, so the
+    // guard depends on _sse_error being called with a code rather than on
+    // no bare-string call happening to exist.
+    const codedCalls = route.match(/_sse_error\(\s*InterviewStreamErrorCode\./g) ?? [];
+    expect(codedCalls.length).toBeGreaterThanOrEqual(8);
   });
 });

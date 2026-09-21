@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { t, type Language } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import type { InterviewStreamErrorCode } from "@/types/api";
+import { LANGS } from "../helpers";
 
 // The hook module pulls in react-query at import time; only the message
 // function is under test here.
@@ -10,8 +11,6 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 const { streamErrorMessage } = await import("@/hooks/useInterview");
-
-const LANGS: Language[] = ["en", "id", "ja"];
 
 const STREAM_CODES: Record<InterviewStreamErrorCode, string> = {
   question_failed: "streamQuestionFailed",

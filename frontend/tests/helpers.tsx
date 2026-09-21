@@ -3,6 +3,9 @@ import type { ReactElement } from "react";
 import { LanguageProvider } from "@/lib/language-context";
 import type { Language } from "@/lib/i18n";
 
+/** The three languages the app supports, for `it.each`/`for` loops. */
+export const LANGS: Language[] = ["en", "id", "ja"];
+
 /**
  * Render inside the real LanguageProvider.
  *

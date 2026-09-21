@@ -20,8 +20,18 @@ const LOADING = {
   isFetching: true,
   refetch: () => {},
 };
-// A retry in flight after a failure: react-query sets isLoading back to true
-// while error still holds the previous failure, since there's still no data.
+// Defensive fixture, not a reachable state: in @tanstack/react-query 5,
+// isLoading = isPending && isFetching, and isPending only holds while
+// status === "pending". The moment a fetch fails, status flips to "error"
+// (isPending false), and the next retry's "fetch" dispatch resets error back
+// to null before status returns to "pending" (see query-core's
+// fetchState/Query#dispatch: a "fetch" action clears error whenever there is
+// still no data). So isLoading and error can never both be truthy at once --
+// react-query cannot produce this combination today. The fixture stays
+// anyway to pin the page's own `!topicsLoading` guard in LoadFailure's
+// render condition as defensive: if react-query's semantics ever changed to
+// make this state reachable, this is the test that would catch a stale
+// error rendering over the loading skeleton.
 const RETRYING_AFTER_FAILURE = {
   data: undefined,
   isLoading: true,

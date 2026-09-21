@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ApiClientError } from "@/lib/api-client";
 import { apiErrorMessage, type CommonMessageKey } from "@/lib/api-error";
-import { t, type Language } from "@/lib/i18n";
-
-const LANGS: Language[] = ["en", "id", "ja"];
+import { t } from "@/lib/i18n";
+import { LANGS } from "../helpers";
 
 // Every status the API actually returns, inventoried from backend/app/api
 // and backend/app/middleware -- except 403, which originates in

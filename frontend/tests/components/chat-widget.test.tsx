@@ -1,26 +1,34 @@
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderIn } from "../helpers";
+import { renderIn, LANGS } from "../helpers";
 import { t, type Language } from "@/lib/i18n";
 import { useLang } from "@/lib/language-context";
+import { SIGN_IN_ROUTE } from "@/lib/routes";
 import { ChatWidget } from "@/components/chat-widget";
 
+// A mutable flag the mock factory below reads on every render, rather than a
+// per-test vi.mock override -- vi.mock is hoisted above imports, so a local
+// override inside a test body can't reach the factory that ran at import
+// time. Defaults to signed-in, matching every test except the signed-out one
+// below, which flips it and flips it back in its own afterEach.
+const clerkState = vi.hoisted(() => ({ signedOut: false }));
+
 vi.mock("@clerk/nextjs", () => ({
-  SignedIn: ({ children }: { children: ReactNode }) => <>{children}</>,
-  // Rendered as null, not children: the real component shows exactly one of
-  // SignedIn/SignedOut. Rendering both children would put the signed-out
-  // prompt and the signed-in panel in the DOM at once, which can never
-  // happen for a real user and would let assertions pass against a DOM
-  // Clerk never produces.
-  SignedOut: () => null,
+  // Exactly one of SignedIn/SignedOut renders its children at a time, as in
+  // the real component -- rendering both would put the signed-out prompt and
+  // the signed-in panel in the DOM together, which can never happen for a
+  // real user and would let assertions pass against a DOM Clerk never
+  // produces.
+  SignedIn: ({ children }: { children: ReactNode }) =>
+    clerkState.signedOut ? null : <>{children}</>,
+  SignedOut: ({ children }: { children: ReactNode }) =>
+    clerkState.signedOut ? <>{children}</> : null,
 }));
 
 // jsdom doesn't implement scrollIntoView; the widget calls it on every
 // message-list update to keep the latest reply in view.
 Element.prototype.scrollIntoView = vi.fn();
-
-const LANGS: Language[] = ["en", "id", "ja"];
 
 /** Open the widget in the given language. */
 function openWidget(lang: Language) {
@@ -112,12 +120,17 @@ describe("chat widget rendering", () => {
       expect(screen.getByText(t("chat", "thinking", lang))).toBeInTheDocument();
     });
 
-    // Let the pending request settle so it doesn't leak into the next test.
+    // Let the pending request settle, and wait for the resulting setMessages
+    // to actually land, before this test returns -- otherwise that state
+    // update races the next test's afterEach(cleanup).
     resolveFetch({
       ok: true,
       status: 200,
       headers: { get: () => null },
       json: async () => ({}),
+    });
+    await waitFor(() => {
+      expect(screen.queryByText(t("chat", "thinking", lang))).not.toBeInTheDocument();
     });
   });
 
@@ -146,6 +159,18 @@ describe("chat widget failures", () => {
     await waitFor(() => {
       expect(screen.getByText(t("chat", "limitReached", "ja"))).toBeInTheDocument();
     });
+    // Retry-After: 7200 seconds is exactly 2 hours, so formatCountdown's
+    // hours branch renders "2:00:00". Asserted through the paragraph's full
+    // text (toHaveTextContent normalizes and concatenates descendant text)
+    // rather than as one getByText string, because the countdown number sits
+    // in its own <span> inside the sentence -- a single string wouldn't
+    // match text split across elements.
+    const countdown = screen.getByText("2:00:00");
+    expect(countdown.closest("p")).toHaveTextContent(
+      t("chat", "limitCountdown", "ja").replace("{n}", "2:00:00"),
+    );
+    // The textarea's placeholder switches to the rate-limited wording too.
+    expect(screen.getByPlaceholderText(t("chat", "placeholderLimited", "ja"))).toBeInTheDocument();
   });
 
   it("falls back to the shared message when no countdown will render", async () => {
@@ -190,5 +215,23 @@ describe("chat widget failures", () => {
     await waitFor(() => {
       expect(screen.getByText(t("common", "error", "ja"))).toBeInTheDocument();
     });
+  });
+});
+
+describe("chat widget signed out", () => {
+  afterEach(() => {
+    clerkState.signedOut = false;
+  });
+
+  it("prompts a signed-out reader to sign in, with a link to the sign-in route", () => {
+    clerkState.signedOut = true;
+    renderIn("ja", <ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: t("chat", "openChat", "ja") }));
+
+    expect(screen.getByText(t("chat", "signedOutPrompt", "ja"))).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: t("nav", "signIn", "ja") })).toHaveAttribute(
+      "href",
+      SIGN_IN_ROUTE,
+    );
   });
 });
