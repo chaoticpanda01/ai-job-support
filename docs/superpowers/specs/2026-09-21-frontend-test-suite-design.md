@@ -26,6 +26,8 @@ The harnesses covered real behaviour that unit-level assertions can reach: which
 
 Five devDependencies: `vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`.
 
+**Every one must support the Node version this project targets.** `package.json` declares `engines.node >=20.9.0`, CI runs Node 20 and the Docker images are `node:20-alpine`. npm does not enforce a dependency's `engines` — it only warns — so an incompatible one installs fine and then fails at runtime inside jsdom with `webidl.util.markAsUncloneable is not a function`. The first attempt at this suite took the latest of everything and broke CI exactly that way: vitest 5, jsdom 30 and jest-dom 7 all require Node 22+. The working set is vitest 4, `@vitejs/plugin-react` 4, jsdom 26, jest-dom 6 and `@testing-library/react` 16. Check `engines.node` before bumping any of them.
+
 `@testing-library/user-event` is deliberately excluded. The only interaction any ported test needs is a single click, and `fireEvent` ships inside `@testing-library/react`.
 
 `@testing-library/react` 16.x supports React 19, which this project uses.
