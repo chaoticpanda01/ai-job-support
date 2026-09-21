@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiClientError } from "@/lib/api-client";
-import { apiErrorMessage } from "@/lib/api-error";
+import { apiErrorMessage, type CommonMessageKey } from "@/lib/api-error";
 import { t, type Language } from "@/lib/i18n";
 
 const LANGS: Language[] = ["en", "id", "ja"];
@@ -9,19 +9,44 @@ const LANGS: Language[] = ["en", "id", "ja"];
 // backend/app/api and backend/app/middleware.
 const BACKEND_STATUSES = [400, 401, 403, 404, 409, 413, 415, 422, 429, 500, 502, 503];
 
+// The real mapping from lib/api-error.ts's errorKeyForStatus, plus 429's
+// key when no Retry-After is present (see "rate limiting" below for the
+// cases where a Retry-After header changes 429's message). Pinning each
+// status to its specific key, rather than just checking the message looks
+// plausible, is what catches errorKeyForStatus swapping two statuses' keys.
+const STATUS_MESSAGE_KEY: Record<number, CommonMessageKey> = {
+  400: "errorInvalidInput",
+  401: "errorSignedOut",
+  403: "errorNotAllowed",
+  404: "errorNotFound",
+  409: "errorConflict",
+  413: "errorTooLarge",
+  415: "errorUnsupportedType",
+  422: "errorInvalidInput",
+  429: "errorRateLimited",
+  500: "errorServer",
+  502: "errorServer",
+  503: "errorServer",
+};
+
 describe("apiErrorMessage", () => {
-  it.each(BACKEND_STATUSES)("explains %i in every language", (status) => {
+  it.each(BACKEND_STATUSES)("maps %i to its specific message key in every language", (status) => {
+    const expectedKey = STATUS_MESSAGE_KEY[status];
+    if (expectedKey === undefined) {
+      throw new Error(`no expected key configured for status ${status}`);
+    }
     const detail = `Backend prose for ${status}`;
     const messages = LANGS.map((lang) => apiErrorMessage(new ApiClientError(status, detail), lang));
 
+    LANGS.forEach((lang, index) => {
+      expect(messages[index]).toBe(t("common", expectedKey, lang));
+    });
+
     for (const message of messages) {
-      expect(message).not.toBe("");
-      // t() returns an unknown key unchanged, so a key-shaped result means a
-      // message is missing.
-      expect(message).not.toMatch(/^error[A-Z]/);
       expect(message).not.toContain(detail);
     }
-    // Three languages, three distinct strings.
+    // Three languages, three distinct strings: catches a translation that
+    // copied one language's text into another's slot for this key.
     expect(new Set(messages).size).toBe(3);
   });
 
