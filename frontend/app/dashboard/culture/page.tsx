@@ -93,7 +93,7 @@ export default function CulturePage() {
             />
           )}
 
-          {topics && topics.length === 0 && !topicsLoading && (
+          {topics && topics.length === 0 && (
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="text-sm text-muted-foreground">{t("culture", "noTopics", lang)}</p>
             </div>
@@ -121,7 +121,7 @@ export default function CulturePage() {
             />
           )}
 
-          {glossary && glossary.length === 0 && !glossaryLoading && (
+          {glossary && glossary.length === 0 && (
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="text-sm text-muted-foreground">{t("culture", "noGlossary", lang)}</p>
             </div>
