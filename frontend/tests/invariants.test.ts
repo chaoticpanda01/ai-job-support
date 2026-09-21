@@ -94,6 +94,14 @@ describe("the error code contracts match the backend", () => {
     expect(tsMembers.sort()).toEqual(pyMembers.sort());
   });
 
+  it("AnalysisErrorCode matches", () => {
+    const tsMembers = tsUnionMembers(apiTypes, "AnalysisErrorCode");
+    const pyMembers = pythonEnumMembers(enums, "AnalysisErrorCode");
+    expect(tsMembers.length).toBeGreaterThan(0);
+    expect(pyMembers.length).toBeGreaterThan(0);
+    expect(tsMembers.sort()).toEqual(pyMembers.sort());
+  });
+
   it("InterviewStreamErrorCode matches", () => {
     const tsMembers = tsUnionMembers(apiTypes, "InterviewStreamErrorCode");
     const pyMembers = pythonEnumMembers(enums, "InterviewStreamErrorCode");
