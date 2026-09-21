@@ -20,6 +20,15 @@ const LOADING = {
   isFetching: true,
   refetch: () => {},
 };
+// A retry in flight after a failure: react-query sets isLoading back to true
+// while error still holds the previous failure, since there's still no data.
+const RETRYING_AFTER_FAILURE = {
+  data: undefined,
+  isLoading: true,
+  error: new Error("boom"),
+  isFetching: true,
+  refetch: () => {},
+};
 const FAILED = {
   data: undefined,
   isLoading: false,
@@ -65,6 +74,15 @@ describe("culture page", () => {
 
   it("shows no error while a load is still running", () => {
     renderCulture(LOADING, EMPTY);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the skeleton, not a stale error, while retrying after a failure", () => {
+    // Distinct from the case above: here error is truthy too, so this only
+    // passes because the page also checks !topicsLoading before rendering
+    // LoadFailure, not just topicsError.
+    renderCulture(RETRYING_AFTER_FAILURE, EMPTY);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
