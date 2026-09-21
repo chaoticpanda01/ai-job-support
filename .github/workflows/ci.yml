@@ -11,9 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   # ---------------------------------------------------------------------------
-  # Frontend: type-check + lint + build
+  # Frontend: type-check + lint + test + build
   # ---------------------------------------------------------------------------
   frontend:
     name: Frontend CI

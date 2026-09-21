@@ -13,6 +13,16 @@ import { describe, expect, it } from "vitest";
  *
  * They need updating when files move. That is the cost.
  *
+ * The `.detail` walk covers `app/` and `components/` only -- not `hooks/`
+ * or `lib/`. That boundary is deliberate: widening it would flag the
+ * legitimate plumbing in `lib/api-client.ts` and `lib/api-error.ts`, which
+ * read `.detail` off the response to build the very messages this guard
+ * exists to keep off the page. It is also a real gap: a hook that returned
+ * `{ message: err.message }` for a component to render straight through
+ * would slip past this check entirely, since neither the hook (in `hooks/`)
+ * nor the component's own read of that field (`.message`, not `.detail` or
+ * `error.message`) trips the pattern above.
+ *
  * Path resolution note: this deliberately avoids the literal pattern
  * `new URL("..", import.meta.url)` — Vite's import-analysis plugin
  * statically recognizes that exact shape and rewrites it into a dev-server

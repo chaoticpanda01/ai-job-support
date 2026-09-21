@@ -55,8 +55,11 @@ async function renderPage(status: Record<string, unknown>, detail = NO_DETAIL) {
   // Anything rendered by the page proves the params resolved. Breadcrumbs
   // render a <nav aria-label="Breadcrumb"> on every branch these tests
   // exercise, so asserting on it here is a safe sanity check before the
-  // per-test assertions run.
-  expect(screen.getByRole("navigation")).toBeInTheDocument();
+  // per-test assertions run. getAllByRole rather than getByRole: both throw
+  // on zero matches, but getByRole also throws on more than one, which would
+  // turn a second <nav> anywhere on the page into a failure reported against
+  // this generic sanity check instead of the branch under test.
+  expect(screen.getAllByRole("navigation").length).toBeGreaterThan(0);
 }
 
 function statusState(over: Record<string, unknown>) {

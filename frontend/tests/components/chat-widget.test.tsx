@@ -8,7 +8,12 @@ import { ChatWidget } from "@/components/chat-widget";
 
 vi.mock("@clerk/nextjs", () => ({
   SignedIn: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SignedOut: ({ children }: { children: ReactNode }) => <>{children}</>,
+  // Rendered as null, not children: the real component shows exactly one of
+  // SignedIn/SignedOut. Rendering both children would put the signed-out
+  // prompt and the signed-in panel in the DOM at once, which can never
+  // happen for a real user and would let assertions pass against a DOM
+  // Clerk never produces.
+  SignedOut: () => null,
 }));
 
 // jsdom doesn't implement scrollIntoView; the widget calls it on every
@@ -74,11 +79,46 @@ describe("chat widget rendering", () => {
 
     expect(screen.getByText(t("chat", "greeting", lang))).toBeInTheDocument();
     expect(screen.getByText(t("chat", "title", lang))).toBeInTheDocument();
+    expect(screen.getByText(t("chat", "poweredBy", lang))).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: t("chat", "inputLabel", lang) }),
     ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(t("chat", "placeholder", lang))).toBeInTheDocument();
     expect(screen.getByRole("button", { name: t("chat", "send", lang) })).toBeInTheDocument();
     expect(screen.getByRole("log", { name: t("chat", "conversation", lang) })).toBeInTheDocument();
+    // Two buttons share this aria-label once the widget is open: the header's
+    // own X button (always closeChat) and the floating toggle button (whose
+    // label switches from openChat to closeChat while open). getAllByRole
+    // rather than getByRole because a single-match query would throw here.
+    expect(screen.getAllByRole("button", { name: t("chat", "closeChat", lang) })).toHaveLength(2);
+    // "thinking" is not asserted here: it only renders while a send is in
+    // flight, which this render (no message sent, no fetch mocked) never
+    // reaches. Covered instead by a dedicated test below.
+  });
+
+  it.each(LANGS)("shows the thinking indicator while a reply is in flight, in %s", async (lang) => {
+    // Unlike the other failure/success tests, this one needs a fetch that
+    // does not resolve on its own -- resolving immediately (as answerWith's
+    // mock does) would mean the loading state never survives to be asserted.
+    let resolveFetch: (value: unknown) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise((resolve) => (resolveFetch = resolve))),
+    );
+    openWidget(lang);
+    await send(lang);
+
+    await waitFor(() => {
+      expect(screen.getByText(t("chat", "thinking", lang))).toBeInTheDocument();
+    });
+
+    // Let the pending request settle so it doesn't leak into the next test.
+    resolveFetch({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => ({}),
+    });
   });
 
   it("renders the greeting from the current language, not the one at mount", () => {

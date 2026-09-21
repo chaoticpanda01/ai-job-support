@@ -1,3 +1,9 @@
+// Vite prints an "ESM syntax in a file loaded as CommonJS" warning for this
+// file on every run, and suggests two fixes. Do NOT take the second one --
+// setting `"type": "module"` in package.json -- it would break the build:
+// frontend/postcss.config.js is CommonJS, and Next's build loads it. The
+// warning is expected and safe to ignore; if it needs to go, the safe fix is
+// renaming this file to vitest.config.mts instead.
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";

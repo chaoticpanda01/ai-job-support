@@ -5,8 +5,9 @@ import { t, type Language } from "@/lib/i18n";
 
 const LANGS: Language[] = ["en", "id", "ja"];
 
-// Every status the API actually returns, inventoried from
-// backend/app/api and backend/app/middleware.
+// Every status the API actually returns, inventoried from backend/app/api
+// and backend/app/middleware -- except 403, which originates in
+// backend/app/dependencies.py (the admin-only dependency).
 const BACKEND_STATUSES = [400, 401, 403, 404, 409, 413, 415, 422, 429, 500, 502, 503];
 
 // The real mapping from lib/api-error.ts's errorKeyForStatus, plus 429's

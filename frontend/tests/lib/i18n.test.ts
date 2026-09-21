@@ -31,7 +31,17 @@ describe("translations", () => {
   it("keeps every placeholder in every language of a string that has one", () => {
     const broken: string[] = [];
     for (const [section, key, value] of everyString()) {
-      for (const placeholder of ["{n}", "{max}", "{m}", "{t}"]) {
+      // Derived from the string itself rather than a hardcoded list, so a
+      // new placeholder (e.g. adding `{count}` to only one language) is
+      // caught instead of silently skipped.
+      const placeholders = new Set(
+        [
+          ...Object.values(value)
+            .join(" ")
+            .matchAll(/\{\w+\}/g),
+        ].map((m) => m[0]),
+      );
+      for (const placeholder of placeholders) {
         const langsWith = LANGS.filter((lang) => (value[lang] ?? "").includes(placeholder));
         if (langsWith.length > 0 && langsWith.length !== LANGS.length) {
           broken.push(`${section}.${key} has ${placeholder} in ${langsWith.join(", ")} only`);

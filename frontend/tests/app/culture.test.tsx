@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { renderIn } from "../helpers";
 import { t } from "@/lib/i18n";
 
@@ -99,5 +99,11 @@ describe("culture page", () => {
 
     expect(screen.getByText("Keigo")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("reports a glossary failure through the same component", () => {
+    renderCulture(EMPTY, FAILED);
+    fireEvent.click(screen.getByRole("button", { name: t("culture", "glossaryTab", "ja") }));
+    expect(screen.getByRole("alert")).toHaveTextContent(t("culture", "glossaryLoadError", "ja"));
   });
 });
