@@ -51,6 +51,18 @@ function pythonEnumMembers(source: string, className: string): string[] {
   return [...upToNextClass.matchAll(/^ {4}(\w+) = "(\w+)"$/gm)].map((m) => m[2] as string);
 }
 
+/**
+ * The string literals in a `const NAME = [...]` array. Flat arrays only: it
+ * stops at the first `]`, so a nested array would truncate the result. Every
+ * caller below asserts the result is non-empty, because a rename or an added
+ * type annotation makes this return [] rather than fail.
+ */
+function tsConstArray(source: string, name: string): string[] {
+  const body = source.split(`const ${name} = [`)[1] ?? "";
+  const upToClose = body.split("]")[0] ?? "";
+  return [...upToClose.matchAll(/"(\w+)"/g)].map((m) => m[1] as string);
+}
+
 /** The members of a TypeScript string-literal union. */
 function tsUnionMembers(source: string, typeName: string): string[] {
   const body = source.split(`export type ${typeName} =`)[1] ?? "";
@@ -124,5 +136,65 @@ describe("the error code contracts match the backend", () => {
     // no bare-string call happening to exist.
     const codedCalls = route.match(/_sse_error\(\s*InterviewStreamErrorCode\./g) ?? [];
     expect(codedCalls.length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("the rirekisho required fields match the backend", () => {
+  // The Settings banner deliberately re-implements a subset of
+  // rirekisho_missing_fields() so it can update as the reader types, instead
+  // of a request per keystroke. The page says in so many words that the two
+  // are kept in sync by hand, which is what this guards: a field added to
+  // the backend's list and not here means the banner says "ready" for a
+  // profile that generation will reject.
+  const py = readFileSync(join(BACKEND, "app/services/rirekisho_completeness.py"), "utf8");
+  const page = readFileSync(join(FRONTEND, "app/dashboard/settings/page.tsx"), "utf8");
+  const requiredKeys = [
+    ...tsConstArray(page, "BASE_REQUIRED_KEYS"),
+    ...tsConstArray(page, "VISA_HELD_REQUIRED_KEYS"),
+  ];
+
+  it("reads the required keys at all", () => {
+    // Every test below iterates requiredKeys, and a loop over [] passes while
+    // checking nothing. Renaming either const, or giving it a type
+    // annotation, empties it silently -- so assert it here, once, loudly.
+    expect(requiredKeys.length).toBeGreaterThan(0);
+  });
+
+  it("requires the same set of fields", () => {
+    const pyKeys = [...py.matchAll(/"key": "(\w+)"/g)].map((m) => m[1] as string);
+    expect(requiredKeys.length).toBeGreaterThan(0);
+    expect(pyKeys.length).toBeGreaterThan(0);
+    expect([...new Set(requiredKeys)].sort()).toEqual([...new Set(pyKeys)].sort());
+  });
+
+  it("agrees on the age range a date of birth must fall in", () => {
+    const pyRange = py.match(/(\d+) <= age <= (\d+)/);
+    const tsRange = page.match(/age < (\d+) \|\| age > (\d+)/);
+    expect(pyRange).not.toBeNull();
+    expect(tsRange).not.toBeNull();
+    expect([tsRange?.[1], tsRange?.[2]]).toEqual([pyRange?.[1], pyRange?.[2]]);
+  });
+
+  it("gives every required field a label of its own", () => {
+    // A key with no entry falls back to t()'s unknown-key behaviour, which
+    // prints the raw key -- "phone_number" in the middle of a sentence.
+    const labelled = [...page.matchAll(/^  (\w+): "(\w+)",$/gm)].map((m) => m[1] as string);
+    expect(requiredKeys.length).toBeGreaterThan(0);
+    for (const key of requiredKeys) {
+      expect(labelled).toContain(key);
+    }
+  });
+
+  it("decides every required field in isFieldMissing", () => {
+    // isFieldMissing's default arm returns false, so a required key with no
+    // case of its own is silently never missing: the banner reports the
+    // profile ready and generation then rejects it. That is the exact
+    // failure this whole describe exists to prevent, and it is invisible to
+    // a page test unless a fixture happens to leave that one field empty.
+    const handled = [...page.matchAll(/^    case "(\w+)":$/gm)].map((m) => m[1] as string);
+    expect(requiredKeys.length).toBeGreaterThan(0);
+    for (const key of requiredKeys) {
+      expect(handled).toContain(key);
+    }
   });
 });
