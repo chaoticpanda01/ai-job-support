@@ -11,9 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   # ---------------------------------------------------------------------------
-  # Frontend: type-check + lint + build
+  # Frontend: type-check + lint + test + build
   # ---------------------------------------------------------------------------
   frontend:
     name: Frontend CI
@@ -42,6 +41,9 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
