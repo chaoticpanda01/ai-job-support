@@ -743,7 +743,15 @@ function DangerZone() {
       // they asked to delete and still have.
       return;
     }
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      // The account is gone by this point, so there is nothing to report and
+      // nowhere useful to stay. Leaving them on a settings page for an
+      // account that no longer exists -- with nothing rendered, since
+      // deleteAccount succeeded and has no error -- is the worst outcome
+      // available, so fall through to the redirect either way.
+    }
     router.push(SIGN_IN_ROUTE);
   }
 

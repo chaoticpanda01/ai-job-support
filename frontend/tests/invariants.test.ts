@@ -52,6 +52,18 @@ function pythonEnumMembers(source: string, className: string): string[] {
 }
 
 /**
+ * The text of a declaration, from the line that opens it to the first
+ * column-0 `}`. The other extractors in this file all narrow to a
+ * declaration before matching; these two would otherwise scan a 935-line
+ * file, where a second switch or any `word: "word",` object entry could
+ * stand in for the thing that was actually deleted.
+ */
+function declarationBody(source: string, opener: string): string {
+  const after = source.split(opener)[1] ?? "";
+  return after.split("\n}")[0] ?? "";
+}
+
+/**
  * The string literals in a `const NAME = [...]` array. Flat arrays only: it
  * stops at the first `]`, so a nested array would truncate the result. Every
  * caller below asserts the result is non-empty, because a rename or an added
@@ -153,11 +165,14 @@ describe("the rirekisho required fields match the backend", () => {
     ...tsConstArray(page, "VISA_HELD_REQUIRED_KEYS"),
   ];
 
-  it("reads the required keys at all", () => {
+  it.each(["BASE_REQUIRED_KEYS", "VISA_HELD_REQUIRED_KEYS"])("reads %s at all", (name) => {
     // Every test below iterates requiredKeys, and a loop over [] passes while
     // checking nothing. Renaming either const, or giving it a type
-    // annotation, empties it silently -- so assert it here, once, loudly.
-    expect(requiredKeys.length).toBeGreaterThan(0);
+    // annotation, empties it silently. Asserting the concatenation is not
+    // enough: with one const emptied the other still makes it non-empty,
+    // and the iterating tests then check half a list and pass. So assert
+    // each one separately.
+    expect(tsConstArray(page, name).length).toBeGreaterThan(0);
   });
 
   it("requires the same set of fields", () => {
@@ -178,7 +193,12 @@ describe("the rirekisho required fields match the backend", () => {
   it("gives every required field a label of its own", () => {
     // A key with no entry falls back to t()'s unknown-key behaviour, which
     // prints the raw key -- "phone_number" in the middle of a sentence.
-    const labelled = [...page.matchAll(/^  (\w+): "(\w+)",$/gm)].map((m) => m[1] as string);
+    const table = declarationBody(
+      page,
+      "const REQUIRED_FIELD_LABEL_KEYS: Record<string, string> = {",
+    );
+    const labelled = [...table.matchAll(/^  (\w+): "(\w+)",$/gm)].map((m) => m[1] as string);
+    expect(labelled.length).toBeGreaterThan(0);
     expect(requiredKeys.length).toBeGreaterThan(0);
     for (const key of requiredKeys) {
       expect(labelled).toContain(key);
@@ -191,7 +211,12 @@ describe("the rirekisho required fields match the backend", () => {
     // profile ready and generation then rejects it. That is the exact
     // failure this whole describe exists to prevent, and it is invisible to
     // a page test unless a fixture happens to leave that one field empty.
-    const handled = [...page.matchAll(/^    case "(\w+)":$/gm)].map((m) => m[1] as string);
+    const body = declarationBody(
+      page,
+      "function isFieldMissing(key: string, form: ProfileUpdateRequest): boolean {",
+    );
+    const handled = [...body.matchAll(/^    case "(\w+)":$/gm)].map((m) => m[1] as string);
+    expect(handled.length).toBeGreaterThan(0);
     expect(requiredKeys.length).toBeGreaterThan(0);
     for (const key of requiredKeys) {
       expect(handled).toContain(key);

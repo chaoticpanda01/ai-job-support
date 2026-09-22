@@ -19,7 +19,11 @@ const deleteAccount = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
   calls: 0,
 }));
-const session = vi.hoisted(() => ({ signOuts: 0, pushes: [] as string[] }));
+const session = vi.hoisted(() => ({
+  signOuts: 0,
+  pushes: [] as string[],
+  signOutFails: false,
+}));
 
 vi.mock("@/hooks/useMe", () => ({
   useMe: () => meQuery.current,
@@ -33,7 +37,7 @@ vi.mock("@clerk/nextjs", () => ({
   useClerk: () => ({
     signOut: () => {
       session.signOuts += 1;
-      return Promise.resolve();
+      return session.signOutFails ? Promise.reject(new Error("clerk down")) : Promise.resolve();
     },
   }),
 }));
@@ -163,6 +167,7 @@ beforeEach(() => {
   };
   session.signOuts = 0;
   session.pushes = [];
+  session.signOutFails = false;
 });
 
 describe("settings page, the rirekisho completeness banner", () => {
@@ -314,6 +319,9 @@ describe("settings page, saving", () => {
     expect(years.validity.rangeOverflow).toBe(true);
     expect(years.form?.checkValidity()).toBe(false);
     expect(updateProfile.saves).toEqual([]);
+    // The native gate stopped it, not zod -- which is what makes this test
+    // distinct from the one below rather than a duplicate of it.
+    expect(screen.queryByText("Must be 80 or less")).not.toBeInTheDocument();
   });
 
   it("still refuses it if the form is submitted past that", async () => {
@@ -347,6 +355,46 @@ describe("settings page, saving", () => {
     expect(updateProfile.saves[0]).toMatchObject({ years_experience: 8 });
   });
 
+  it("saves the rirekisho section from its own form", async () => {
+    // Every other test here reaches a form through the years-of-experience
+    // field, which lives in job preferences -- so the section this file is
+    // named after never saved. An early return in its handleSubmit passed
+    // the whole suite before this test existed.
+    await renderPage();
+    const kana = screen.getByLabelText(new RegExp(s("nameKana")));
+
+    fireEvent.change(kana, { target: { value: "すずき はなこ" } });
+    await act(async () => {
+      fireEvent.click(saveButtonFor(kana));
+    });
+
+    expect(updateProfile.saves).toHaveLength(1);
+    expect(updateProfile.saves[0]).toMatchObject({ name_kana: "すずき はなこ" });
+    expect(screen.getByText(common("saved"))).toBeInTheDocument();
+  });
+
+  it("does not call a rejected save saved", async () => {
+    // Pins both halves of the try/catch: the failure is reported from the
+    // mutation's own error state, and the green "Saved" must not appear
+    // beside it. Without the catch this also rejects unhandled, which
+    // vitest reports as an error and fails the run on.
+    updateProfile.current = {
+      mutateAsync: () => Promise.reject(new ApiClientError(500, "boom")),
+      isPending: false,
+      error: new ApiClientError(500, "boom"),
+    };
+    await renderPage();
+    const kana = screen.getByLabelText(new RegExp(s("nameKana")));
+
+    fireEvent.change(kana, { target: { value: "すずき はなこ" } });
+    await act(async () => {
+      fireEvent.click(saveButtonFor(kana));
+    });
+
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent(common("errorServer"));
+    expect(screen.queryByText(common("saved"))).not.toBeInTheDocument();
+  });
+
   it("says a save is in progress", async () => {
     updateProfile.current = { ...updateProfile.current, isPending: true };
     await renderPage();
@@ -363,7 +411,9 @@ describe("settings page, saving", () => {
     };
     await renderPage();
 
-    // Both sections share the mutation, so both report it.
+    // The mock returns one mutation object to both sections, so both
+    // footers render the error here. In production each section calls
+    // useUpdateProfile() separately and only the failing one reports.
     for (const alert of screen.getAllByRole("alert")) {
       expect(alert).toHaveTextContent(common("errorInvalidInput"));
       expect(alert).not.toHaveTextContent("years_experience");
@@ -469,6 +519,24 @@ describe("settings page, deleting the account", () => {
     expect(session.signOuts).toBe(0);
     expect(session.pushes).toEqual([]);
     expect(screen.getByRole("alert")).toHaveTextContent(common("errorServer"));
+  });
+
+  it("still leaves for sign-in when signing out fails after the delete", async () => {
+    // The account is gone at this point. Staying put would leave the reader
+    // on a settings page for an account that no longer exists, with nothing
+    // rendered to explain it -- deleteAccount succeeded, so it has no error.
+    session.signOutFails = true;
+    await openConfirm();
+
+    fireEvent.change(screen.getByPlaceholderText(s("confirmPhrase")), {
+      target: { value: s("confirmPhrase") },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: s("confirmDeletion") }));
+    });
+
+    expect(deleteAccount.calls).toBe(1);
+    expect(session.pushes).toEqual([SIGN_IN_ROUTE]);
   });
 
   it("puts the confirmation away again on cancel", async () => {
