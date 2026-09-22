@@ -14,11 +14,36 @@ The harnesses covered real behaviour that unit-level assertions can reach: which
 
 **Explicitly out of scope:**
 
-- Tests for code the harnesses did not cover — `useResumes`' analysis polling, the interview session page, the settings page (900 lines), the jobs detail page (500 lines). Writing tests for code nobody is currently changing is a separate decision.
+- ~~Tests for code the harnesses did not cover — `useResumes`' analysis polling, the interview session page, the settings page (900 lines), the jobs detail page (500 lines). Writing tests for code nobody is currently changing is a separate decision.~~ **Superseded 2026-09-22** — all of these are now covered; see Status below. The reasoning stands for what it was: this exclusion is what let the first pass land without stalling on four large pages.
 - A coverage threshold. A floor would force the above before the suite could go green.
 - Browser-level E2E (Playwright). No flow here needs a real browser, and Clerk sign-in is blocked in the preview browser this project uses.
 - Backend-side contract tests. The frontend suite asserts the shared enums match (see Invariants); moving those assertions into pytest is a later option, not this pass.
 - Testing react-query, Radix, or react-dropzone. Their behaviour is theirs; this suite tests the policies built on top of them.
+
+## Status
+
+Written 2026-09-21 for the first pass, which landed 107 tests. Updated
+2026-09-22: the four exclusions above have since been covered, in seven
+commits from `eef1f88` to `e05d23c`.
+
+| Added                                                               | Tests |
+| ------------------------------------------------------------------- | ----- |
+| `useResumes`' analysis polling (12) and the resume detail page (37) | 49    |
+| The interview session page, including a Japanese session            | 50    |
+| The settings page and its backend contract                          | 37    |
+| The jobs detail page                                                | 47    |
+| The onboarding wizard                                               | 28    |
+| New invariants (`AnalysisErrorCode`, the rirekisho rules)           | 6     |
+
+107 + 217 = 324 tests across 15 files. Still no coverage floor, still no Playwright,
+still nothing testing react-query or Radix themselves — those exclusions
+were not about sequencing and remain deliberate.
+
+Three production bugs were found by writing these tests rather than by
+using the app, all in error paths: unhandled promise rejections on a
+failed save or delete, a `signOut` failure after a successful account
+deletion that left the reader on a settings page for an account that no
+longer existed, and a stale "Saved" indicator beside a failed retry.
 
 ## Architecture
 
@@ -59,9 +84,15 @@ tests/lib/file-rejection.test.ts
 tests/lib/i18n.test.ts
 tests/hooks/useDocuments.test.ts
 tests/hooks/useInterview.test.ts
+tests/hooks/useResumes.test.ts
 tests/components/chat-widget.test.tsx
-tests/app/documents-detail.test.tsx
 tests/app/culture.test.tsx
+tests/app/documents-detail.test.tsx
+tests/app/interview-session.test.tsx
+tests/app/jobs-detail.test.tsx
+tests/app/onboarding.test.tsx
+tests/app/resume-detail.test.tsx
+tests/app/settings.test.tsx
 tests/invariants.test.ts
 ```
 
@@ -110,8 +141,12 @@ This boundary is chosen deliberately, and its limit should be stated plainly: it
 - No file under `app/` or `components/` renders a response `detail` or a raw `error.message`. `step.detail` (a visa roadmap field) and `body.detail` (the chat widget's own parse) are excluded by name.
 - `DocumentErrorCode` in `frontend/types/api.ts` matches `DocumentErrorCode` in `backend/app/models/enums.py`.
 - `InterviewStreamErrorCode` matches likewise, and every `_sse_error` call in `backend/app/api/v1/interview.py` passes a code.
+- `AnalysisErrorCode` matches (added 2026-09-22). It carried the same "keep in sync" comment as the other two and was the only one of the three unguarded.
+- The Settings page's required-field rules match `backend/app/services/rirekisho_completeness.py` (added 2026-09-22): the same set of required keys, the same age range a date of birth must fall in, a label for every required key, and a `case` arm in `isFieldMissing` for every required key — its `default` returns false, so a key with no arm is silently never missing.
 
-Reading the Python source from a TypeScript test is unusual and worth justifying: these two enums are a contract with no shared schema, and a mismatch degrades silently — the client falls back to "unknown" and no one notices. The alternative is generating the TS unions from the Python enums, which is more machinery than two assertions warrant at this size.
+Reading the Python source from a TypeScript test is unusual and worth justifying: these enums and rules are contracts with no shared schema, and a mismatch degrades silently — the client falls back to "unknown", or a banner reports a profile ready that generation will reject, and no one notices. The alternative is generating the TS unions from the Python enums, which is more machinery than these assertions warrant at this size.
+
+These guards parse source as text, so a rename can empty the parse and leave a loop over nothing passing forever. Every one of them asserts its extraction is non-empty before using it, and each narrows to the declaration it cares about rather than scanning a whole file. That defence was added after a review found one guard without it. The file now holds 11 tests.
 
 ## CI
 
