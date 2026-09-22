@@ -306,6 +306,10 @@ function RirekishoInfoSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Clear it for this attempt, not just when a field changes: retrying an
+    // unedited form after a success would otherwise leave the green "Saved"
+    // standing beside the red failure of the retry.
+    setSaved(false);
     try {
       await updateProfile.mutateAsync(form);
       setSaved(true);
@@ -565,12 +569,13 @@ function JobPreferencesSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // See the note in RirekishoInfoSection's handleSubmit.
+    setSaved(false);
 
     const result = profileFormSchema.safeParse(form);
     if (!result.success) {
       const errors = result.error.flatten().fieldErrors;
       setFieldErrors({ years_experience: errors.years_experience?.[0] });
-      setSaved(false);
       return;
     }
     setFieldErrors({});

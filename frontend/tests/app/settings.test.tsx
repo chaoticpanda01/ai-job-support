@@ -395,6 +395,79 @@ describe("settings page, saving", () => {
     expect(screen.queryByText(common("saved"))).not.toBeInTheDocument();
   });
 
+  it("takes back Saved when an unedited retry fails", async () => {
+    // saved used to be cleared only when a field changed, so saving, then
+    // pressing Save again without editing and having that fail, left the
+    // green confirmation standing beside the red error.
+    //
+    // One mutation object throughout, whose behaviour flips: replacing
+    // updateProfile.current mid-test does not reach the component, whose
+    // submit handler closes over the object from its last render.
+    let failing = false;
+    updateProfile.current = {
+      mutateAsync: (form: unknown) => {
+        if (failing) return Promise.reject(new ApiClientError(500, "boom"));
+        updateProfile.saves.push(form);
+        return Promise.resolve();
+      },
+      isPending: false,
+      get error() {
+        return failing ? new ApiClientError(500, "boom") : null;
+      },
+    };
+    await renderPage();
+    const kana = screen.getByLabelText(new RegExp(s("nameKana")));
+
+    fireEvent.change(kana, { target: { value: "すずき はなこ" } });
+    await act(async () => {
+      fireEvent.click(saveButtonFor(kana));
+    });
+    expect(screen.getByText(common("saved"))).toBeInTheDocument();
+
+    // The retry fails, and nothing about the form has changed in between.
+    failing = true;
+    await act(async () => {
+      fireEvent.click(saveButtonFor(kana));
+    });
+
+    expect(updateProfile.saves).toHaveLength(1);
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent(common("errorServer"));
+    expect(screen.queryByText(common("saved"))).not.toBeInTheDocument();
+  });
+
+  it("takes it back in job preferences too", async () => {
+    // Both sections keep their own `saved`, so both need the clear. The
+    // validation branch's old clear was unreachable as a distinct case:
+    // reaching zod means a field changed, and handleChange already clears it.
+    let failing = false;
+    updateProfile.current = {
+      mutateAsync: (form: unknown) => {
+        if (failing) return Promise.reject(new ApiClientError(500, "boom"));
+        updateProfile.saves.push(form);
+        return Promise.resolve();
+      },
+      isPending: false,
+      get error() {
+        return failing ? new ApiClientError(500, "boom") : null;
+      },
+    };
+    await renderPage();
+    const years = screen.getByLabelText(new RegExp(s("yearsExp")));
+
+    fireEvent.change(years, { target: { value: "8" } });
+    await act(async () => {
+      fireEvent.click(saveButtonFor(years));
+    });
+    expect(screen.getByText(common("saved"))).toBeInTheDocument();
+
+    failing = true;
+    await act(async () => {
+      fireEvent.click(saveButtonFor(years));
+    });
+
+    expect(screen.queryByText(common("saved"))).not.toBeInTheDocument();
+  });
+
   it("says a save is in progress", async () => {
     updateProfile.current = { ...updateProfile.current, isPending: true };
     await renderPage();
