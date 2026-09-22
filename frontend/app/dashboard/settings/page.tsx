@@ -306,8 +306,15 @@ function RirekishoInfoSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await updateProfile.mutateAsync(form);
-    setSaved(true);
+    try {
+      await updateProfile.mutateAsync(form);
+      setSaved(true);
+    } catch {
+      // Reported by the footer from updateProfile.error. Swallowed here only
+      // so a rejected mutateAsync isn't an unhandled rejection: without this
+      // a failed save logs an uncaught error in the console on top of the
+      // message the reader is already shown.
+    }
   }
 
   if (isLoading) return <SectionSkeleton />;
@@ -568,8 +575,12 @@ function JobPreferencesSection() {
     }
     setFieldErrors({});
 
-    await updateProfile.mutateAsync(form);
-    setSaved(true);
+    try {
+      await updateProfile.mutateAsync(form);
+      setSaved(true);
+    } catch {
+      // See the note in RirekishoInfoSection's handleSubmit.
+    }
   }
 
   if (isLoading) return <SectionSkeleton />;
@@ -723,7 +734,15 @@ function DangerZone() {
 
   async function handleDelete() {
     if (!ready) return;
-    await deleteAccount.mutateAsync();
+    try {
+      await deleteAccount.mutateAsync();
+    } catch {
+      // The account is still there, so stay on the page with the reader
+      // signed in; deleteAccount.error renders the reason below. Signing
+      // them out here would strand them at the sign-in page with an account
+      // they asked to delete and still have.
+      return;
+    }
     await signOut();
     router.push(SIGN_IN_ROUTE);
   }
