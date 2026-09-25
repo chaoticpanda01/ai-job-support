@@ -20,7 +20,7 @@ import asyncio
 import logging
 import time
 from datetime import UTC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -42,11 +42,22 @@ from app.schemas.job import (
 )
 
 if TYPE_CHECKING:
-    from app.models.job import JobApplication
+    from app.models.job import JobApplication, JobPosting
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+_R = TypeVar("_R", bound=JobPostingResponse)
+
+
+def _posting_response(model: type[_R], job: JobPosting, viewer_id: UUID) -> _R:
+    """
+    Build a posting response with is_mine set for this viewer. Every response
+    that carries a posting goes through here, so no path can forget it.
+    """
+    return model.model_validate(job).model_copy(update={"is_mine": job.submitted_by == viewer_id})
+
 
 _TRANSLATION_MAX_TOKENS = 8192
 _MATCH_MAX_TOKENS = 2048
@@ -97,7 +108,7 @@ async def translate_job(
         cached = await job_repo.get_by_url(body.source_url)
         if cached is not None:
             logger.info("Cache hit for url=%s job_id=%s", body.source_url, cached.id)
-            return JobPostingDetailResponse.model_validate(cached)
+            return _posting_response(JobPostingDetailResponse, cached, current_user.user_id)
 
     # -- Budget check
     try:
@@ -176,7 +187,7 @@ async def translate_job(
         current_user.user_id,
         input_tokens + output_tokens,
     )
-    return JobPostingDetailResponse.model_validate(job)
+    return _posting_response(JobPostingDetailResponse, job, current_user.user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -200,18 +211,20 @@ async def list_jobs(
     if q:
         items = await job_repo.search(
             q,
+            viewer_id=current_user.user_id,
             offset=pagination.offset,
             limit=pagination.limit,
         )
     else:
         items = await job_repo.list_active(
+            viewer_id=current_user.user_id,
             offset=pagination.offset,
             limit=pagination.limit,
             min_friendliness=min_score,
         )
 
     return JobPostingListResponse(
-        items=[JobPostingResponse.model_validate(j) for j in items],
+        items=[_posting_response(JobPostingResponse, j, current_user.user_id) for j in items],
         total=len(items),
     )
 
@@ -266,7 +279,7 @@ async def create_application(
     from app.models.job import JobApplication
 
     job_repo = JobPostingRepository(db)
-    job = await job_repo.get_active(body.job_posting_id)
+    job = await job_repo.get_active(body.job_posting_id, viewer_id=current_user.user_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found.")
 
@@ -434,10 +447,10 @@ async def get_job(
 ) -> JobPostingDetailResponse:
     """Return full job posting including translated description."""
     job_repo = JobPostingRepository(db)
-    job = await job_repo.get_active(job_id)
+    job = await job_repo.get_active(job_id, viewer_id=current_user.user_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
-    return JobPostingDetailResponse.model_validate(job)
+    return _posting_response(JobPostingDetailResponse, job, current_user.user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -494,7 +507,7 @@ async def match_job(
 
     # -- Load job
     job_repo = JobPostingRepository(db)
-    job = await job_repo.get_active(job_id)
+    job = await job_repo.get_active(job_id, viewer_id=current_user.user_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
 

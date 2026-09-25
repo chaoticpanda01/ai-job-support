@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ApplicationStatus
@@ -19,14 +19,30 @@ def _active(stmt: Select[tuple[JobPosting]]) -> Select[tuple[JobPosting]]:
     return stmt.where(JobPosting.deleted_at.is_(None))
 
 
+def _visible_to(stmt: Select[tuple[JobPosting]], viewer_id: UUID) -> Select[tuple[JobPosting]]:
+    """
+    Limit postings to those `viewer_id` may see.
+
+    The pool is shared on purpose: a posting translated from a URL is a public
+    job ad, and sharing it means the next person who submits that URL gets the
+    cached translation instead of spending an AI call (see get_by_url). A
+    posting pasted as text with no URL is different -- it is whatever the user
+    had to hand, which is often a scout email addressed to them by name -- so
+    it stays visible to its submitter only.
+    """
+    return stmt.where(or_(JobPosting.source_url.is_not(None), JobPosting.submitted_by == viewer_id))
+
+
 class JobPostingRepository(BaseRepository[JobPosting]):
     model = JobPosting
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
 
-    async def get_active(self, job_id: UUID) -> JobPosting | None:
-        return await self._scalar(_active(select(JobPosting).where(JobPosting.id == job_id)))
+    async def get_active(self, job_id: UUID, *, viewer_id: UUID) -> JobPosting | None:
+        return await self._scalar(
+            _visible_to(_active(select(JobPosting).where(JobPosting.id == job_id)), viewer_id)
+        )
 
     async def get_by_url(self, source_url: str) -> JobPosting | None:
         """Returns the active (non-deleted, non-expired) posting for a URL."""
@@ -42,11 +58,12 @@ class JobPostingRepository(BaseRepository[JobPosting]):
     async def list_active(
         self,
         *,
+        viewer_id: UUID,
         offset: int = 0,
         limit: int = 20,
         min_friendliness: float | None = None,
     ) -> list[JobPosting]:
-        stmt = _active(select(JobPosting))
+        stmt = _visible_to(_active(select(JobPosting)), viewer_id)
         if min_friendliness is not None:
             stmt = stmt.where(JobPosting.foreigner_friendliness_score >= min_friendliness)
         stmt = stmt.order_by(JobPosting.created_at.desc()).offset(offset).limit(limit)
@@ -56,6 +73,7 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         self,
         query: str,
         *,
+        viewer_id: UUID,
         offset: int = 0,
         limit: int = 20,
     ) -> list[JobPosting]:
@@ -67,17 +85,16 @@ class JobPostingRepository(BaseRepository[JobPosting]):
             + " "
             + func.coalesce(JobPosting.translation_summary, ""),
         )
+        stmt = _visible_to(
+            _active(select(JobPosting).where(ts_vector.op("@@")(ts_query))), viewer_id
+        )
         return await self._scalars(
-            _active(
-                select(JobPosting)
-                .where(ts_vector.op("@@")(ts_query))
-                .order_by(
-                    func.ts_rank(ts_vector, ts_query).desc(),
-                    JobPosting.created_at.desc(),
-                )
-                .offset(offset)
-                .limit(limit)
+            stmt.order_by(
+                func.ts_rank(ts_vector, ts_query).desc(),
+                JobPosting.created_at.desc(),
             )
+            .offset(offset)
+            .limit(limit)
         )
 
     async def soft_delete(self, job_id: UUID, user_id: UUID) -> bool:

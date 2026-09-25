@@ -810,3 +810,97 @@ async def test_delete_application_not_found_returns_404() -> None:
             )
 
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Who submitted a posting is not exposed; whether it is yours is
+# ---------------------------------------------------------------------------
+#
+# Postings are shared across users, and each response used to carry the
+# submitter's internal user id -- to everyone, for every posting, though the
+# client never read it. It let one user see which postings another account
+# had submitted. Responses now carry is_mine, relative to the caller.
+#
+# Which rows a caller may see at all is decided in SQL and tested against
+# real Postgres in tests/integration/test_job_posting_visibility.py; these
+# tests pin the response shape, and that each route hands the lookup its
+# viewer.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("own", [True, False])
+async def test_get_job_says_whether_the_posting_is_the_callers(own: bool) -> None:
+    user = make_user()
+    job = _mock_job(submitted_by=user.id if own else uuid.uuid4())
+    get_active = AsyncMock(return_value=job)
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.jobs.JobPostingRepository.get_active", new=get_active),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(f"/api/v1/jobs/{job.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["is_mine"] is own
+    assert "submitted_by" not in resp.json()
+    assert get_active.await_args.kwargs["viewer_id"] == user.id
+
+
+@pytest.mark.asyncio
+async def test_list_jobs_never_exposes_who_submitted_anything() -> None:
+    user = make_user()
+    mine, theirs = _mock_job(submitted_by=user.id), _mock_job()
+    list_active = AsyncMock(return_value=[mine, theirs])
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.jobs.JobPostingRepository.list_active", new=list_active),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/v1/jobs", headers=_auth_headers())
+
+    items = resp.json()["items"]
+    assert [item["is_mine"] for item in items] == [True, False]
+    assert all("submitted_by" not in item for item in items)
+    assert list_active.await_args.kwargs["viewer_id"] == user.id
+
+
+@pytest.mark.asyncio
+async def test_search_hands_the_viewer_to_the_lookup() -> None:
+    # search builds its own statement; a route that forgot the viewer here
+    # would reopen someone else's pasted postings to keyword search.
+    user = make_user()
+    search = AsyncMock(return_value=[])
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.jobs.JobPostingRepository.search", new=search),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.get("/api/v1/jobs?q=engineer", headers=_auth_headers())
+
+    assert search.await_args.kwargs["viewer_id"] == user.id
+
+
+@pytest.mark.asyncio
+async def test_a_cached_translation_says_whose_it_is() -> None:
+    # A cache hit returns a posting someone else may have submitted.
+    user = make_user()
+    cached = _mock_job()
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.jobs.JobPostingRepository.get_by_url", new=AsyncMock(return_value=cached)
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/jobs/translate",
+                json={"source_url": cached.source_url, "raw_text": "x" * 60},
+                headers=_auth_headers(),
+            )
+
+    assert resp.json()["is_mine"] is False
+    assert "submitted_by" not in resp.json()

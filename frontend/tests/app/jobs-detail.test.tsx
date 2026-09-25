@@ -62,7 +62,7 @@ const JOB: JobPostingDetail = {
   foreigner_friendliness_score: 85,
   structured_data: STRUCTURED,
   cached_until: null,
-  submitted_by: null,
+  is_mine: false,
   created_at: "2026-09-22T00:00:00Z",
   original_description: "原文",
   translated_description: "The translated posting body.",

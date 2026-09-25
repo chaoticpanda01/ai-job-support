@@ -30,7 +30,12 @@ class JobPostingResponse(_Base):
     foreigner_friendliness_score: float | None
     structured_data: dict[str, Any] | None
     cached_until: datetime | None
-    submitted_by: UUID | None
+    # Whether the caller submitted this posting -- computed per request by
+    # _posting_response in api/v1/jobs.py. Replaces the submitter's user id,
+    # which every caller received for every posting in the shared pool and
+    # which the client never used: it only let one user see which postings
+    # another account had submitted.
+    is_mine: bool = False
     created_at: datetime
 
 

@@ -774,9 +774,9 @@ export const translations = {
     },
     sourceUrl: { en: "Source URL", id: "URL Sumber", ja: "ソースURL" },
     sourceUrlHint: {
-      en: "Used to detect duplicate translations. We do not fetch the URL.",
-      id: "Digunakan untuk mendeteksi terjemahan duplikat. Kami tidak mengambil konten URL.",
-      ja: "重複翻訳の検出に使用します。URLのコンテンツは取得しません。",
+      en: "With a URL, the posting and its translation are shared with other users. Without one, only you can see it. We do not fetch the URL.",
+      id: "Dengan URL, lowongan dan terjemahannya dibagikan dengan pengguna lain. Tanpa URL, hanya kamu yang bisa melihatnya. Kami tidak mengambil konten URL.",
+      ja: "URLを入力すると、求人と翻訳は他のユーザーにも共有されます。URLがない場合はあなただけが閲覧できます。URLのコンテンツは取得しません。",
     },
     jobText: { en: "Job posting text", id: "Teks lowongan kerja", ja: "求人テキスト" },
     jobTextPlaceholder: {

@@ -262,7 +262,8 @@ export interface JobPosting {
   foreigner_friendliness_score: number | null;
   structured_data: JobStructuredData | null;
   cached_until: string | null;
-  submitted_by: string | null;
+  /** Whether the caller submitted this posting. Other users' ids are not exposed. */
+  is_mine: boolean;
   created_at: string;
 }
 

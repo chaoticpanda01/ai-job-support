@@ -26,7 +26,6 @@ Thumbs.db
 .claude/settings.local.json
 
 # --- Sensitive documents (never commit) ---
-Security_Vulnerability_Report_EN.xlsx
 脆弱性診断レポート.xlsx
 
 # =============================================================================
