@@ -29,6 +29,7 @@ from app.models.enums import (
     DocumentType,
 )
 from app.repositories.document import DocumentRepository
+from app.repositories.job import JobPostingRepository
 from app.schemas.document import (
     CreateRirekishoRequest,
     CreateShokumuRequest,
@@ -103,6 +104,43 @@ def _stored_error_code(doc: GeneratedDocument) -> DocumentErrorCode:
         return DocumentErrorCode.unknown
 
 
+async def _job_context(
+    job_posting_id: UUID | None, user_id: UUID, db: AsyncSession
+) -> dict[str, str] | None:
+    """
+    The job posting a document is tailored to, snapshotted for the generator.
+
+    The generator reads the posting's text from job_context; this used to store
+    only the id, so every "tailored" document was generated as if no posting
+    had been given.
+
+    The lookup goes through get_active's visibility rule on purpose, and must
+    not become an unscoped get: a posting pasted without a URL is private to
+    whoever pasted it, and anything loaded here ends up in the prompt and can
+    be read back out of the generated PDF. A posting that doesn't exist and one
+    the user can't see both get the same 404, so the response can't be used to
+    probe which ids exist.
+
+    Snapshotting at creation, rather than loading in the background task, puts
+    that check inside the user's own request -- it fails before anything is
+    queued -- and keeps the document tied to the posting as it was when asked
+    for, even if the posting is deleted before generation runs.
+    """
+    if job_posting_id is None:
+        return None
+    job = await JobPostingRepository(db).get_active(job_posting_id, viewer_id=user_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found")
+    if not job.translated_description:
+        # Same precondition the match endpoint enforces: there is nothing to
+        # tailor to until the posting has been translated.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Job posting has no translation to tailor to",
+        )
+    return {"job_posting_id": str(job.id), "translated_description": job.translated_description}
+
+
 def _status_response(doc: GeneratedDocument, now: datetime) -> DocumentStatusResponse:
     doc_status, error_code = _effective_state(doc, now)
     return DocumentStatusResponse(
@@ -153,9 +191,7 @@ async def create_rirekisho(
     """Enqueue 履歴書 (rirekisho) generation. Poll GET /documents/{id} for status."""
     from app.workers.document_tasks import _run_generation
 
-    job_context: dict[str, str] | None = None
-    if body.job_posting_id is not None:
-        job_context = {"job_posting_id": str(body.job_posting_id)}
+    job_context = await _job_context(body.job_posting_id, current_user.user_id, db)
 
     doc = GeneratedDocument(
         id=uuid4(),
@@ -195,9 +231,7 @@ async def create_shokumu(
     """Enqueue 職務経歴書 (shokumukeirekisho) generation. Poll GET /documents/{id} for status."""
     from app.workers.document_tasks import _run_generation
 
-    job_context: dict[str, str] | None = None
-    if body.job_posting_id is not None:
-        job_context = {"job_posting_id": str(body.job_posting_id)}
+    job_context = await _job_context(body.job_posting_id, current_user.user_id, db)
 
     doc = GeneratedDocument(
         id=uuid4(),

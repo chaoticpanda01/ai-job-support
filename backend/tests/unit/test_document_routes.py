@@ -126,21 +126,31 @@ async def test_create_rirekisho_returns_pending_status() -> None:
 
 @pytest.mark.asyncio
 async def test_create_rirekisho_with_job_posting_id() -> None:
+    # This used to post a random, nonexistent posting id and expect 202: any
+    # id was stored untouched and the posting never loaded, which is why
+    # tailoring did nothing. The posting is now looked up as the caller, so
+    # the id has to resolve to one they can see. Which postings they can see
+    # is tested against real Postgres in
+    # tests/integration/test_document_job_tailoring.py.
     user = make_user()
+    posting = MagicMock(id=uuid.uuid4(), translated_description="the posting text")
+    get_active = AsyncMock(return_value=posting)
 
     with (
         _bypass_middleware(user),
         _fake_db_session(),
         patch("app.workers.document_tasks._run_generation", new=AsyncMock()),
+        patch("app.api.v1.documents.JobPostingRepository.get_active", new=get_active),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
                 "/api/v1/documents/rirekisho",
                 headers=_auth_headers(),
-                json={"resume_id": str(uuid.uuid4()), "job_posting_id": str(uuid.uuid4())},
+                json={"resume_id": str(uuid.uuid4()), "job_posting_id": str(posting.id)},
             )
 
     assert resp.status_code == 202
+    assert get_active.await_args.kwargs["viewer_id"] == user.id
 
 
 @pytest.mark.asyncio

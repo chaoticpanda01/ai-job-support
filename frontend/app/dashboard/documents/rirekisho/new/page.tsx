@@ -34,11 +34,19 @@ function NewRirekishoPageInner() {
     jobPostingId?: string,
     orientation?: DocumentOrientation,
   ) {
-    const result = await createMutation.mutateAsync({
-      resume_id: resumeId,
-      ...(jobPostingId ? { job_posting_id: jobPostingId } : {}),
-      ...(orientation ? { orientation } : {}),
-    });
+    let result;
+    try {
+      result = await createMutation.mutateAsync({
+        resume_id: resumeId,
+        ...(jobPostingId ? { job_posting_id: jobPostingId } : {}),
+        ...(orientation ? { orientation } : {}),
+      });
+    } catch {
+      // The wizard shows the failure from createMutation.error. Caught only
+      // so a refused create -- a job posting id the reader can't see, say --
+      // isn't also an unhandled rejection in the console.
+      return;
+    }
     router.push(`/dashboard/documents/${result.id}`);
   }
 

@@ -27,10 +27,16 @@ function NewShokumuPageInner() {
   const { lang } = useLang();
 
   async function handleSubmit(resumeId: string, jobPostingId?: string) {
-    const result = await createMutation.mutateAsync({
-      resume_id: resumeId,
-      ...(jobPostingId ? { job_posting_id: jobPostingId } : {}),
-    });
+    let result;
+    try {
+      result = await createMutation.mutateAsync({
+        resume_id: resumeId,
+        ...(jobPostingId ? { job_posting_id: jobPostingId } : {}),
+      });
+    } catch {
+      // See the note in the rirekisho page's handleSubmit.
+      return;
+    }
     router.push(`/dashboard/documents/${result.id}`);
   }
 
