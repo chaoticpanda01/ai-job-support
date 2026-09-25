@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    ColumnElement,
     DateTime,
     ForeignKey,
     Index,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     desc,
+    or_,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -114,6 +116,30 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     applications: Mapped[list["JobApplication"]] = relationship(
         "JobApplication", back_populates="job_posting"
     )
+
+    def visible_to(self, viewer_id: UUID) -> bool:
+        """
+        Whether `viewer_id` may see this posting's content.
+
+        The pool is shared on purpose: a posting translated from a URL is a
+        public job ad, cached so the next person to submit that URL doesn't
+        spend an AI call. A posting pasted as text with no URL is whatever the
+        user had to hand -- often a scout email addressed to them by name -- so
+        it is visible to its submitter only. A pasted posting whose submitter's
+        account is deleted has a NULL submitted_by and so matches no viewer.
+
+        This is the rule for a posting already loaded, e.g. reached through a
+        tracker entry's relationship. visible_to_clause below is the same rule
+        as SQL, for filtering queries. The two must agree, and
+        tests/integration/test_job_posting_visibility.py checks that they do
+        against real rows.
+        """
+        return self.source_url is not None or self.submitted_by == viewer_id
+
+    @classmethod
+    def visible_to_clause(cls, viewer_id: UUID) -> ColumnElement[bool]:
+        """visible_to as a SQL condition. Must stay in step with visible_to."""
+        return or_(cls.source_url.is_not(None), cls.submitted_by == viewer_id)
 
 
 class JobMatch(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):

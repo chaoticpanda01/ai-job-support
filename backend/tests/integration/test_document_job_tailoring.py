@@ -14,9 +14,9 @@ without a URL is private to whoever pasted it, and anything the generator is
 given ends up in the prompt and can be read back out of the PDF, so the
 lookup must go through the visibility-scoped get_active.
 
-Seeding and the auth bypass come from the rirekisho end-to-end test rather
-than being copied. Postings are deleted explicitly: job_postings.submitted_by
-is ON DELETE SET NULL, so deleting the users would leave them behind.
+Seeding and the auth bypass come from tests/integration/_helpers.py.
+Postings are deleted explicitly: job_postings.submitted_by is ON DELETE
+SET NULL, so deleting the users would leave them behind.
 Generated documents cascade with their user.
 """
 
@@ -39,11 +39,11 @@ from app.services.file_storage import file_storage
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, select
 
-from tests.integration.test_rirekisho_generation_e2e import (
-    _auth_headers,
-    _bypass_middleware,
-    _cleanup_user,
-    _seed_complete_profile_user,
+from tests.integration._helpers import (
+    auth_headers,
+    bypass_middleware,
+    cleanup_user,
+    seed_complete_profile_user,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -80,32 +80,46 @@ def _posting(submitted_by: uuid.UUID, *, url: str | None, text: str | None) -> J
 @pytest.fixture
 async def world() -> AsyncIterator[_World]:
     w = _World()
-    me, resume, _ = await _seed_complete_profile_user(with_photo=False)
+    me, resume, _ = await seed_complete_profile_user(with_photo=False)
     w.me, w.resume_id = me, resume.id
+    posting_ids: list[uuid.UUID] = []
+    other_id: uuid.UUID | None = None
 
-    async with AsyncSessionFactory() as session:
-        other = User(clerk_id=f"clerk_{w.token}", email=f"{w.token}@example.com")
-        session.add(other)
-        await session.flush()
-        w.other_id = other.id
+    # Everything from here on is undone in the finally, including a setup that
+    # fails partway: the seeded user is already committed by then, and without
+    # this a failure while inserting postings would leave it in the database.
+    try:
+        async with AsyncSessionFactory() as session:
+            other = User(clerk_id=f"clerk_{w.token}", email=f"{w.token}@example.com")
+            session.add(other)
+            await session.flush()
+            other_id = w.other_id = other.id
 
-        shared = _posting(other.id, url=f"https://example.test/{w.token}", text=w.text("shared"))
-        their_paste = _posting(other.id, url=None, text=w.text("theirs"))
-        my_paste = _posting(me.id, url=None, text=w.text("mine"))
-        untranslated = _posting(me.id, url=None, text=None)
-        session.add_all([shared, their_paste, my_paste, untranslated])
-        await session.commit()
-        w.shared, w.their_paste = shared.id, their_paste.id
-        w.my_paste, w.untranslated = my_paste.id, untranslated.id
+            shared = _posting(
+                other.id, url=f"https://example.test/{w.token}", text=w.text("shared")
+            )
+            their_paste = _posting(other.id, url=None, text=w.text("theirs"))
+            my_paste = _posting(me.id, url=None, text=w.text("mine"))
+            untranslated = _posting(me.id, url=None, text=None)
+            session.add_all([shared, their_paste, my_paste, untranslated])
+            await session.commit()
+            w.shared, w.their_paste = shared.id, their_paste.id
+            w.my_paste, w.untranslated = my_paste.id, untranslated.id
+            posting_ids = [w.shared, w.their_paste, w.my_paste, w.untranslated]
 
-    yield w
-
-    async with AsyncSessionFactory() as session:
-        ids = [w.shared, w.their_paste, w.my_paste, w.untranslated]
-        await session.execute(delete(JobPosting).where(JobPosting.id.in_(ids)))
-        await session.execute(delete(User).where(User.id == w.other_id))
-        await session.commit()
-    await _cleanup_user(me.id)
+        yield w
+    finally:
+        try:
+            async with AsyncSessionFactory() as session:
+                if posting_ids:
+                    await session.execute(delete(JobPosting).where(JobPosting.id.in_(posting_ids)))
+                if other_id is not None:
+                    await session.execute(delete(User).where(User.id == other_id))
+                await session.commit()
+        finally:
+            # Runs even if the block above raises, so the seeded user never
+            # outlives the test.
+            await cleanup_user(me.id)
 
 
 async def _create(w: _World, endpoint: str, job_posting_id: uuid.UUID | None) -> tuple[int, dict]:
@@ -114,14 +128,14 @@ async def _create(w: _World, endpoint: str, job_posting_id: uuid.UUID | None) ->
     if job_posting_id is not None:
         body["job_posting_id"] = str(job_posting_id)
     with (
-        _bypass_middleware(w.me),
+        bypass_middleware(w.me),
         # Generation is covered by the chain test; here only what the route
         # decides and stores matters.
         patch("app.workers.document_tasks._run_generation", new=AsyncMock()),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
-                f"/api/v1/documents/{endpoint}", json=body, headers=_auth_headers()
+                f"/api/v1/documents/{endpoint}", json=body, headers=auth_headers()
             )
     return resp.status_code, resp.json()
 
@@ -163,7 +177,7 @@ async def test_a_tailored_document_puts_the_posting_in_the_prompt(
         raise AIError("stop after capturing the prompt")
 
     with (
-        _bypass_middleware(world.me),
+        bypass_middleware(world.me),
         patch.object(usage_tracker, "check_budget", new=AsyncMock()),
         patch.object(ai_client, "generate", new=capture),
         patch.object(file_storage, "download", return_value=b"%PDF-1.4 resume"),
@@ -173,7 +187,7 @@ async def test_a_tailored_document_puts_the_posting_in_the_prompt(
             resp = await client.post(
                 f"/api/v1/documents/{endpoint}",
                 json={"resume_id": str(world.resume_id), "job_posting_id": str(world.shared)},
-                headers=_auth_headers(),
+                headers=auth_headers(),
             )
 
     assert resp.status_code == 202

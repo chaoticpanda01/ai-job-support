@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class _Base(BaseModel):
@@ -42,6 +43,8 @@ class JobPostingResponse(_Base):
 class JobPostingDetailResponse(JobPostingResponse):
     """Includes full translated description — omitted from list views for size."""
 
+    # The raw pasted text -- returned to its submitter only; None for
+    # everyone else (see _posting_response in api/v1/jobs.py).
     original_description: str | None
     translated_description: str | None
 
@@ -66,6 +69,26 @@ class TranslateJobRequest(_Base):
         max_length=20_000,
         description="Raw text pasted from the job posting page",
     )
+
+    @field_validator("source_url", mode="before")
+    @classmethod
+    def _normalise_source_url(cls, value: object) -> object:
+        """
+        Having a URL is what makes a posting public (JobPosting.visible_to),
+        so the server decides what counts as one instead of trusting the
+        browser's type="url". Blank means no URL, so the posting stays private
+        rather than being published under an empty string; anything else must
+        be an http(s) address.
+        """
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if not value:
+            return None
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError("source_url must be an http or https URL")
+        return value
 
 
 # ---------------------------------------------------------------------------

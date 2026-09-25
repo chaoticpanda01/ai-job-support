@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ApplicationStatus
@@ -20,17 +20,8 @@ def _active(stmt: Select[tuple[JobPosting]]) -> Select[tuple[JobPosting]]:
 
 
 def _visible_to(stmt: Select[tuple[JobPosting]], viewer_id: UUID) -> Select[tuple[JobPosting]]:
-    """
-    Limit postings to those `viewer_id` may see.
-
-    The pool is shared on purpose: a posting translated from a URL is a public
-    job ad, and sharing it means the next person who submits that URL gets the
-    cached translation instead of spending an AI call (see get_by_url). A
-    posting pasted as text with no URL is different -- it is whatever the user
-    had to hand, which is often a scout email addressed to them by name -- so
-    it stays visible to its submitter only.
-    """
-    return stmt.where(or_(JobPosting.source_url.is_not(None), JobPosting.submitted_by == viewer_id))
+    """Limit postings to those `viewer_id` may see -- see JobPosting.visible_to."""
+    return stmt.where(JobPosting.visible_to_clause(viewer_id))
 
 
 class JobPostingRepository(BaseRepository[JobPosting]):

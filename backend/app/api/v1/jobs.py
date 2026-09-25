@@ -53,10 +53,20 @@ _R = TypeVar("_R", bound=JobPostingResponse)
 
 def _posting_response(model: type[_R], job: JobPosting, viewer_id: UUID) -> _R:
     """
-    Build a posting response with is_mine set for this viewer. Every response
-    that carries a posting goes through here, so no path can forget it.
+    Build a posting response for this viewer. Every response that carries a
+    posting goes through here, so no path can forget either of these:
+
+    - is_mine, in place of the submitter's user id.
+    - original_description, the raw pasted text, only for its submitter. A
+      shared posting is shared for its translation; the paste is whatever
+      the user had to hand, and a scout email pasted together with its link
+      would otherwise publish their name to everyone.
     """
-    return model.model_validate(job).model_copy(update={"is_mine": job.submitted_by == viewer_id})
+    mine = job.submitted_by == viewer_id
+    update: dict[str, object] = {"is_mine": mine}
+    if not mine and issubclass(model, JobPostingDetailResponse):
+        update["original_description"] = None
+    return model.model_validate(job).model_copy(update=update)
 
 
 _TRANSLATION_MAX_TOKENS = 8192
@@ -242,8 +252,19 @@ async def list_jobs(
 
 
 def _application_response(app: JobApplication) -> JobApplicationResponse:
-    """Build response with denormalised posting title/company."""
+    """
+    Build response with denormalised posting title/company.
+
+    The posting arrives through a relationship, which no query-level filter
+    reaches, so visibility is checked here. Without it a tracker entry made
+    before postings were scoped -- when every paste was visible to everyone --
+    would keep showing the title and company of someone else's private paste.
+    The entry itself stays: it is the viewer's own record of applying.
+    Checked against the application's owner, who is always the caller.
+    """
     posting = getattr(app, "job_posting", None)
+    if posting is not None and not posting.visible_to(app.user_id):
+        posting = None
     return JobApplicationResponse(
         id=app.id,
         user_id=app.user_id,

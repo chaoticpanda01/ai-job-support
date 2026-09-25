@@ -29,28 +29,25 @@ from __future__ import annotations
 
 import base64
 import json
-import time
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
-from datetime import date
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.database import AsyncSessionFactory
 from app.main import app
-from app.middleware import clerk_auth as clerk_auth_module
 from app.models.document import GeneratedDocument
-from app.models.enums import DocumentStatus, Gender
-from app.models.resume import Resume
-from app.models.user import Profile, User
+from app.models.enums import DocumentStatus
 from app.services.ai.client import ai_client
 from app.services.file_storage import file_storage
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
-_FAKE_JWKS: dict[str, Any] = {"keys": []}
+from tests.integration._helpers import (
+    auth_headers,
+    bypass_middleware,
+    cleanup_user,
+    seed_complete_profile_user,
+)
 
 # Same tiny valid JPEG already used in backend/tests/unit/test_document_generator.py's
 # WeasyPrint image-embedding regression test.
@@ -65,76 +62,6 @@ _TEST_JPEG_BYTES = base64.b64decode(_TEST_JPEG_BASE64)
 _MAX_POLL_ATTEMPTS = 5
 
 
-def _auth_headers() -> dict[str, str]:
-    return {"Authorization": "Bearer valid_token"}
-
-
-@contextmanager
-def _bypass_middleware(user: User) -> Iterator[None]:
-    """
-    Let the real ClerkJWTMiddleware run, mocking only its network/DB-lookup
-    boundary (_resolve_user) so it resolves to the given real, DB-backed
-    user without a real Clerk round-trip. Mirrors
-    tests/unit/test_document_routes.py's _bypass_middleware.
-    """
-    claims = {"sub": user.clerk_id, "email": user.email, "exp": int(time.time()) + 3600}
-    with (
-        patch.object(clerk_auth_module, "_get_jwks", new=AsyncMock(return_value=_FAKE_JWKS)),
-        patch("app.middleware.clerk_auth._validate_token", new=AsyncMock(return_value=claims)),
-        patch("app.middleware.clerk_auth._resolve_user", new=AsyncMock(return_value=user)),
-    ):
-        yield
-
-
-async def _seed_complete_profile_user(*, with_photo: bool) -> tuple[User, Resume, str | None]:
-    """
-    Insert a real User + Profile (complete enough to pass
-    rirekisho_missing_fields()) + Resume, directly via the app's own
-    session factory. Returns the persisted User, Resume, and the photo
-    storage key (or None) -- returned directly rather than via
-    user.profile.photo_storage_key, since the session (and the object's
-    relationship-loading capability) closes at the end of this function;
-    accessing an unloaded relationship on a detached async ORM object
-    later would raise DetachedInstanceError.
-    """
-    unique = uuid.uuid4().hex
-    photo_storage_key = f"photos/{unique}/photo.jpg" if with_photo else None
-    async with AsyncSessionFactory() as session:
-        user = User(
-            clerk_id=f"clerk_e2e_test_{unique}",
-            email=f"e2e-{unique}@example.com",
-            full_name="山田 太郎",
-            email_verified=True,
-        )
-        session.add(user)
-        await session.flush()
-
-        profile = Profile(
-            user_id=user.id,
-            name_kana="ヤマダ タロウ",
-            date_of_birth=date(1990, 1, 15),
-            gender=Gender.male,
-            phone_number="090-1234-5678",
-            mailing_address="東京都渋谷区1-2-3",
-            photo_storage_key=photo_storage_key,
-        )
-        session.add(profile)
-
-        resume = Resume(
-            user_id=user.id,
-            file_name="resume.pdf",
-            file_url=f"resumes/{unique}/resume.pdf",
-            file_size_bytes=12345,
-            mime_type="application/pdf",
-        )
-        session.add(resume)
-
-        await session.commit()
-        await session.refresh(user)
-        await session.refresh(resume)
-        return user, resume, photo_storage_key
-
-
 async def _fetch_document_row(document_id: uuid.UUID) -> GeneratedDocument | None:
     """
     Independently re-reads the GeneratedDocument row via a fresh session,
@@ -147,13 +74,6 @@ async def _fetch_document_row(document_id: uuid.UUID) -> GeneratedDocument | Non
             select(GeneratedDocument).where(GeneratedDocument.id == document_id)
         )
         return result.scalar_one_or_none()
-
-
-async def _cleanup_user(user_id: uuid.UUID) -> None:
-    """Deletes the User row -- cascades (ondelete=CASCADE) to Profile/Resume/GeneratedDocument."""
-    async with AsyncSessionFactory() as session:
-        await session.execute(delete(User).where(User.id == user_id))
-        await session.commit()
 
 
 def _mock_ai_generate() -> AsyncMock:
@@ -202,7 +122,7 @@ async def _create_and_await_completion(
     """
     create_resp = await client.post(
         "/api/v1/documents/rirekisho",
-        headers=_auth_headers(),
+        headers=auth_headers(),
         json={"resume_id": str(resume_id), "orientation": orientation},
     )
     assert create_resp.status_code == 202
@@ -212,14 +132,14 @@ async def _create_and_await_completion(
     for _ in range(_MAX_POLL_ATTEMPTS):
         if status == DocumentStatus.completed.value:
             break
-        poll_resp = await client.get(f"/api/v1/documents/{document_id}", headers=_auth_headers())
+        poll_resp = await client.get(f"/api/v1/documents/{document_id}", headers=auth_headers())
         status = poll_resp.json()["status"]
     assert status == DocumentStatus.completed.value, (
         f"generation did not complete, final status={status!r}"
     )
 
     download_resp = await client.get(
-        f"/api/v1/documents/{document_id}/download", headers=_auth_headers()
+        f"/api/v1/documents/{document_id}/download", headers=auth_headers()
     )
     assert download_resp.status_code == 200
     assert download_resp.json()["download_url"] is not None
@@ -234,10 +154,10 @@ async def _create_and_await_completion(
     ids=["without_photo_portrait", "with_photo_portrait", "with_photo_landscape"],
 )
 async def test_generate_rirekisho_end_to_end(with_photo: bool, orientation: str) -> None:
-    user, resume, photo_key = await _seed_complete_profile_user(with_photo=with_photo)
+    user, resume, photo_key = await seed_complete_profile_user(with_photo=with_photo)
     try:
         with (
-            _bypass_middleware(user),
+            bypass_middleware(user),
             patch.object(ai_client, "generate", new=_mock_ai_generate()),
             patch.object(file_storage, "download", new=_mock_file_storage_download(photo_key)),
             patch("app.services.document_generator.extract_text", return_value="resume text"),
@@ -274,4 +194,4 @@ async def test_generate_rirekisho_end_to_end(with_photo: bool, orientation: str)
             box = reader.pages[0].mediabox
             assert box.width > box.height
     finally:
-        await _cleanup_user(user.id)
+        await cleanup_user(user.id)

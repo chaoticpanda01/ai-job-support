@@ -615,3 +615,77 @@ def test_analysis_status_response_has_a_code_exactly_when_failed(
 ) -> None:
     with pytest.raises(ValidationError):
         AnalysisStatusResponse.model_validate({"status": status, "error_code": code})
+
+
+# ---------------------------------------------------------------------------
+# A job posting id on an analysis request must be one the caller can see
+# ---------------------------------------------------------------------------
+#
+# The analysis doesn't load the posting today; the id is only stored. It is
+# checked anyway, through the same visibility-scoped lookup documents use, so
+# a later change that does put the posting into the prompt can't become a way
+# to read someone else's private paste. Which postings are visible is tested
+# against real Postgres in tests/integration/test_job_posting_visibility.py.
+
+
+@pytest.mark.asyncio
+async def test_analyze_refuses_a_posting_the_caller_cannot_see() -> None:
+    user = make_user()
+    resume = _mock_resume(user_id=user.id)
+    get_active = AsyncMock(return_value=None)
+    mark_pending = AsyncMock(return_value=datetime.now(tz=UTC))
+    run_analysis = AsyncMock()
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(),
+        patch("app.api.v1.resumes.ResumeRepository.get_owned", new=AsyncMock(return_value=resume)),
+        patch("app.api.v1.resumes.JobPostingRepository.get_active", new=get_active),
+        patch("app.api.v1.resumes.ResumeRepository.mark_analysis_pending", new=mark_pending),
+        patch("app.workers.analysis_tasks._run_analysis", new=run_analysis),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                f"/api/v1/resumes/{resume.id}/analyze",
+                headers=_auth_headers(),
+                json={"language": "ja", "job_posting_id": str(uuid.uuid4())},
+            )
+
+    assert resp.status_code == 404
+    assert get_active.await_args.kwargs["viewer_id"] == user.id
+    # Refused before the resume was marked pending, so nothing is left
+    # showing "analysing" for a request that never ran.
+    mark_pending.assert_not_awaited()
+    run_analysis.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_analyze_accepts_a_posting_the_caller_can_see() -> None:
+    user = make_user()
+    resume = _mock_resume(user_id=user.id)
+
+    with (
+        _bypass_middleware(user),
+        _fake_db_session() as session,
+        patch("app.api.v1.resumes.ResumeRepository.get_owned", new=AsyncMock(return_value=resume)),
+        patch(
+            "app.api.v1.resumes.JobPostingRepository.get_active",
+            new=AsyncMock(return_value=MagicMock()),
+        ),
+        patch(
+            "app.api.v1.resumes.ResumeRepository.mark_analysis_pending",
+            new=AsyncMock(return_value=datetime.now(tz=UTC)),
+        ),
+        patch("app.workers.analysis_tasks._run_analysis", new=AsyncMock()),
+    ):
+        # The fake session's commit isn't awaitable by default; the route
+        # commits before queueing the analysis.
+        session.commit = AsyncMock()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                f"/api/v1/resumes/{resume.id}/analyze",
+                headers=_auth_headers(),
+                json={"language": "ja", "job_posting_id": str(uuid.uuid4())},
+            )
+
+    assert resp.status_code == 202

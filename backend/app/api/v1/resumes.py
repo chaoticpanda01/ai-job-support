@@ -24,6 +24,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFi
 from app.dependencies import AuthUser, DbSession
 from app.models.enums import AnalysisErrorCode, AnalysisStatus
 from app.models.resume import Resume
+from app.repositories.job import JobPostingRepository
 from app.repositories.resume import ResumeAnalysisRepository, ResumeRepository
 from app.schemas.resume import (
     AnalysisStatusResponse,
@@ -247,6 +248,22 @@ async def analyze_resume(
     resume = await repo.get_owned(resume_id, current_user.user_id)
     if resume is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    # The analysis never loads the posting today -- the id is only stored and
+    # echoed back -- but it must still be one the caller can see. Checking it
+    # here, through the visibility-scoped lookup, means a later change that
+    # does load it into the prompt can't become a way to read someone else's
+    # private paste, and a hidden id answers exactly like a missing one. It
+    # runs before the resume is marked pending, so a refused request leaves
+    # no analysis stuck in progress.
+    if body.job_posting_id is not None:
+        posting = await JobPostingRepository(db).get_active(
+            body.job_posting_id, viewer_id=current_user.user_id
+        )
+        if posting is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Job posting not found"
+            )
 
     requested_at = await repo.mark_analysis_pending(resume)
     # Commit before queueing: the task reads the request in its own DB session.

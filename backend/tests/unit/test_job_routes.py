@@ -21,12 +21,14 @@ from app.database import get_db
 from app.main import app
 from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import ApplicationStatus, JapaneseLevel
+from app.schemas.job import TranslateJobRequest
 from app.services.ai.client import AIError
 from app.services.ai.response_parser import ResponseParseError
 from app.services.ai.usage_tracker import AIBudgetError
 from app.services.file_storage import StorageError
 from app.services.resume_parser import ParseError
 from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
 
 from tests.conftest import make_profile, make_user
 
@@ -904,3 +906,97 @@ async def test_a_cached_translation_says_whose_it_is() -> None:
 
     assert resp.json()["is_mine"] is False
     assert "submitted_by" not in resp.json()
+
+
+# ---------------------------------------------------------------------------
+# The raw paste goes to its submitter only
+# ---------------------------------------------------------------------------
+#
+# A shared posting is shared for its translation. original_description is
+# whatever the user pasted -- a scout email pasted with its link would
+# otherwise publish their name to everyone who opens the posting.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("own", [True, False])
+async def test_the_raw_paste_is_returned_to_its_submitter_only(own: bool) -> None:
+    user = make_user()
+    job = _mock_job(submitted_by=user.id if own else uuid.uuid4())
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.jobs.JobPostingRepository.get_active", new=AsyncMock(return_value=job)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(f"/api/v1/jobs/{job.id}", headers=_auth_headers())
+
+    body = resp.json()
+    assert body["original_description"] == (job.original_description if own else None)
+    # The translation is what is shared, and stays.
+    assert body["translated_description"] == job.translated_description
+
+
+@pytest.mark.asyncio
+async def test_a_cached_translation_does_not_carry_someone_elses_paste() -> None:
+    user = make_user()
+    cached = _mock_job()
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.jobs.JobPostingRepository.get_by_url", new=AsyncMock(return_value=cached)
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/jobs/translate",
+                json={"source_url": cached.source_url, "raw_text": "x" * 60},
+                headers=_auth_headers(),
+            )
+
+    assert resp.json()["original_description"] is None
+
+
+# ---------------------------------------------------------------------------
+# What counts as a URL is decided by the server
+# ---------------------------------------------------------------------------
+#
+# Having a URL is what makes a posting public, so the browser's type="url"
+# can't be the only check: a direct API call could otherwise publish its own
+# paste under "" or "n/a".
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_a_blank_url_means_no_url(blank: str) -> None:
+    req = TranslateJobRequest(source_url=blank, raw_text="x" * 60)
+    assert req.source_url is None
+
+
+def test_a_url_is_trimmed() -> None:
+    req = TranslateJobRequest(
+        source_url="  https://jp.indeed.com/viewjob?jk=abc  ", raw_text="x" * 60
+    )
+    # Trimmed, but otherwise untouched: the query string is often the job's
+    # identity (Indeed's jk=), so it is part of the cache key.
+    assert req.source_url == "https://jp.indeed.com/viewjob?jk=abc"
+
+
+@pytest.mark.parametrize("bad", ["n/a", "ftp://example.test/job", "https://", "example.test/job"])
+def test_anything_but_an_http_url_is_refused(bad: str) -> None:
+    with pytest.raises(ValidationError):
+        TranslateJobRequest(source_url=bad, raw_text="x" * 60)
+
+
+@pytest.mark.asyncio
+async def test_the_translate_route_refuses_a_non_url() -> None:
+    user = make_user()
+
+    with _bypass_middleware(user):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/jobs/translate",
+                json={"source_url": "n/a", "raw_text": "x" * 60},
+                headers=_auth_headers(),
+            )
+
+    assert resp.status_code == 422
