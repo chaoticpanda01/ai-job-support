@@ -34,10 +34,11 @@ from app.main import app
 from app.models.enums import JobSourcePlatform, OriginalLanguage
 from app.models.job import JobPosting
 from app.models.user import User
+from app.repositories.job import JobPostingRepository
 from app.services.ai.client import ai_client
 from app.services.ai.usage_tracker import usage_tracker
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from tests.integration._helpers import auth_headers, bypass_middleware
 
@@ -243,3 +244,95 @@ async def test_a_deleted_posting_for_the_url_is_left_alone(world: _World) -> Non
     rows = {r.id: r for r in await _rows(world)}
     assert len(rows) == 2
     assert rows[world.posting].deleted_at is not None
+
+
+async def test_a_refresh_records_the_ai_call_it_made(world: _World) -> None:
+    # The refresh spends a real AI call in production, so it has to count
+    # against the budget like any other translation.
+    await _seed_posting(world, cached_until=_EXPIRED)
+    record = AsyncMock()
+
+    with (
+        bypass_middleware(world.bob),
+        patch.object(ai_client, "generate", new=_fresh_generate()),
+        patch.object(usage_tracker, "check_budget", new=AsyncMock()),
+        patch.object(usage_tracker, "record", new=record),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post(
+                "/api/v1/jobs/translate",
+                json={"source_url": world.url, "raw_text": _PASTE},
+                headers=auth_headers(),
+            )
+
+    record.assert_awaited_once()
+    assert record.await_args.kwargs["feature"] == "job_translation"
+
+
+async def test_a_deleted_submitters_paste_is_cleared_on_refresh(world: _World) -> None:
+    # submitted_by goes NULL when the account is deleted. Nobody can be shown
+    # that paste any more, so a refresh drops it rather than keeping personal
+    # data no one owns.
+    await _seed_posting(world, cached_until=_EXPIRED)
+    async with AsyncSessionFactory() as session:
+        await session.execute(delete(User).where(User.id == world.alice.id))
+        await session.commit()
+
+    status, _ = await _translate(world, world.bob, _fresh_generate())
+
+    assert status == 201
+    row = (await _rows(world))[0]
+    assert row.submitted_by is None
+    assert row.original_description is None
+
+
+async def test_a_posting_deleted_during_the_refresh_is_not_revived(world: _World) -> None:
+    # The AI call is the window: the route has read the expired row and is
+    # waiting on the model when the submitter deletes it. Refreshing it
+    # anyway would hand back an id that 404s. The deletion freed the URL, so
+    # a new posting is created instead.
+    await _seed_posting(world, cached_until=_EXPIRED)
+
+    async def delete_during_the_call(*_: object, **__: object) -> tuple[str, int, int]:
+        async with AsyncSessionFactory() as session:
+            await session.execute(
+                update(JobPosting)
+                .where(JobPosting.id == world.posting)
+                .values(deleted_at=datetime.now(tz=UTC))
+            )
+            await session.commit()
+        return _translation("fresh title"), 100, 200
+
+    status, body = await _translate(world, world.bob, AsyncMock(side_effect=delete_during_the_call))
+
+    assert status == 201
+    assert body["id"] != str(world.posting)
+    rows = {r.id: r for r in await _rows(world)}
+    assert rows[world.posting].deleted_at is not None, "the deleted posting was revived"
+    new = rows[uuid.UUID(body["id"])]
+    assert new.deleted_at is None
+    assert new.translated_title == "fresh title"
+
+
+async def test_two_first_submitters_of_a_url_do_not_crash(world: _World) -> None:
+    # Two requests translate a URL nobody has submitted: both look it up, both
+    # find nothing, both insert, and the second hits the unique index. Here
+    # the first lookup is made to miss a row that exists -- the state the
+    # losing request is in -- so its insert collides. It should get the
+    # winning row, as a cache hit would, not a 500.
+    await _seed_posting(world, cached_until=_EXPIRED)
+    real_lookup = JobPostingRepository.get_holder_of_url
+    calls: list[str] = []
+
+    async def lookup_that_misses_once(self: JobPostingRepository, url: str) -> JobPosting | None:
+        calls.append(url)
+        if len(calls) == 1:
+            return None
+        return await real_lookup(self, url)
+
+    with patch.object(JobPostingRepository, "get_holder_of_url", new=lookup_that_misses_once):
+        status, body = await _translate(world, world.bob, _fresh_generate())
+
+    assert status == 201
+    assert body["id"] == str(world.posting)
+    assert len(await _rows(world)) == 1

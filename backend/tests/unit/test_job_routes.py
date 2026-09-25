@@ -984,10 +984,60 @@ def test_a_url_is_trimmed() -> None:
     assert req.source_url == "https://jp.indeed.com/viewjob?jk=abc"
 
 
-@pytest.mark.parametrize("bad", ["n/a", "ftp://example.test/job", "https://", "example.test/job"])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "n/a",
+        "ftp://example.test/job",
+        "https://",
+        "example.test/job",
+        # No real host -- these got past the first version of the check.
+        "http://:80",
+        "http://@",
+        "https://exa mple.com/job",
+        "http://example.test:port/job",
+    ],
+)
 def test_anything_but_an_http_url_is_refused(bad: str) -> None:
     with pytest.raises(ValidationError):
         TranslateJobRequest(source_url=bad, raw_text="x" * 60)
+
+
+def test_a_url_with_credentials_is_refused() -> None:
+    # Having a URL makes the posting public, URL included -- so a
+    # user:password@ URL would publish those credentials to everyone.
+    with pytest.raises(ValidationError):
+        TranslateJobRequest(source_url="https://me:hunter2@example.test/job", raw_text="x" * 60)
+
+
+@pytest.mark.parametrize(
+    ("given", "stored"),
+    [
+        # One page, one cache entry: scheme and host are case-insensitive...
+        ("HTTPS://Jobs.Example.TEST/Backend", "https://jobs.example.test/Backend"),
+        # ...but the path and query are kept exactly, since they can matter.
+        ("https://jp.indeed.com/viewjob?jk=AbC", "https://jp.indeed.com/viewjob?jk=AbC"),
+        # A fragment never reaches the server, so it can't identify the page.
+        ("https://example.test/job#apply", "https://example.test/job"),
+        ("http://Example.test:8080/job", "http://example.test:8080/job"),
+        ("http://[::1]:8000/job", "http://[::1]:8000/job"),
+    ],
+)
+def test_a_url_is_stored_in_one_form(given: str, stored: str) -> None:
+    assert TranslateJobRequest(source_url=given, raw_text="x" * 60).source_url == stored
+
+
+def test_a_url_too_long_for_the_index_is_refused_by_its_size_in_bytes() -> None:
+    # Within the 2000-character limit, but these are three bytes each in UTF-8
+    # and don't repeat. Measured against Postgres: an incompressible 2721-byte
+    # source_url fails idx_job_postings_source_url with "index row size 2736
+    # exceeds btree version 4 maximum 2704" -- a 500. (A repetitive string
+    # would compress under the limit, which is why this one doesn't repeat.)
+    url = "https://example.test/" + "".join(chr(0x4E00 + i) for i in range(700))
+    assert len(url) < 2000
+    assert len(url.encode("utf-8")) > 2000
+    with pytest.raises(ValidationError):
+        TranslateJobRequest(source_url=url, raw_text="x" * 60)
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,8 @@
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Select, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ApplicationStatus
@@ -47,6 +47,51 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         return await self._scalar(
             _active(select(JobPosting).where(JobPosting.source_url == source_url))
         )
+
+    async def refresh_unless_deleted(self, job_id: UUID, **fields: Any) -> JobPosting | None:
+        """
+        Update a posting in place, unless it was soft-deleted since it was read.
+
+        The translate route reads the expired row, then spends seconds on the
+        AI call before writing. If the submitter deletes the posting in that
+        window, an unconditional update would refresh a deleted row and hand
+        back an id that 404s. The deleted_at check is in the same statement,
+        so the answer can't change between checking and writing. Returns None
+        when nothing was updated; the deleted row has freed its URL, so the
+        caller creates a new one.
+        """
+        stmt = (
+            update(JobPosting)
+            .where(JobPosting.id == job_id, JobPosting.deleted_at.is_(None))
+            .values(**fields)
+            .returning(JobPosting)
+            .execution_options(populate_existing=True)
+        )
+        result = await self.session.execute(stmt)
+        refreshed = result.scalar_one_or_none()
+        await self.session.flush()
+        return refreshed
+
+    async def create_or_get_holder(self, **fields: Any) -> JobPosting:
+        """
+        Insert a posting, or return the one that beat it to the same URL.
+
+        Two requests translating a URL nobody has submitted yet both miss the
+        cache and both insert; the second hits the unique index. The insert
+        runs in a savepoint so that conflict can be undone without losing the
+        request's transaction, and the caller gets the row that won -- a
+        fresh translation of the same URL, exactly what a cache hit returns.
+        Any other integrity error is re-raised.
+        """
+        try:
+            async with self.session.begin_nested():
+                return await self.create(**fields)
+        except IntegrityError:
+            source_url = fields.get("source_url")
+            holder = await self.get_holder_of_url(source_url) if source_url else None
+            if holder is None:
+                raise
+            return holder
 
     async def get_by_url(self, source_url: str) -> JobPosting | None:
         """Returns the active (non-deleted, non-expired) posting for a URL."""
@@ -183,15 +228,6 @@ class SavedJobRepository(BaseRepository[SavedJob]):
             )
         )
 
-    async def toggle(self, user_id: UUID, job_posting_id: UUID) -> bool:
-        """Saves if not saved; unsaves if already saved. Returns True if now saved."""
-        existing = await self.get_for_user_and_job(user_id, job_posting_id)
-        if existing is not None:
-            await self.delete(existing)
-            return False
-        await self.create(user_id=user_id, job_posting_id=job_posting_id)
-        return True
-
 
 class JobApplicationRepository(BaseRepository[JobApplication]):
     model = JobApplication
@@ -208,23 +244,6 @@ class JobApplicationRepository(BaseRepository[JobApplication]):
                 JobApplication.job_posting_id == job_posting_id,
             )
         )
-
-    async def update_status(
-        self, user_id: UUID, job_posting_id: UUID, status: ApplicationStatus
-    ) -> JobApplication | None:
-        app = await self.get_for_user_and_job(user_id, job_posting_id)
-        if app is None:
-            app = await self.create(
-                user_id=user_id,
-                job_posting_id=job_posting_id,
-                status=status,
-            )
-        else:
-            kwargs: dict[str, Any] = {"status": status}
-            if status == ApplicationStatus.applied and app.applied_at is None:
-                kwargs["applied_at"] = datetime.now(tz=UTC)
-            app = await self.update(app, **kwargs)
-        return app
 
     async def list_by_status(
         self, user_id: UUID, status: ApplicationStatus

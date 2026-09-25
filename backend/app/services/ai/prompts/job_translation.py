@@ -75,7 +75,7 @@ and extract structured data. Follow these rules:
 their original form.
 2. translated_description: Full translation of the posting into natural, professional \
 Indonesian. Preserve all requirements, responsibilities, and benefits. Do not \
-summarise or omit any section.
+summarise or omit any section of the job itself; rule 6 is the only exception.
 3. translation_summary: A concise 3–5 sentence Indonesian summary highlighting the \
 most important points a candidate needs to know.
 4. foreigner_friendliness_score (0–100): Assess how accessible this role is to a \
@@ -92,6 +92,14 @@ foreign (Indonesian) applicant based on:
 5. structured_data: Extract from the original posting. Use "none" for \
 required_japanese if no JLPT level is specified. Set visa_sponsorship to null if \
 not mentioned.
+6. Privacy: translated_title, translated_description and translation_summary are \
+shown to every user of this service. The text may be a message sent to one person \
+(for example a recruiter's scout email) rather than a public job advertisement. In \
+those three fields, leave out anything that identifies or addresses that person: \
+their name, greetings and sign-offs addressed to them, references to their own \
+career or profile, and personal contact details such as individual email addresses, \
+phone numbers, or links meant for one recipient. Keep the company name and \
+everything about the role itself.
 
 Return ONLY a JSON object matching this exact schema — no prose before or after:
 

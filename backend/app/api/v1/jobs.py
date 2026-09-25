@@ -175,6 +175,7 @@ async def translate_job(
         # the posting returned below carries the expiry that was stored.
         "cached_until": datetime.now(tz=UTC) + timedelta(days=settings.job_translation_cache_days),
     }
+    job: JobPosting | None = None
     if stale is not None:
         # Same row, same id: tracker entries, matches and documents that point
         # at it stay valid. submitted_by is kept, so is_mine still answers for
@@ -182,11 +183,18 @@ async def translate_job(
         # replaced only when they are the one refreshing -- it is shown to the
         # submitter alone, and must be theirs, not someone else's text shown
         # to them. The translation is shared anyway, so anyone refreshes it.
+        refresh = dict(translation)
         if stale.submitted_by == current_user.user_id:
-            translation["original_description"] = body.raw_text
-        job = await job_repo.update(stale, **translation)
-    else:
-        job = await job_repo.create(
+            refresh["original_description"] = body.raw_text
+        elif stale.submitted_by is None:
+            # The submitter's account is gone. Nobody could be shown their
+            # paste any more, so don't keep it: it's their personal data.
+            refresh["original_description"] = None
+        job = await job_repo.refresh_unless_deleted(stale.id, **refresh)
+        # None: deleted while the AI call ran, which freed the URL -- so it
+        # is created afresh below, owned by this request.
+    if job is None:
+        job = await job_repo.create_or_get_holder(
             source_url=body.source_url,
             source_platform="manual",
             original_description=body.raw_text,

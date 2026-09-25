@@ -51,7 +51,9 @@ class _World:
         self.bob_private: uuid.UUID  # bob's, pasted text
 
 
-def _posting(token: str, *, submitted_by: uuid.UUID, url: str | None, score: float) -> JobPosting:
+def _posting(
+    token: str, *, submitted_by: uuid.UUID | None, url: str | None, score: float
+) -> JobPosting:
     return JobPosting(
         source_url=url,
         source_platform=JobSourcePlatform.manual,
@@ -69,35 +71,39 @@ def _posting(token: str, *, submitted_by: uuid.UUID, url: str | None, score: flo
 @pytest.fixture
 async def world():
     w = _World()
-    async with AsyncSessionFactory() as session:
-        alice = User(clerk_id=f"clerk_vis_a_{w.token}", email=f"a-{w.token}@example.com")
-        bob = User(clerk_id=f"clerk_vis_b_{w.token}", email=f"b-{w.token}@example.com")
-        session.add_all([alice, bob])
-        await session.flush()
-        w.alice, w.bob = alice.id, bob.id
-        w.alice_user, w.bob_user = alice, bob
+    try:
+        async with AsyncSessionFactory() as session:
+            alice = User(clerk_id=f"clerk_vis_a_{w.token}", email=f"a-{w.token}@example.com")
+            bob = User(clerk_id=f"clerk_vis_b_{w.token}", email=f"b-{w.token}@example.com")
+            session.add_all([alice, bob])
+            await session.flush()
+            w.alice, w.bob = alice.id, bob.id
+            w.alice_user, w.bob_user = alice, bob
 
-        public = _posting(
-            w.token, submitted_by=alice.id, url=f"https://example.test/{w.token}", score=80
-        )
-        alice_private = _posting(w.token, submitted_by=alice.id, url=None, score=80)
-        bob_private = _posting(w.token, submitted_by=bob.id, url=None, score=80)
-        session.add_all([public, alice_private, bob_private])
-        await session.commit()
-        w.public, w.alice_private, w.bob_private = public.id, alice_private.id, bob_private.id
-        # Loaded now, while the session is open: the auth bypass reads these
-        # attributes after it closes.
-        for user in (alice, bob):
-            await session.refresh(user)
+            public = _posting(
+                w.token, submitted_by=alice.id, url=f"https://example.test/{w.token}", score=80
+            )
+            alice_private = _posting(w.token, submitted_by=alice.id, url=None, score=80)
+            bob_private = _posting(w.token, submitted_by=bob.id, url=None, score=80)
+            session.add_all([public, alice_private, bob_private])
+            await session.commit()
+            w.public, w.alice_private, w.bob_private = public.id, alice_private.id, bob_private.id
+            # Loaded now, while the session is open: the auth bypass reads
+            # these attributes after it closes.
+            for user in (alice, bob):
+                await session.refresh(user)
 
-    yield w
-
-    async with AsyncSessionFactory() as session:
-        await session.execute(
-            delete(JobPosting).where(JobPosting.id.in_([w.public, w.alice_private, w.bob_private]))
-        )
-        await session.execute(delete(User).where(User.id.in_([w.alice, w.bob])))
-        await session.commit()
+        yield w
+    finally:
+        # By token rather than by id, so this removes whatever the world got
+        # as far as creating -- including rows a test added itself -- even if
+        # setup failed partway and some ids were never assigned.
+        async with AsyncSessionFactory() as session:
+            await session.execute(
+                delete(JobPosting).where(JobPosting.translated_title.like(f"{w.token}%"))
+            )
+            await session.execute(delete(User).where(User.clerk_id.like(f"clerk_vis_%_{w.token}")))
+            await session.commit()
 
 
 async def _get(job_id: uuid.UUID, viewer: uuid.UUID) -> JobPosting | None:
@@ -176,10 +182,25 @@ async def test_the_python_rule_and_the_sql_rule_agree(world: _World) -> None:
     # JobPosting.visible_to decides for a posting already loaded -- the
     # tracker's path -- and visible_to_clause decides in SQL. They are two
     # spellings of one rule, and nothing else stops them drifting apart.
+    #
+    # Beyond the world's three postings, the inputs where Python and SQL most
+    # easily part ways: a NULL submitter (a deleted account; SQL's NULL = x
+    # is NULL, not false) with and without a URL, and a blank-string URL of
+    # the kind rows may hold from before the server validated it.
+    async with AsyncSessionFactory() as session:
+        orphan_public = _posting(
+            world.token, submitted_by=None, url=f"https://example.test/{world.token}/o", score=80
+        )
+        orphan_private = _posting(world.token, submitted_by=None, url=None, score=80)
+        blank_url = _posting(world.token, submitted_by=world.bob, url="", score=80)
+        session.add_all([orphan_public, orphan_private, blank_url])
+        await session.commit()
+        extras = [orphan_public.id, orphan_private.id, blank_url.id]
+
     viewers = [world.alice, world.bob, uuid.uuid4()]
     async with AsyncSessionFactory() as session:
         repo = JobPostingRepository(session)
-        for posting_id in (world.public, world.alice_private, world.bob_private):
+        for posting_id in (world.public, world.alice_private, world.bob_private, *extras):
             posting = await session.get(JobPosting, posting_id)
             assert posting is not None
             for viewer in viewers:
