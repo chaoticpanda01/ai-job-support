@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
@@ -114,11 +114,16 @@ async def translate_job(
     job_repo = JobPostingRepository(db)
 
     # -- Cache hit: return existing translation without calling Gemini
+    stale: JobPosting | None = None
     if body.source_url:
         cached = await job_repo.get_by_url(body.source_url)
         if cached is not None:
             logger.info("Cache hit for url=%s job_id=%s", body.source_url, cached.id)
             return _posting_response(JobPostingDetailResponse, cached, current_user.user_id)
+        # A miss can still find a row: an expired translation keeps the URL's
+        # slot in the unique index, so it is refreshed below rather than
+        # duplicated -- inserting beside it was a 500.
+        stale = await job_repo.get_holder_of_url(body.source_url)
 
     # -- Budget check
     try:
@@ -159,23 +164,37 @@ async def translate_job(
 
     # -- Persist
     sd = parsed.structured_data
-    job = await job_repo.create(
-        source_url=body.source_url,
-        source_platform="manual",
-        original_description=body.raw_text,
-        original_language="ja",
-        original_title=None,  # raw text paste — no parsed Japanese title
-        original_company=sd.company_name,
-        translated_title=parsed.translated_title,
-        translated_description=parsed.translated_description,
-        translation_summary=parsed.translation_summary,
-        foreigner_friendliness_score=parsed.foreigner_friendliness_score,
-        structured_data=sd.model_dump(),
-        submitted_by=current_user.user_id,
-    )
-
-    # Set 7-day cache expiry (from config)
-    await job_repo.set_cache_expiry(job.id, days=settings.job_translation_cache_days)
+    translation: dict[str, Any] = {
+        "original_company": sd.company_name,
+        "translated_title": parsed.translated_title,
+        "translated_description": parsed.translated_description,
+        "translation_summary": parsed.translation_summary,
+        "foreigner_friendliness_score": parsed.foreigner_friendliness_score,
+        "structured_data": sd.model_dump(),
+        # Written with the row rather than by a second UPDATE afterwards, so
+        # the posting returned below carries the expiry that was stored.
+        "cached_until": datetime.now(tz=UTC) + timedelta(days=settings.job_translation_cache_days),
+    }
+    if stale is not None:
+        # Same row, same id: tracker entries, matches and documents that point
+        # at it stay valid. submitted_by is kept, so is_mine still answers for
+        # whoever first submitted the URL. For that reason the raw paste is
+        # replaced only when they are the one refreshing -- it is shown to the
+        # submitter alone, and must be theirs, not someone else's text shown
+        # to them. The translation is shared anyway, so anyone refreshes it.
+        if stale.submitted_by == current_user.user_id:
+            translation["original_description"] = body.raw_text
+        job = await job_repo.update(stale, **translation)
+    else:
+        job = await job_repo.create(
+            source_url=body.source_url,
+            source_platform="manual",
+            original_description=body.raw_text,
+            original_language="ja",
+            original_title=None,  # raw text paste — no parsed Japanese title
+            submitted_by=current_user.user_id,
+            **translation,
+        )
 
     # -- Record usage (never raises)
     await usage_tracker.record(

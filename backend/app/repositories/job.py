@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -33,6 +33,19 @@ class JobPostingRepository(BaseRepository[JobPosting]):
     async def get_active(self, job_id: UUID, *, viewer_id: UUID) -> JobPosting | None:
         return await self._scalar(
             _visible_to(_active(select(JobPosting).where(JobPosting.id == job_id)), viewer_id)
+        )
+
+    async def get_holder_of_url(self, source_url: str) -> JobPosting | None:
+        """
+        The posting holding this URL's slot, whether or not its cache is live.
+
+        job_postings is unique on source_url across every row that isn't
+        soft-deleted (idx_job_postings_source_url) -- expired rows included.
+        So a URL whose translation has expired still has a row, and a new one
+        can't be inserted beside it; the translate route refreshes this one.
+        """
+        return await self._scalar(
+            _active(select(JobPosting).where(JobPosting.source_url == source_url))
         )
 
     async def get_by_url(self, source_url: str) -> JobPosting | None:
@@ -102,13 +115,6 @@ class JobPostingRepository(BaseRepository[JobPosting]):
         )
         await self.session.flush()
         return result.scalar() is not None
-
-    async def set_cache_expiry(self, job_id: UUID, days: int) -> None:
-        expiry = datetime.now(tz=UTC) + timedelta(days=days)
-        await self.session.execute(
-            update(JobPosting).where(JobPosting.id == job_id).values(cached_until=expiry)
-        )
-        await self.session.flush()
 
 
 class JobMatchRepository(BaseRepository[JobMatch]):

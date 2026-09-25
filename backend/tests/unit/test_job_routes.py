@@ -273,6 +273,7 @@ async def test_translate_job_parse_failure_returns_502() -> None:
 async def test_translate_job_happy_path_creates_posting() -> None:
     user = make_user()
     job = _mock_job(submitted_by=user.id)
+    create = AsyncMock(return_value=job)
 
     ai_json = (
         '{"translated_title": "Backend Engineer", '
@@ -296,8 +297,7 @@ async def test_translate_job_happy_path_creates_posting() -> None:
             "app.services.ai.client.ai_client.generate",
             new=AsyncMock(return_value=(ai_json, 100, 50)),
         ),
-        patch("app.api.v1.jobs.JobPostingRepository.create", new=AsyncMock(return_value=job)),
-        patch("app.api.v1.jobs.JobPostingRepository.set_cache_expiry", new=AsyncMock()),
+        patch("app.api.v1.jobs.JobPostingRepository.create", new=create),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
@@ -307,6 +307,9 @@ async def test_translate_job_happy_path_creates_posting() -> None:
             )
 
     assert resp.status_code == 201
+    # The cache expiry is written with the row, not by a second UPDATE after
+    # it -- so the posting returned already carries the expiry stored.
+    assert create.await_args.kwargs["cached_until"] > datetime.now(tz=UTC)
 
 
 # ---------------------------------------------------------------------------
