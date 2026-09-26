@@ -1,5 +1,5 @@
 import * as React from "react";
-import { changedCls, controlCls } from "@/components/ui/input";
+import { changedCls, controlCls, readOnlyCls } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -10,7 +10,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, changed = false, ...props }, ref) => (
     <textarea
       ref={ref}
-      className={cn(controlCls, "min-h-20", changed && changedCls, className)}
+      className={cn(controlCls, readOnlyCls, "min-h-20", changed && changedCls, className)}
       {...props}
     />
   ),

@@ -160,8 +160,9 @@ export function ChatWidget() {
     }
   }
 
+  // Rises above the Settings save bar, which sets --save-bar-offset.
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-[calc(1.5rem+var(--save-bar-offset,0px))] right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat window */}
       {open && (
         <SignedOut>

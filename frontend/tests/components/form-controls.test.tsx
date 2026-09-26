@@ -4,6 +4,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
 
@@ -46,6 +47,22 @@ describe("Input", () => {
   it("marks an unsaved change", () => {
     render(<Input aria-label="Name" changed />);
     expect(screen.getByRole("textbox", { name: "Name" }).className).toContain("border-indigo");
+  });
+
+  it("greys out a read-only box, and only a text box", () => {
+    // CSS :read-only matches every <select> and <div>, so read-only styling on
+    // the shared classes greyed out editable selects and the tag box.
+    render(
+      <>
+        <Input aria-label="Email" readOnly />
+        <Select aria-label="Gender" />
+        <TagInput aria-label="Roles" value={[]} onChange={() => {}} placeholder="" removeLabel="" />
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" }).className).toContain("read-only:");
+    expect(screen.getByRole("combobox", { name: "Gender" }).className).not.toContain("read-only:");
+    const tagBox = screen.getByRole("textbox", { name: "Roles" }).parentElement as HTMLElement;
+    expect(tagBox.className).not.toContain("read-only:");
   });
 });
 
