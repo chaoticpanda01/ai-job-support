@@ -46,7 +46,7 @@ export const translations = {
   // Navbar
   // ---------------------------------------------------------------------------
   nav: {
-    resumes: { en: "Resumes", id: "Resume", ja: "履歴書" },
+    resumes: { en: "Resumes", id: "Resume", ja: "レジュメ" },
     documents: { en: "Documents", id: "Dokumen", ja: "書類" },
     jobs: { en: "Jobs", id: "Lowongan", ja: "求人" },
     interview: { en: "Interview", id: "Wawancara", ja: "面接" },
@@ -143,9 +143,9 @@ export const translations = {
       ja: "日本で働くまでを、一歩ずつ。",
     },
     heroLead: {
-      en: "Build your 履歴書, practise interviews in Japanese, and find the right visa, with the whole app in English, Bahasa Indonesia or 日本語.",
-      id: "Buat 履歴書-mu, latihan wawancara dalam bahasa Jepang, dan temukan visa yang tepat, dengan seluruh aplikasi dalam bahasa Inggris, Bahasa Indonesia, atau 日本語.",
-      ja: "履歴書の作成、日本語での面接練習、最適なビザ探しまで。アプリはすべて英語・インドネシア語・日本語で使えます。",
+      en: "Build your 履歴書, practise interviews in Japanese, and find the right visa, in an app you can use in English, Bahasa Indonesia or 日本語.",
+      id: "Buat 履歴書-mu, latihan wawancara dalam bahasa Jepang, dan temukan visa yang tepat, dalam aplikasi yang bisa kamu pakai dalam bahasa Inggris, Bahasa Indonesia, atau 日本語.",
+      ja: "履歴書の作成、日本語での面接練習、最適なビザ探しまで。英語・インドネシア語・日本語で使えるアプリです。",
     },
     startFree: { en: "Start free", id: "Mulai gratis", ja: "無料で始める" },
     goToDashboard: { en: "Go to your dashboard", id: "Ke dasbor kamu", ja: "ダッシュボードへ" },
@@ -221,9 +221,9 @@ export const translations = {
       ja: "経歴に合うビザを見つけ、日本の職場の仕組みを学べます。",
     },
     settleTool1: {
-      en: "Visa options with a step-by-step roadmap and checklist",
-      id: "Pilihan visa dengan peta jalan dan daftar periksa langkah demi langkah",
-      ja: "ステップごとのロードマップとチェックリスト付きのビザ診断",
+      en: "Visa options with a step-by-step roadmap and checklist, explained in Bahasa Indonesia",
+      id: "Pilihan visa dengan peta jalan dan daftar periksa langkah demi langkah, dijelaskan dalam Bahasa Indonesia",
+      ja: "ステップごとのロードマップとチェックリスト付きのビザ診断（解説はインドネシア語）",
     },
     settleTool2: {
       en: "Culture guides and a workplace glossary",
@@ -234,9 +234,9 @@ export const translations = {
     factsTitle: { en: "Why it's different", id: "Apa bedanya", ja: "ここが違う" },
     fact1Title: { en: "Three languages", id: "Tiga bahasa", ja: "3つの言語" },
     fact1Text: {
-      en: "Every screen in English, Bahasa Indonesia or 日本語, and your resume feedback too.",
-      id: "Setiap layar dalam bahasa Inggris, Bahasa Indonesia, atau 日本語, termasuk masukan untuk resumemu.",
-      ja: "すべての画面が英語・インドネシア語・日本語に対応。レジュメへのフィードバックも。",
+      en: "Use the app in English, Bahasa Indonesia or 日本語, and get your resume feedback in the same language.",
+      id: "Gunakan aplikasi dalam bahasa Inggris, Bahasa Indonesia, atau 日本語, dan dapatkan masukan resume dalam bahasa yang sama.",
+      ja: "英語・インドネシア語・日本語で使え、レジュメへのフィードバックも同じ言語で届きます。",
     },
     fact2Title: { en: "JIS-format 履歴書", id: "履歴書 format JIS", ja: "JIS規格の履歴書" },
     fact2Text: {
@@ -316,7 +316,7 @@ export const translations = {
     previewVisaLabel: {
       en: "Preview of a visa roadmap: step 2 of 5",
       id: "Pratinjau peta jalan visa: langkah 2 dari 5",
-      ja: "ビザロードマップのプレビュー：5ステップ中2",
+      ja: "ビザロードマップのプレビュー：ステップ2/5",
     },
     scoreTitle: { en: "Japan-market score", id: "Skor pasar Jepang", ja: "日本市場スコア" },
     scoreStrengths: { en: "Strengths", id: "Kekuatan", ja: "強み" },
@@ -345,7 +345,7 @@ export const translations = {
     visaStep: {
       en: "Roadmap · step 2 of 5",
       id: "Peta jalan · langkah 2 dari 5",
-      ja: "ロードマップ・5ステップ中2",
+      ja: "ロードマップ・ステップ2/5",
     },
     visaItem1: { en: "Degree certificate", id: "Ijazah", ja: "卒業証明書" },
     visaItem2: {
@@ -514,7 +514,7 @@ export const translations = {
     s1Sub: {
       en: "Japan Job Support uses AI to analyse your resume and generate career documents. Please read and accept the following before continuing.",
       id: "Japan Job Support menggunakan AI untuk menganalisis resume dan membuat dokumen karier. Baca dan setujui hal berikut sebelum melanjutkan.",
-      ja: "Japan Job SupportはAIを使用して履歴書を分析し、キャリア書類を生成します。続行前に以下をご確認ください。",
+      ja: "Japan Job SupportはAIを使用してレジュメを分析し、キャリア書類を生成します。続行前に以下をご確認ください。",
     },
     s1Agree: {
       en: "By continuing, you agree that Japan Job Support may:",
@@ -524,7 +524,7 @@ export const translations = {
     s1P1: {
       en: "Process the content of your uploaded resume using the Gemini AI API to generate analysis, career documents, and job-match scores.",
       id: "Memproses konten resume yang diunggah menggunakan Gemini AI API untuk menghasilkan analisis, dokumen karier, dan skor kecocokan pekerjaan.",
-      ja: "アップロードされた履歴書をGemini AI APIで処理し、分析・キャリア書類・マッチスコアを生成します。",
+      ja: "アップロードされたレジュメをGemini AI APIで処理し、分析・キャリア書類・マッチスコアを生成します。",
     },
     s1P2: {
       en: "Store AI-generated results (scores, translations, documents) in our database to provide the service.",
@@ -549,7 +549,7 @@ export const translations = {
     s1Checkbox: {
       en: "I understand and consent to AI processing of my resume data as described above.",
       id: "Saya memahami dan menyetujui pemrosesan AI atas data resume saya seperti yang dijelaskan di atas.",
-      ja: "上記の説明に従ったAIによる履歴書データの処理に同意します。",
+      ja: "上記の説明に従ったAIによるレジュメデータの処理に同意します。",
     },
     s1Btn: { en: "I agree — continue", id: "Saya setuju — lanjut", ja: "同意して続行" },
     // Step 2
@@ -593,7 +593,7 @@ export const translations = {
     s4Sub: {
       en: "This helps us score your resume for the Japanese market.",
       id: "Ini membantu kami menilai resume kamu untuk pasar Jepang.",
-      ja: "日本市場向けに履歴書のスコアを評価します。",
+      ja: "日本市場向けにレジュメのスコアを評価します。",
     },
     s4JpLevel: { en: "Japanese level", id: "Tingkat bahasa Jepang", ja: "日本語レベル" },
     s4Visa: { en: "Visa status", id: "Status visa", ja: "ビザ状況" },
@@ -676,39 +676,39 @@ export const translations = {
   // Resumes
   // ---------------------------------------------------------------------------
   resumes: {
-    title: { en: "Resumes", id: "Resume", ja: "履歴書" },
+    title: { en: "Resumes", id: "Resume", ja: "レジュメ" },
     sub: {
       en: "Upload your resume to get started. We'll analyse it for the Japanese job market.",
       id: "Unggah resumemu untuk memulai. Kami akan menganalisisnya untuk pasar kerja Jepang.",
-      ja: "履歴書をアップロードして始めましょう。日本の就職市場向けに分析します。",
+      ja: "レジュメをアップロードして始めましょう。日本の就職市場向けに分析します。",
     },
-    yourResumes: { en: "Your resumes", id: "Resume kamu", ja: "あなたの履歴書" },
+    yourResumes: { en: "Your resumes", id: "Resume kamu", ja: "あなたのレジュメ" },
     noResumes: {
       en: "No resumes yet. Upload one above.",
       id: "Belum ada resume. Unggah di atas.",
-      ja: "まだ履歴書がありません。上でアップロードしてください。",
+      ja: "まだレジュメがありません。上でアップロードしてください。",
     },
     loadError: {
       en: "Failed to load resumes. Please refresh.",
       id: "Gagal memuat resume. Coba muat ulang.",
-      ja: "履歴書の読み込みに失敗しました。更新してください。",
+      ja: "レジュメの読み込みに失敗しました。更新してください。",
     },
     setPrimary: { en: "Set primary", id: "Jadikan utama", ja: "メインに設定" },
     confirmDelete: {
       en: "Delete this resume?",
       id: "Hapus resume ini?",
-      ja: "この履歴書を削除しますか？",
+      ja: "このレジュメを削除しますか？",
     },
     // Uploader
     dragDrop: {
       en: "Drag & drop your resume",
       id: "Seret & lepas resume kamu",
-      ja: "履歴書をドラッグ＆ドロップ",
+      ja: "レジュメをドラッグ＆ドロップ",
     },
     dropHere: {
       en: "Drop your resume here",
       id: "Lepaskan resume kamu di sini",
-      ja: "ここに履歴書をドロップ",
+      ja: "ここにレジュメをドロップ",
     },
     fileTypeHint: {
       en: "PDF or DOCX · max 10 MB",
@@ -720,28 +720,28 @@ export const translations = {
     uploadSuccess: {
       en: "Resume uploaded successfully.",
       id: "Resume berhasil diunggah.",
-      ja: "履歴書が正常にアップロードされました。",
+      ja: "レジュメが正常にアップロードされました。",
     },
     // Detail
-    backToResumes: { en: "← Back to resumes", id: "← Kembali ke resume", ja: "← 履歴書一覧へ" },
+    backToResumes: { en: "← Back to resumes", id: "← Kembali ke resume", ja: "← レジュメ一覧へ" },
     notFound: {
       en: "Resume not found.",
       id: "Resume tidak ditemukan.",
-      ja: "履歴書が見つかりません。",
+      ja: "レジュメが見つかりません。",
     },
     uploaded: { en: "Uploaded", id: "Diunggah", ja: "アップロード" },
     aiAnalysis: { en: "AI Analysis", id: "Analisis AI", ja: "AI 分析" },
-    analyseBtn: { en: "Analyse resume", id: "Analisis resume", ja: "履歴書を分析" },
+    analyseBtn: { en: "Analyse resume", id: "Analisis resume", ja: "レジュメを分析" },
     queueing: { en: "Queuing…", id: "Mengantri…", ja: "待機中…" },
     analysing: {
       en: "Analysing your resume… this may take up to 30 seconds.",
       id: "Menganalisis resume kamu… ini mungkin membutuhkan waktu hingga 30 detik.",
-      ja: "履歴書を分析中…最大30秒かかる場合があります。",
+      ja: "レジュメを分析中…最大30秒かかる場合があります。",
     },
     analysisReady: {
       en: "Resume analysis is ready.",
       id: "Analisis resume sudah siap.",
-      ja: "履歴書の分析が完了しました。",
+      ja: "レジュメの分析が完了しました。",
     },
     analysisFailedBudget: {
       en: "You've reached your AI usage limit, so the analysis didn't run. Try again later.",
@@ -771,7 +771,7 @@ export const translations = {
     analysisFailedUnknown: {
       en: "Something went wrong while analysing your resume. Please try again.",
       id: "Terjadi kesalahan saat menganalisis resume kamu. Coba lagi.",
-      ja: "履歴書の分析中にエラーが発生しました。再試行してください。",
+      ja: "レジュメの分析中にエラーが発生しました。再試行してください。",
     },
     analysisLoadError: {
       en: "Couldn't load the analysis. Please try again.",
@@ -795,7 +795,7 @@ export const translations = {
     },
     jpNotRequired: { en: "Not required", id: "Tidak diperlukan", ja: "不要" },
     analysedAt: { en: "Analysed", id: "Dianalisis", ja: "分析済み" },
-    uploadBtn: { en: "Upload resume", id: "Unggah resume", ja: "履歴書をアップロード" },
+    uploadBtn: { en: "Upload resume", id: "Unggah resume", ja: "レジュメをアップロード" },
   },
 
   // ---------------------------------------------------------------------------
@@ -805,13 +805,13 @@ export const translations = {
     matchNotPossible: {
       en: "We couldn't score this match. The posting may not be translated yet, or that resume couldn't be read — try translating it again or picking another resume.",
       id: "Kami tidak dapat menilai kecocokan ini. Lowongan mungkin belum diterjemahkan, atau resume itu tidak terbaca — coba terjemahkan lagi atau pilih resume lain.",
-      ja: "このマッチ度を算出できませんでした。求人がまだ翻訳されていないか、その履歴書を読み取れなかった可能性があります。翻訳をやり直すか、別の履歴書を選んでください。",
+      ja: "このマッチ度を算出できませんでした。求人がまだ翻訳されていないか、そのレジュメを読み取れなかった可能性があります。翻訳をやり直すか、別のレジュメを選んでください。",
     },
     title: { en: "Job Postings", id: "Lowongan Kerja", ja: "求人一覧" },
     sub: {
       en: "Translate Japanese job postings and score them against your resume.",
       id: "Terjemahkan lowongan kerja Jepang dan cocokkan dengan resume kamu.",
-      ja: "日本語の求人を翻訳し、履歴書とマッチングします。",
+      ja: "日本語の求人を翻訳し、レジュメとマッチングします。",
     },
     tracker: { en: "Tracker", id: "Pelacak", ja: "管理" },
     translateBtn: { en: "+ Translate posting", id: "+ Terjemahkan lowongan", ja: "+ 求人を翻訳" },
@@ -826,7 +826,7 @@ export const translations = {
     matchResumeLabel: {
       en: "Resume to match",
       id: "Resume untuk dicocokkan",
-      ja: "照合する履歴書",
+      ja: "照合するレジュメ",
     },
     notesLabel: { en: "Application notes", id: "Catatan lamaran", ja: "応募メモ" },
     noPostings: {
@@ -964,13 +964,13 @@ export const translations = {
     challenging: { en: "Challenging", id: "Cukup sulit", ja: "難しい" },
     veryDifficult: { en: "Very difficult", id: "Sangat sulit", ja: "非常に難しい" },
     matchScore: { en: "Match Score", id: "Skor Kecocokan", ja: "マッチスコア" },
-    uploadResumeTo: { en: "Upload a resume", id: "Unggah resume", ja: "履歴書をアップロード" },
+    uploadResumeTo: { en: "Upload a resume", id: "Unggah resume", ja: "レジュメをアップロード" },
     toScoreJob: {
       en: "to score this job.",
       id: "untuk menilai pekerjaan ini.",
       ja: "してこの求人をスコアリングしましょう。",
     },
-    selectResume: { en: "Select a resume…", id: "Pilih resume…", ja: "履歴書を選択…" },
+    selectResume: { en: "Select a resume…", id: "Pilih resume…", ja: "レジュメを選択…" },
     scoreBtn: { en: "Score my resume", id: "Nilai resume saya", ja: "マッチスコアを計算" },
     scoring: { en: "Scoring…", id: "Menilai…", ja: "計算中…" },
     overallMatch: { en: "overall match", id: "kecocokan keseluruhan", ja: "総合マッチ度" },
@@ -1347,7 +1347,7 @@ export const translations = {
     sub: {
       en: "Generate Japanese-format career documents from your resume.",
       id: "Buat dokumen karier format Jepang dari resume kamu.",
-      ja: "履歴書から日本フォーマットのキャリア書類を生成します。",
+      ja: "レジュメから日本フォーマットのキャリア書類を生成します。",
     },
     all: { en: "All", id: "Semua", ja: "すべて" },
     noDocuments: {
@@ -1423,17 +1423,17 @@ export const translations = {
     genFailedResume: {
       en: "The resume this document was built from is no longer available. Generate a new document from a resume you still have.",
       id: "Resume sumber dokumen ini sudah tidak tersedia. Buat dokumen baru dari resume yang masih ada.",
-      ja: "この書類の元になった履歴書は利用できなくなりました。お手元の履歴書から新しい書類を作成してください。",
+      ja: "この書類の元になったレジュメは利用できなくなりました。お手元のレジュメから新しい書類を作成してください。",
     },
     genFailedFile: {
       en: "We couldn't open the stored resume file. Please try again.",
       id: "Kami tidak dapat membuka file resume yang tersimpan. Coba lagi.",
-      ja: "保存された履歴書ファイルを開けませんでした。再試行してください。",
+      ja: "保存されたレジュメファイルを開けませんでした。再試行してください。",
     },
     genFailedUnreadable: {
       en: "We couldn't read the text in the resume file. Upload a text-based PDF or DOCX and try again.",
       id: "Kami tidak dapat membaca teks di file resume. Unggah PDF atau DOCX berbasis teks, lalu coba lagi.",
-      ja: "履歴書ファイルのテキストを読み取れませんでした。テキスト形式のPDFまたはDOCXをアップロードして再試行してください。",
+      ja: "レジュメファイルのテキストを読み取れませんでした。テキスト形式のPDFまたはDOCXをアップロードして再試行してください。",
     },
     genFailedAi: {
       en: "The AI couldn't produce this document. Please try again.",
@@ -1508,14 +1508,14 @@ export const translations = {
     shokumuSub: {
       en: "We'll convert your resume into a Japanese-format 職務経歴書 (shokumukeirekisho) PDF.",
       id: "Kami akan mengubah resume kamu menjadi PDF 職務経歴書 (shokumukeirekisho) format Jepang.",
-      ja: "履歴書をJapanese形式の職務経歴書（shokumukeirekisho）PDFに変換します。",
+      ja: "レジュメをJapanese形式の職務経歴書（shokumukeirekisho）PDFに変換します。",
     },
     // DocumentWizard
-    wizStep1Title: { en: "Select a resume", id: "Pilih resume", ja: "履歴書を選択" },
+    wizStep1Title: { en: "Select a resume", id: "Pilih resume", ja: "レジュメを選択" },
     wizNoResumes: {
       en: "No resumes found.",
       id: "Tidak ada resume ditemukan.",
-      ja: "履歴書が見つかりません。",
+      ja: "レジュメが見つかりません。",
     },
     wizUploadFirst: {
       en: "Upload one first.",
@@ -1553,7 +1553,7 @@ export const translations = {
     wizOrientationPortrait: { en: "Portrait", id: "Potret", ja: "縦書き" },
     wizOrientationLandscape: { en: "Landscape", id: "Lanskap", ja: "横書き" },
     wizStep3Title: { en: "Confirm and generate", id: "Konfirmasi dan buat", ja: "確認して生成" },
-    wizResumeLabel: { en: "Resume", id: "Resume", ja: "履歴書" },
+    wizResumeLabel: { en: "Resume", id: "Resume", ja: "レジュメ" },
     wizJobLabel: { en: "Job context", id: "Konteks pekerjaan", ja: "求人コンテキスト" },
     wizNoJobContext: { en: "None (general-purpose)", id: "Tidak ada (umum)", ja: "なし（汎用）" },
     wizGenWait: {
@@ -1740,7 +1740,7 @@ export const translations = {
     deleteDesc: {
       en: "Permanently delete your account and all associated data — resumes, documents, job postings, interview sessions, and visa consultations. This action cannot be undone.",
       id: "Hapus permanen akun dan semua data terkait — resume, dokumen, lowongan kerja, sesi wawancara, dan konsultasi visa. Tindakan ini tidak dapat dibatalkan.",
-      ja: "アカウントと関連するすべてのデータ（履歴書・書類・求人・面接・ビザ相談）を完全に削除します。この操作は取り消せません。",
+      ja: "アカウントと関連するすべてのデータ（レジュメ・書類・求人・面接・ビザ相談）を完全に削除します。この操作は取り消せません。",
     },
     deleteBtn: { en: "Delete my account", id: "Hapus akun saya", ja: "アカウントを削除する" },
     confirmPhrase: { en: "delete my account", id: "hapus akun saya", ja: "アカウントを削除" },
@@ -1964,14 +1964,14 @@ export const translations = {
   // Legacy dashboard section (kept for backward compat)
   // ---------------------------------------------------------------------------
   dashboard: {
-    resumesTitle: { en: "Resumes", id: "Resume", ja: "履歴書" },
+    resumesTitle: { en: "Resumes", id: "Resume", ja: "レジュメ" },
     resumesSub: {
       en: "Upload your resume to get started. We'll analyse it for the Japanese job market.",
       id: "Unggah resumemu untuk memulai. Kami akan menganalisisnya untuk pasar kerja Jepang.",
-      ja: "履歴書をアップロードして始めましょう。日本の就職市場向けに分析します。",
+      ja: "レジュメをアップロードして始めましょう。日本の就職市場向けに分析します。",
     },
-    uploadBtn: { en: "Upload resume", id: "Unggah resume", ja: "履歴書をアップロード" },
-    noResumes: { en: "No resumes yet.", id: "Belum ada resume.", ja: "まだ履歴書がありません。" },
+    uploadBtn: { en: "Upload resume", id: "Unggah resume", ja: "レジュメをアップロード" },
+    noResumes: { en: "No resumes yet.", id: "Belum ada resume.", ja: "まだレジュメがありません。" },
   },
 } as const;
 

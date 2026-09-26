@@ -57,7 +57,8 @@ product claim was checked against the code:
 - **Eyebrow**: For Indonesian professionals
 - **h1** (`font-display`): Your move to Japan, one step at a time.
 - **Lead**: Build your 履歴書, practise interviews in Japanese, and find the
-  right visa, with the whole app in English, Bahasa Indonesia or 日本語.
+  right visa, in an app you can use in English, Bahasa Indonesia or 日本語.
+  (Not "the whole app": Clerk's sign-in screens are English only.)
 - **Buttons**:
   - Signed out: **Start free** (primary, `SIGN_UP_ROUTE`) and **See how it
     works** (secondary, `#how`, with an `ArrowDown` icon).
@@ -80,7 +81,7 @@ product claim was checked against the code:
 |---|---|---|---|---|
 | 1 Prepare | Documents Japanese employers expect | See your resume the way a Japanese recruiter reads it, then turn it into the forms they ask for. | Resume analysis with a Japan-market score (`FileSearch`) · 履歴書 in JIS format, as a portrait or landscape PDF (`FileText`) · 職務経歴書 written from your work history (`Files`) | `ScorePreview` |
 | 2 Apply | Postings you can actually read | Paste a Japanese job ad and read it in Bahasa Indonesia, scored for how open it is to foreign hires. | Translation with a foreigner-friendliness score (`Languages`) · A match score against your resume (`Target`) · Mock interviews with written feedback, in Japanese too (`Mic`) | `JobPreview` |
-| 3 Settle in | The visa, and the workplace | Find the visa that fits your background, and learn how a Japanese workplace runs. | Visa options with a step-by-step roadmap and checklist (`Stamp`) · Culture guides and a workplace glossary (`BookOpen`) | `VisaPreview` |
+| 3 Settle in | The visa, and the workplace | Find the visa that fits your background, and learn how a Japanese workplace runs. | Visa options with a step-by-step roadmap and checklist, explained in Bahasa Indonesia (`Stamp`) · Culture guides and a workplace glossary (`BookOpen`) | `VisaPreview` |
 
 The stage labels reuse `nav.groupPrepare`, `nav.groupApply` and
 `nav.groupSettleIn`, so the page and the app name the stages identically.
@@ -89,7 +90,7 @@ The stage labels reuse `nav.groupPrepare`, `nav.groupApply` and
 
 | Title | Text |
 |---|---|
-| Three languages | Every screen in English, Bahasa Indonesia or 日本語, and your resume feedback too. |
+| Three languages | Use the app in English, Bahasa Indonesia or 日本語, and get your resume feedback in the same language. |
 | JIS-format 履歴書 | Real PDFs, portrait or landscape, ready to send. |
 | Interviews in Japanese | Practise the real thing, with feedback on each answer. |
 | Free to try | Sign up and start with your resume. No payment details needed. |

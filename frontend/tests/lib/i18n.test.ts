@@ -105,3 +105,24 @@ describe("strings looked up by a key built at runtime", () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe("Japanese resume terms", () => {
+  // Two different things: the CV a user uploads (レジュメ) and the JIS-format
+  // form the app generates (履歴書). Using 履歴書 for both made the documents
+  // page ask users to "select a 履歴書" in order to make a 履歴書.
+  // chat.greeting offers help with writing a Japanese 履歴書, the form.
+  const ALLOWED = new Set(["chat.greeting"]);
+
+  it("calls an uploaded resume レジュメ, never 履歴書", () => {
+    const mixedUp: string[] = [];
+    for (const [section, key, value] of everyString()) {
+      const en = value["en"] ?? "";
+      const mentionsForm = en.includes("履歴書") || /rirekisho/i.test(en);
+      const id = `${section}.${key}`;
+      if (/resume/i.test(en) && !mentionsForm && (value["ja"] ?? "").includes("履歴書")) {
+        if (!ALLOWED.has(id)) mixedUp.push(id);
+      }
+    }
+    expect(mixedUp).toEqual([]);
+  });
+});
