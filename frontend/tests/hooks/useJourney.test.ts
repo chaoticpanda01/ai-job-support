@@ -8,7 +8,7 @@ import type { Resume } from "@/types/api";
  * The journey rules themselves are tested in tests/lib/journey.test.ts.
  */
 
-type Q = { data?: unknown; error?: unknown; isLoading?: boolean };
+type Q = { data?: unknown; error?: unknown; isLoading?: boolean; errorUpdateCount?: number };
 const q = vi.hoisted(() => ({
   me: {} as Q,
   resumes: {} as Q,
@@ -46,7 +46,13 @@ const { useJourney } = await import("@/hooks/useJourney");
 
 const loaded = (data: unknown): Q => ({ data, error: null, isLoading: false });
 const failed: Q = { data: undefined, error: new Error("down"), isLoading: false };
-const loading: Q = { data: undefined, error: null, isLoading: true };
+const loading: Q = { data: undefined, error: null, isLoading: true, errorUpdateCount: 0 };
+/**
+ * A source that failed, now being retried. React Query resets a query with no
+ * data to pending and clears its error on every refetch; only errorUpdateCount
+ * remembers that it failed.
+ */
+const retrying: Q = { data: undefined, error: null, isLoading: true, errorUpdateCount: 1 };
 
 const RESUMES = [
   { id: "old", created_at: "2026-08-01T00:00:00+00:00", is_primary: true },
@@ -113,6 +119,20 @@ describe("useJourney", () => {
     q[source] = loading;
     const { result } = renderHook(() => useJourney());
     expect(result.current.isLoading).toBe(true);
+  });
+
+  it("keeps a failed source unknown while it is retried, instead of loading again", () => {
+    q.documents = retrying;
+    const { result } = renderHook(() => useJourney());
+    expect(result.current.isLoading).toBe(false);
+    expect(stepState("rirekisho")).toBe("unknown");
+  });
+
+  it("keeps a failed analysis unknown while it is retried, never 'not analysed'", () => {
+    q.analysis = retrying;
+    const { result } = renderHook(() => useJourney());
+    expect(result.current.isLoading).toBe(false);
+    expect(stepState("resumeAnalysed")).toBe("unknown");
   });
 
   it("is not loading once everything has settled, failures included", () => {

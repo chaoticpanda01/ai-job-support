@@ -31,6 +31,17 @@ const STEP_QUERY_KEYS: Record<StepId, readonly string[]> = {
   visa: ["visa", "consultations"],
 };
 
+/**
+ * Loading for the first time, as opposed to retrying after a failure. React
+ * Query puts a query with no data back to pending, error cleared, on every
+ * refetch; a failed source is refetched on each new mount and window focus,
+ * so treating that as loading would blank Home back to skeletons each time.
+ * errorUpdateCount is the one field that remembers the failure.
+ */
+function isFirstLoad(query: { isLoading: boolean; errorUpdateCount: number }): boolean {
+  return query.isLoading && query.errorUpdateCount === 0;
+}
+
 export interface UseJourneyResult {
   journey: Journey;
   /** The raw lists, for Home's recent activity. */
@@ -57,26 +68,25 @@ export function useJourney(): UseJourneyResult {
   const visa = useVisaConsultations();
 
   // undefined means "couldn't load", which journey.ts shows as unknown. The
-  // analysis hook turns a 404 into null, meaning "no analysis yet".
+  // analysis hook turns a 404 into null, meaning "no analysis yet". A failed
+  // query that is being retried has had its error cleared (see isFirstLoad),
+  // so a past failure counts too; otherwise a retry would read as "not
+  // analysed" and be suggested as the next step.
+  const analysisFailed = Boolean(analysis.error) || analysis.errorUpdateCount > 0;
   const input: JourneyInput = {
     me: me.data,
     resumes: resumes.data?.items,
     primaryAnalysis:
-      analysis.data !== undefined ? analysis.data : analysis.error ? undefined : null,
+      analysis.data !== undefined ? analysis.data : analysisFailed ? undefined : null,
     documents: documents.data?.items,
     applications: applications.data,
     interviewSessions: interviews.data,
     visaConsultations: visa.data,
   };
 
-  const isLoading =
-    me.isLoading ||
-    resumes.isLoading ||
-    analysis.isLoading ||
-    documents.isLoading ||
-    applications.isLoading ||
-    interviews.isLoading ||
-    visa.isLoading;
+  const isLoading = [me, resumes, analysis, documents, applications, interviews, visa].some(
+    isFirstLoad,
+  );
 
   return {
     journey: computeJourney(input),

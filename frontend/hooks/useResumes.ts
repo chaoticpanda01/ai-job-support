@@ -90,6 +90,8 @@ export function useResumeAnalysis(resumeId: string) {
     data: analysis.data,
     isLoading: analysis.isLoading,
     error: analysis.error,
+    /** Survives a refetch, unlike error: see useJourney. */
+    errorUpdateCount: analysis.errorUpdateCount,
     status: status.data,
     statusError: status.error,
     /** Changes each time a status check fails, so its message can be re-announced. */
