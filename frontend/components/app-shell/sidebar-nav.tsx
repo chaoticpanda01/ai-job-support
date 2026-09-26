@@ -132,7 +132,7 @@ function Account() {
   const name = me?.user.full_name;
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      <UserButton afterSignOutUrl="/sign-in" />
+      <UserButton />
       {me && (
         <div className="min-w-0 text-sm leading-tight">
           <p className="truncate font-medium">{name ?? me.user.email}</p>

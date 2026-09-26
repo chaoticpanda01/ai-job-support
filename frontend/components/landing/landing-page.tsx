@@ -85,7 +85,7 @@ const FACTS = [1, 2, 3, 4] as const;
  * so the right buttons are in the first paint; Clerk's <SignedIn>/<SignedOut>
  * would render nothing until its script loads.
  */
-export function LandingPage({ signedIn }: { signedIn: boolean }) {
+export function LandingPage({ signedIn, year }: { signedIn: boolean; year: number }) {
   const { lang } = useLang();
   return (
     <div
@@ -105,7 +105,7 @@ export function LandingPage({ signedIn }: { signedIn: boolean }) {
         <About lang={lang} />
         {!signedIn && <FinalPrompt lang={lang} />}
       </main>
-      <SiteFooter lang={lang} />
+      <SiteFooter lang={lang} year={year} />
     </div>
   );
 }
@@ -128,7 +128,7 @@ function SiteHeader({ signedIn, lang }: { signedIn: boolean; lang: Language }) {
               <Button asChild size="sm" className="hidden sm:inline-flex">
                 <Link href="/dashboard">{t("landing", "goToDashboard", lang)}</Link>
               </Button>
-              <UserButton afterSignOutUrl="/sign-in" />
+              <UserButton />
             </>
           ) : (
             <>
@@ -310,13 +310,13 @@ function FinalPrompt({ lang }: { lang: Language }) {
   );
 }
 
-function SiteFooter({ lang }: { lang: Language }) {
+function SiteFooter({ lang, year }: { lang: Language; year: number }) {
   return (
     <footer className="border-t">
       {/* pb-24 keeps the text clear of the chat button fixed in the corner. */}
       <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 pb-24 pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <BrandMark compact="mobile" />
-        <p>{t("landing", "footer", lang).replace("{year}", String(new Date().getFullYear()))}</p>
+        <p>{t("landing", "footer", lang).replace("{year}", String(year))}</p>
       </div>
     </footer>
   );

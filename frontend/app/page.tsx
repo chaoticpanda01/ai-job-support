@@ -17,5 +17,7 @@ export const metadata: Metadata = {
  */
 export default async function LandingRoute() {
   const { userId } = await auth();
-  return <LandingPage signedIn={userId !== null} />;
+  // The year comes from the server so the client's clock (or time zone, around
+  // New Year) can't disagree with the server-rendered footer on hydration.
+  return <LandingPage signedIn={userId !== null} year={new Date().getFullYear()} />;
 }

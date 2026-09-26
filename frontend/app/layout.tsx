@@ -61,9 +61,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const lang = await getSavedLanguage();
 
   return (
-    <ClerkProvider appearance={clerkAppearance}>
+    // afterSignOutUrl lives here, not on each <UserButton>, where Clerk 6 deprecates it.
+    <ClerkProvider appearance={clerkAppearance} afterSignOutUrl="/sign-in">
       <html
         lang={lang}
+        // With smooth scrolling on <html>, Next.js 15.5 warns on every route
+        // change, and from Next 16 only keeps route changes instant if told.
+        data-scroll-behavior="smooth"
         className={`${notoSans.variable} ${notoSansJP.variable} ${shipporiMincho.variable} motion-safe:scroll-smooth`}
       >
         <body className="min-h-screen bg-background font-sans antialiased">

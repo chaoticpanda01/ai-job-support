@@ -166,7 +166,9 @@ describe("Home", () => {
     renderIn("en", <HomePage />);
     const retry = screen.getByRole("button", { name: new RegExp(t("common", "tryAgain", "en")) });
     expect(retry).toHaveAttribute("aria-busy", "true");
-    expect(retry).toBeDisabled();
+    expect(retry).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(retry);
+    expect(state.retries).toEqual([]);
   });
 
   it("celebrates a finished journey instead of suggesting a step", () => {

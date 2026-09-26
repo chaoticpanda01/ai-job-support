@@ -56,6 +56,7 @@ describe("landing page: signed in", () => {
     for (const link of dashboard) expect(link).toHaveAttribute("href", "/dashboard");
     expect(screen.queryByRole("link", { name: l("startFree") })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: t("nav", "signIn", "en") })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open user menu" })).toBeInTheDocument();
   });
 
   it("has no final sign-up prompt", async () => {
@@ -115,16 +116,40 @@ describe("landing page: structure", () => {
     expect(code).toHaveAccessibleName(`${l("aboutCode")} ${l("opensNewTab")}`);
   });
 
+  it("dates the footer with the server's year", async () => {
+    await renderLanding();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(`© ${new Date().getFullYear()}`);
+  });
+
   it("uses no emoji", async () => {
     const { container } = await renderLanding();
     // \p{Emoji_Presentation} and the emoji variation selector: the old 📄 and
     // 🗂️. Not Extended_Pictographic, which also matches the footer's ©.
-    expect(container.textContent).not.toMatch(/\p{Emoji_Presentation}|️/u);
+    expect(container.textContent).not.toMatch(/\p{Emoji_Presentation}|\uFE0F/u);
   });
 
   it("exports a title and description for search and link previews", () => {
-    expect(pageModule.metadata.title).toBeTruthy();
-    expect(pageModule.metadata.description).toBeTruthy();
+    expect(pageModule.metadata.title).toEqual({
+      absolute: "Japan Job Support: your move to Japan, one step at a time",
+    });
+    expect(pageModule.metadata.description).toMatch(/Indonesian professionals/);
+  });
+});
+
+describe("landing page: honest copy", () => {
+  // Job translation and the visa guidance are written in Indonesian
+  // (backend/app/services/ai/prompts), and Clerk's sign-in screens are
+  // English only, so the page may not promise every screen in every language.
+  it("says the visa guidance is in Indonesian, as it says of job translation", async () => {
+    const { container } = await renderLanding();
+    expect(l("settleTool1")).toMatch(/Bahasa Indonesia/);
+    expect(l("applyLead")).toMatch(/Bahasa Indonesia/);
+    expect(container).toHaveTextContent(l("settleTool1"));
+  });
+
+  it("doesn't claim the whole app, or every screen, is in three languages", async () => {
+    const { container } = await renderLanding();
+    expect(container.textContent).not.toMatch(/whole app|every screen/i);
   });
 });
 

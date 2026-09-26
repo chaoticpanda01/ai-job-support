@@ -81,7 +81,7 @@ export function MobileTopBar({
       </Link>
 
       <div className="flex h-10 w-10 items-center justify-center">
-        <UserButton afterSignOutUrl="/sign-in" />
+        <UserButton />
       </div>
     </header>
   );

@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 aria-busy:cursor-wait aria-busy:opacity-70 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -33,7 +33,11 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   /** Render the single child (e.g. a Next Link) with the button's styling. */
   asChild?: boolean;
-  /** Show a spinner and disable. Ignored with asChild: a link has nothing to wait for. */
+  /**
+   * Show a spinner and ignore clicks until done. Stays focusable (aria-disabled,
+   * not disabled), so keyboard focus isn't dropped to <body> while it works.
+   * Ignored with asChild: a link has nothing to wait for.
+   */
   loading?: boolean;
 }
 
@@ -47,6 +51,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       loading = false,
       disabled,
       type,
+      onClick,
       children,
       ...props
     },
@@ -55,7 +60,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const classes = cn(buttonVariants({ variant, size }), className);
     if (asChild) {
       return (
-        <Slot ref={ref} className={classes} {...props}>
+        <Slot ref={ref} className={classes} {...(onClick ? { onClick } : {})} {...props}>
           {children}
         </Slot>
       );
@@ -66,8 +71,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         // A bare <button> inside a form submits it; every submit button says so.
         type={type ?? "button"}
         className={classes}
-        disabled={disabled || loading}
+        disabled={disabled}
+        aria-disabled={loading || undefined}
         aria-busy={loading || undefined}
+        onClick={(event) => {
+          // preventDefault also stops a busy submit button submitting its form.
+          if (loading) event.preventDefault();
+          else onClick?.(event);
+        }}
         {...props}
       >
         {loading && (

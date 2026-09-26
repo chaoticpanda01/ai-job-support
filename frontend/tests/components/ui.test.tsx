@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import Link from "next/link";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -26,11 +26,41 @@ describe("Button", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("is disabled and busy while loading", () => {
-    render(<Button loading>Save</Button>);
+  it("is busy while loading, and ignores clicks without losing keyboard focus", () => {
+    // Native disabled would drop focus to <body> the moment the button went
+    // busy, and not give it back when the work finished.
+    const clicks: string[] = [];
+    render(
+      <Button loading onClick={() => clicks.push("clicked")}>
+        Save
+      </Button>,
+    );
     const button = screen.getByRole("button", { name: "Save" });
-    expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).not.toBeDisabled();
+    button.focus();
+    fireEvent.click(button);
+    expect(clicks).toEqual([]);
+    expect(button).toHaveFocus();
+  });
+
+  it("does not submit its form while loading", () => {
+    const submits: string[] = [];
+    render(
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submits.push("submitted");
+        }}
+      >
+        <Button type="submit" loading>
+          Save
+        </Button>
+      </form>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(submits).toEqual([]);
   });
 
   it("is not marked busy when idle", () => {
