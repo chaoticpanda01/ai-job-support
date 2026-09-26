@@ -3,57 +3,45 @@
 @tailwind utilities;
 
 @layer base {
+  /* "Sumi + seal": washi off-white, sumi ink, vermilion seal as a mark only,
+     indigo for data. Values are HSL channels so Tailwind can add opacity
+     (bg-primary/90). Hex equivalents are in
+     docs/superpowers/specs/2026-09-26-design-foundation-shell-home-design.md,
+     and tests/lib/design-tokens.test.ts checks the text pairs against WCAG AA.
+     Light only: nothing in the app sets a dark theme. */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 40 37.5% 96.9%;
+    --foreground: 40 5.7% 10.4%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 40 5.7% 10.4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142.1 76.2% 36.3%;
-    --success-foreground: 210 40% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 20.5 90.2% 4.3%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --popover-foreground: 40 5.7% 10.4%;
+    --primary: 40 5.7% 10.4%;
+    --primary-foreground: 40 37.5% 96.9%;
+    --secondary: 40 33.3% 92.9%;
+    --secondary-foreground: 42 7.2% 27.1%;
+    --muted: 40 33.3% 92.9%;
+    --muted-foreground: 40 5.9% 39.6%;
+    --accent: 40 33.3% 92.9%;
+    --accent-foreground: 42 7.2% 27.1%;
+    --destructive: 4.2 76.5% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 6.9 76.5% 93.3%;
+    --success: 152 39% 30.2%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 147.7 30.2% 91.6%;
+    --warning: 33.1 91.7% 32.9%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 38.7 79.5% 92.4%;
+    --seal: 9.6 63.9% 47.8%;
+    --seal-soft: 12.9 77.8% 92.9%;
+    --indigo: 217.2 45.3% 25.1%;
+    --indigo-soft: 215.3 43.6% 92.4%;
+    --track: 40 28.3% 89.6%;
+    --border: 38.6 22.6% 87.8%;
+    --input: 40 18.7% 81.2%;
+    --ring: 217.2 45.3% 25.1%;
     --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 144.9 80.4% 10%;
-    --warning: 48 96% 53%;
-    --warning-foreground: 20.5 90.2% 4.3%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
   }
 }
 
