@@ -1632,6 +1632,11 @@ export const translations = {
     },
     profile: { en: "Profile", id: "Profil", ja: "プロフィール" },
     nationality: { en: "Nationality", id: "Kewarganegaraan", ja: "国籍" },
+    yearsRange: {
+      en: "Enter a number from 0 to 80",
+      id: "Masukkan angka 0 sampai 80",
+      ja: "0〜80の数字を入力してください",
+    },
     jpLevel: {
       en: "Japanese level (JLPT)",
       id: "Tingkat bahasa Jepang (JLPT)",
