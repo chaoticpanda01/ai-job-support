@@ -128,6 +128,21 @@ describe("landing page: structure", () => {
   });
 });
 
+describe("landing page: line breaking", () => {
+  // Browsers may break between any two kanji, which splits a Japanese word
+  // inside English or Indonesian copy ("日 / 本語"). Japanese copy has no
+  // spaces, so it needs those breaks and must not get keep-all.
+  it.each<[Language, boolean]>([
+    ["en", true],
+    ["id", true],
+    ["ja", false],
+  ])("keeps Japanese words whole in %s: %s", async (lang, keepAll) => {
+    const { container } = await renderLanding(lang);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.classList.contains("break-keep")).toBe(keepAll);
+  });
+});
+
 describe.each<Language>(["ja", "id"])("landing page in %s", (lang) => {
   it("translates the headline and the previews", async () => {
     await renderLanding(lang);

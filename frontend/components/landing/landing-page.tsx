@@ -88,7 +88,15 @@ const FACTS = [1, 2, 3, 4] as const;
 export function LandingPage({ signedIn }: { signedIn: boolean }) {
   const { lang } = useLang();
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className={cn(
+        "min-h-screen bg-background text-foreground",
+        // Browsers may break between any two kanji, splitting a Japanese word
+        // in English or Indonesian copy ("日 / 本語"). Japanese copy has no
+        // spaces, so it keeps the normal breaks.
+        lang !== "ja" && "break-keep",
+      )}
+    >
       <SiteHeader signedIn={signedIn} lang={lang} />
       <main id="main-content" tabIndex={-1} className="focus:outline-none">
         <Hero signedIn={signedIn} lang={lang} />
@@ -305,7 +313,8 @@ function FinalPrompt({ lang }: { lang: Language }) {
 function SiteFooter({ lang }: { lang: Language }) {
   return (
     <footer className="border-t">
-      <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      {/* pb-24 keeps the text clear of the chat button fixed in the corner. */}
+      <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 pb-24 pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <BrandMark compact="mobile" />
         <p>{t("landing", "footer", lang).replace("{year}", String(new Date().getFullYear()))}</p>
       </div>
