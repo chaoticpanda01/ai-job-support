@@ -1,11 +1,13 @@
 "use client";
 
+import { Zap } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useAiQuota } from "@/hooks/useAiQuota";
 import { useLang } from "@/lib/language-context";
 import { t, type Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-/** At or below this many remaining calls the badge turns amber. */
+/** At or below this many remaining calls the count turns ochre. */
 const LOW_REMAINING = 2;
 
 /**
@@ -30,18 +32,14 @@ function formatReset(seconds: number, lang: Language): string {
 }
 
 /**
- * Remaining AI calls, shown in the dashboard header.
+ * Remaining AI calls, in the sidebar footer.
  *
- * Advisory only. This sits in the header of every dashboard page, so a pending
- * or failed quota fetch renders nothing rather than risking the header. The
- * authoritative path is unaffected either way — an exhausted quota is still
- * enforced by check_budget and surfaced as a 429.
- *
- * `className` lets each call site own its own visibility: the header hides it
- * below the `sm` breakpoint, where it would otherwise squeeze the brand link
- * into wrapping, and the mobile nav drawer renders it instead.
+ * Advisory only. It sits on every dashboard page, so a pending or failed quota
+ * fetch renders nothing rather than risking the shell. The authoritative path
+ * is unaffected either way: an exhausted quota is still enforced by
+ * check_budget and surfaced as a 429.
  */
-export function AiQuotaBadge({ className }: { className?: string }) {
+export function AiQuotaMeter() {
   const { lang } = useLang();
   const { data } = useAiQuota();
 
@@ -60,24 +58,24 @@ export function AiQuotaBadge({ className }: { className?: string }) {
     : `${scopeLabel}: ${remaining}${sep}${t("aiQuota", "left", lang)}`;
 
   return (
-    <span
-      title={description}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium tabular-nums",
-        exhausted
-          ? "border-destructive/40 text-destructive"
-          : low
-            ? "border-amber-500/40 text-amber-700"
-            : "border-transparent text-muted-foreground",
-        className,
-      )}
-    >
-      <span aria-hidden="true">⚡</span>
-      <span aria-hidden="true">
-        {remaining}/{limit}
-        {exhausted ? ` · ${reset}` : ""}
-      </span>
-      <span className="sr-only">{description}</span>
-    </span>
+    <div className="px-3 py-2" title={description}>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-secondary-foreground">
+          <Zap aria-hidden="true" className="h-3.5 w-3.5" />
+          {t("aiQuota", "meterTitle", lang)}
+        </span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "font-medium tabular-nums",
+            exhausted ? "text-destructive" : low ? "text-warning" : "text-muted-foreground",
+          )}
+        >
+          {remaining}/{limit}
+          {exhausted ? ` · ${reset}` : ""}
+        </span>
+      </div>
+      <Progress value={remaining} max={limit} aria-label={description} className="mt-1.5 h-1" />
+    </div>
   );
 }
