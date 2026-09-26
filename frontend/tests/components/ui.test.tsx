@@ -96,8 +96,14 @@ describe("Skeleton", () => {
 });
 
 describe("BrandMark", () => {
-  it("names the product even when compact", () => {
-    render(<BrandMark compact />);
-    expect(screen.getByText("Japan Job Support")).toBeInTheDocument();
+  it.each([false, true])("gives a link exactly the product's name (compact: %s)", (compact) => {
+    // The 職 seal is decoration: were it read out, the name would be
+    // "職 Japan Job Support".
+    render(
+      <Link href="/dashboard">
+        <BrandMark compact={compact} />
+      </Link>,
+    );
+    expect(screen.getByRole("link", { name: "Japan Job Support" })).toBeInTheDocument();
   });
 });
