@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiClientError } from "@/lib/api-client";
+import { ApiClientError, apiClient } from "@/lib/api-client";
 
 /**
  * The options object the hook hands useQuery, captured so its policy
@@ -35,7 +35,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: () => {} }),
 }));
 
-const { useDocumentStatus } = await import("@/hooks/useDocuments");
+const { useDocumentStatus, useDocuments } = await import("@/hooks/useDocuments");
 
 function optionsFor(): CapturedOptions {
   queryResult = {
@@ -120,5 +120,30 @@ describe("useDocumentStatus error reporting", () => {
 
     expect(result.pollError).toBe(error);
     expect(result.loadError).toBeNull();
+  });
+});
+
+describe("useDocuments", () => {
+  /** The URL the last useDocuments call's query fetches. */
+  async function fetchedUrl(): Promise<string> {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ items: [], total: 0 });
+    await (captured as unknown as { queryFn: () => Promise<unknown> }).queryFn();
+    const url = get.mock.calls[0]?.[0] as string;
+    get.mockRestore();
+    return url;
+  }
+
+  it("lists one page by default, as the documents page shows", async () => {
+    useDocuments();
+    expect(await fetchedUrl()).toBe("/documents");
+    useDocuments("rirekisho");
+    expect(await fetchedUrl()).toBe("/documents?type=rirekisho");
+  });
+
+  it("asks for a larger page when told to", async () => {
+    useDocuments(undefined, 100);
+    expect(await fetchedUrl()).toBe("/documents?limit=100");
+    useDocuments("rirekisho", 100);
+    expect(await fetchedUrl()).toBe("/documents?type=rirekisho&limit=100");
   });
 });

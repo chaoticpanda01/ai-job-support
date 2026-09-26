@@ -10,10 +10,10 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useJourney } from "@/hooks/useJourney";
 import {
+  ACTIVITY_LABEL_KEY,
   formatRelative,
   recentActivity,
   type ActivityItem,
-  type ActivityKind,
 } from "@/lib/activity";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
@@ -26,19 +26,9 @@ const STAGE_LABEL: Record<StageId, string> = {
   settleIn: "groupSettleIn",
 };
 
-const ACTIVITY_LABEL: Record<ActivityKind, string> = {
-  resumeUploaded: "activityResumeUploaded",
-  resumeAnalysed: "activityResumeAnalysed",
-  rirekisho: "activityRirekisho",
-  shokumu: "activityShokumu",
-  application: "activityApplication",
-  interview: "activityInterview",
-  visa: "activityVisa",
-};
-
 export default function HomePage() {
   const { lang } = useLang();
-  const { journey, input, isLoading, retry } = useJourney();
+  const { journey, input, isLoading, retry, retrying } = useJourney();
 
   if (isLoading) return <HomeSkeleton />;
 
@@ -67,7 +57,7 @@ export default function HomePage() {
       {journey.next && <NextStepCard step={journey.next} />}
       {journey.allDone && <AllDoneCard />}
 
-      <JourneyBoard journey={journey} onRetry={retry} />
+      <JourneyBoard journey={journey} onRetry={retry} retrying={retrying} />
 
       {activity.length > 0 && <RecentActivity items={activity} />}
     </>
@@ -114,7 +104,15 @@ function AllDoneCard() {
   );
 }
 
-function JourneyBoard({ journey, onRetry }: { journey: Journey; onRetry: (step: StepId) => void }) {
+function JourneyBoard({
+  journey,
+  onRetry,
+  retrying,
+}: {
+  journey: Journey;
+  onRetry: (step: StepId) => void;
+  retrying: (step: StepId) => boolean;
+}) {
   const { lang } = useLang();
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -159,6 +157,7 @@ function JourneyBoard({ journey, onRetry }: { journey: Journey; onRetry: (step: 
                     step={step}
                     isNext={journey.next?.id === step.id}
                     onRetry={onRetry}
+                    retrying={retrying(step.id)}
                   />
                 ))}
               </ul>
@@ -174,10 +173,12 @@ function StepRow({
   step,
   isNext,
   onRetry,
+  retrying,
 }: {
   step: JourneyStep;
   isNext: boolean;
   onRetry: (step: StepId) => void;
+  retrying: boolean;
 }) {
   const { lang } = useLang();
   const label = t("journey", step.id, lang);
@@ -194,7 +195,7 @@ function StepRow({
             {t("home", "couldntCheck", lang)}
           </span>
         </span>
-        <Button variant="link" size="sm" onClick={() => onRetry(step.id)}>
+        <Button variant="link" size="sm" loading={retrying} onClick={() => onRetry(step.id)}>
           {t("common", "tryAgain", lang)}
           <span className="sr-only"> {label}</span>
         </Button>
@@ -249,7 +250,7 @@ function RecentActivity({ items }: { items: ActivityItem[] }) {
                 className="flex items-baseline justify-between gap-4 rounded-sm py-2.5 text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="min-w-0 truncate">
-                  {t("home", ACTIVITY_LABEL[item.kind], lang)}
+                  {t("home", ACTIVITY_LABEL_KEY[item.kind], lang)}
                   {item.name && <span className="text-muted-foreground"> · {item.name}</span>}
                 </span>
                 {/* Flex hides this space, but it keeps a screen reader from

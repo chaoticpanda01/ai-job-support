@@ -11,7 +11,11 @@ import type {
   VisaConsultationListItem,
 } from "@/types/api";
 
-const state = vi.hoisted(() => ({ result: undefined as unknown, retries: [] as string[] }));
+const state = vi.hoisted(() => ({
+  result: undefined as unknown,
+  retries: [] as string[],
+  retrying: [] as string[],
+}));
 vi.mock("@/hooks/useJourney", () => ({ useJourney: () => state.result }));
 
 const HomePage = (await import("@/app/dashboard/page")).default;
@@ -78,11 +82,13 @@ function setJourney(input: JourneyInput, isLoading = false) {
     input,
     isLoading,
     retry: (step: string) => state.retries.push(step),
+    retrying: (step: string) => state.retrying.includes(step),
   };
 }
 
 beforeEach(() => {
   state.retries = [];
+  state.retrying = [];
   setJourney(MID_JOURNEY);
 });
 
@@ -154,6 +160,15 @@ describe("Home", () => {
     expect(state.retries).toEqual(["visa"]);
   });
 
+  it("shows the retry is under way", () => {
+    state.retrying = ["visa"];
+    setJourney({ ...MID_JOURNEY, visaConsultations: undefined });
+    renderIn("en", <HomePage />);
+    const retry = screen.getByRole("button", { name: new RegExp(t("common", "tryAgain", "en")) });
+    expect(retry).toHaveAttribute("aria-busy", "true");
+    expect(retry).toBeDisabled();
+  });
+
   it("celebrates a finished journey instead of suggesting a step", () => {
     setJourney(FINISHED);
     renderIn("en", <HomePage />);
@@ -194,7 +209,8 @@ describe("Home", () => {
 
   it("shows skeletons, not a half-built board, while loading", () => {
     setJourney(MID_JOURNEY, true);
-    renderIn("en", <HomePage />);
+    const { container } = renderIn("en", <HomePage />);
+    expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });

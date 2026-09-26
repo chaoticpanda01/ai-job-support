@@ -19,11 +19,15 @@ const POLL_RETRY_ATTEMPTS = 2;
 // List
 // ---------------------------------------------------------------------------
 
-export function useDocuments(type?: DocumentType) {
-  const params = type ? `?type=${type}` : "";
+/** One page, newest first. `limit` asks for a larger page (the backend allows up to 100). */
+export function useDocuments(type?: DocumentType, limit?: number) {
+  const params = new URLSearchParams();
+  if (type) params.set("type", type);
+  if (limit !== undefined) params.set("limit", String(limit));
+  const query = params.toString() ? `?${params}` : "";
   return useQuery<DocumentList>({
-    queryKey: ["documents", type ?? "all"],
-    queryFn: () => apiClient.get<DocumentList>(`/documents${params}`),
+    queryKey: ["documents", type ?? "all", ...(limit !== undefined ? [{ limit }] : [])],
+    queryFn: () => apiClient.get<DocumentList>(`/documents${query}`),
   });
 }
 

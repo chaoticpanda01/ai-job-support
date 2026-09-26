@@ -15,6 +15,8 @@ import {
   type StepId,
 } from "@/lib/journey";
 
+const DOCUMENT_LIMIT = 100;
+
 /**
  * The queries behind each step, refreshed by retry(). These are prefixes:
  * ["resumes"] also covers the primary resume's analysis, which lives under
@@ -48,6 +50,8 @@ export interface UseJourneyResult {
   input: JourneyInput;
   isLoading: boolean;
   retry: (step: StepId) => void;
+  /** Whether the data behind a step is being fetched again, e.g. after retry(). */
+  retrying: (step: StepId) => boolean;
 }
 
 /**
@@ -62,7 +66,10 @@ export function useJourney(): UseJourneyResult {
   const primary = resumes.data ? pickPrimaryResume(resumes.data.items) : undefined;
   // "" disables the query until there is a resume to ask about.
   const analysis = useResumeAnalysis(primary?.id ?? "");
-  const documents = useDocuments();
+  // The largest page the backend allows. The default 20 is newest first, so a
+  // user with 20 newer documents (failed attempts too) would lose a finished
+  // 履歴書 off the end and be told to make it again.
+  const documents = useDocuments(undefined, DOCUMENT_LIMIT);
   const applications = useApplications();
   const interviews = useInterviewSessions();
   const visa = useVisaConsultations();
@@ -88,10 +95,22 @@ export function useJourney(): UseJourneyResult {
     isFirstLoad,
   );
 
+  const queriesBehind: Record<StepId, { isFetching: boolean }[]> = {
+    profile: [me],
+    resumeUploaded: [resumes],
+    resumeAnalysed: [resumes, analysis],
+    rirekisho: [documents],
+    shokumu: [documents],
+    application: [applications],
+    interview: [interviews],
+    visa: [visa],
+  };
+
   return {
     journey: computeJourney(input),
     input,
     isLoading,
     retry: (step) => void queryClient.invalidateQueries({ queryKey: [...STEP_QUERY_KEYS[step]] }),
+    retrying: (step) => queriesBehind[step].some((query) => query.isFetching),
   };
 }

@@ -8,13 +8,20 @@ import type { Resume } from "@/types/api";
  * The journey rules themselves are tested in tests/lib/journey.test.ts.
  */
 
-type Q = { data?: unknown; error?: unknown; isLoading?: boolean; errorUpdateCount?: number };
+type Q = {
+  data?: unknown;
+  error?: unknown;
+  isLoading?: boolean;
+  isFetching?: boolean;
+  errorUpdateCount?: number;
+};
 const q = vi.hoisted(() => ({
   me: {} as Q,
   resumes: {} as Q,
   analysis: {} as Q,
   analysisResumeIds: [] as string[],
   documents: {} as Q,
+  documentArgs: [] as unknown[][],
   applications: {} as Q,
   interviews: {} as Q,
   visa: {} as Q,
@@ -37,7 +44,12 @@ vi.mock("@/hooks/useResumes", () => ({
     return q.analysis;
   },
 }));
-vi.mock("@/hooks/useDocuments", () => ({ useDocuments: () => q.documents }));
+vi.mock("@/hooks/useDocuments", () => ({
+  useDocuments: (...args: unknown[]) => {
+    q.documentArgs.push(args);
+    return q.documents;
+  },
+}));
 vi.mock("@/hooks/useApplications", () => ({ useApplications: () => q.applications }));
 vi.mock("@/hooks/useInterview", () => ({ useInterviewSessions: () => q.interviews }));
 vi.mock("@/hooks/useVisa", () => ({ useVisaConsultations: () => q.visa }));
@@ -65,6 +77,7 @@ beforeEach(() => {
   q.analysis = loaded(null);
   q.analysisResumeIds = [];
   q.documents = loaded({ items: [], total: 0 });
+  q.documentArgs = [];
   q.applications = loaded([]);
   q.interviews = loaded([]);
   q.visa = loaded([]);
@@ -133,6 +146,22 @@ describe("useJourney", () => {
     const { result } = renderHook(() => useJourney());
     expect(result.current.isLoading).toBe(false);
     expect(stepState("resumeAnalysed")).toBe("unknown");
+  });
+
+  it("asks for the largest page of documents", () => {
+    // One page is 20, newest first: a user with 20 newer documents (failed
+    // attempts included) would lose their finished 履歴書 off the end and be
+    // told to make it again. 100 is the backend's maximum.
+    renderHook(() => useJourney());
+    expect(q.documentArgs.at(-1)).toEqual([undefined, 100]);
+  });
+
+  it("says which steps are being checked again", () => {
+    q.documents = { ...retrying, isFetching: true };
+    const { result } = renderHook(() => useJourney());
+    expect(result.current.retrying("rirekisho")).toBe(true);
+    expect(result.current.retrying("shokumu")).toBe(true);
+    expect(result.current.retrying("visa")).toBe(false);
   });
 
   it("is not loading once everything has settled, failures included", () => {

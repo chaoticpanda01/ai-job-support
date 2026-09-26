@@ -11,6 +11,17 @@ export type ActivityKind =
   | "interview"
   | "visa";
 
+/** Each kind's label in the "home" section of lib/i18n.ts. */
+export const ACTIVITY_LABEL_KEY: Record<ActivityKind, string> = {
+  resumeUploaded: "activityResumeUploaded",
+  resumeAnalysed: "activityResumeAnalysed",
+  rirekisho: "activityRirekisho",
+  shokumu: "activityShokumu",
+  application: "activityApplication",
+  interview: "activityInterview",
+  visa: "activityVisa",
+};
+
 export interface ActivityItem {
   key: string;
   kind: ActivityKind;
