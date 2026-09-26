@@ -15,7 +15,8 @@ import {
   type StepId,
 } from "@/lib/journey";
 
-const DOCUMENT_LIMIT = 100;
+/** The backend's largest page (Pagination.MAX_LIMIT in backend/app/dependencies.py). */
+const PAGE_LIMIT = 100;
 
 /**
  * The queries behind each step, refreshed by retry(). These are prefixes:
@@ -69,9 +70,14 @@ export function useJourney(): UseJourneyResult {
   // The largest page the backend allows. The default 20 is newest first, so a
   // user with 20 newer documents (failed attempts too) would lose a finished
   // 履歴書 off the end and be told to make it again.
-  const documents = useDocuments(undefined, DOCUMENT_LIMIT);
+  const documents = useDocuments(undefined, PAGE_LIMIT);
   const applications = useApplications();
-  const interviews = useInterviewSessions();
+  // GET /interview/sessions returns completed sessions only (list_completed in
+  // backend/app/api/v1/interview.py), so its first page answers "has the user
+  // completed one?" at any size. The largest page is belt and braces: if the
+  // endpoint ever returned abandoned sessions too, newer ones could push the
+  // only completed session off a 20-item page, as documents once did.
+  const interviews = useInterviewSessions(PAGE_LIMIT);
   const visa = useVisaConsultations();
 
   // undefined means "couldn't load", which journey.ts shows as unknown. The

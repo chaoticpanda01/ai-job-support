@@ -38,10 +38,15 @@ export function useInterviewSession(id: string) {
   });
 }
 
-export function useInterviewSessions() {
+/**
+ * The user's completed sessions, one page (20) newest first. `limit` asks for
+ * a larger page (the backend allows up to 100), cached apart from the default.
+ */
+export function useInterviewSessions(limit?: number) {
+  const query = limit !== undefined ? `?limit=${limit}` : "";
   return useQuery<InterviewSession[]>({
-    queryKey: ["interview", "sessions"],
-    queryFn: () => apiClient.get<InterviewSession[]>("/interview/sessions"),
+    queryKey: ["interview", "sessions", ...(limit !== undefined ? [{ limit }] : [])],
+    queryFn: () => apiClient.get<InterviewSession[]>(`/interview/sessions${query}`),
   });
 }
 

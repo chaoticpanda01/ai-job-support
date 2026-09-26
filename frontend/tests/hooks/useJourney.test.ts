@@ -22,6 +22,7 @@ const q = vi.hoisted(() => ({
   analysisResumeIds: [] as string[],
   documents: {} as Q,
   documentArgs: [] as unknown[][],
+  interviewArgs: [] as unknown[][],
   applications: {} as Q,
   interviews: {} as Q,
   visa: {} as Q,
@@ -51,7 +52,12 @@ vi.mock("@/hooks/useDocuments", () => ({
   },
 }));
 vi.mock("@/hooks/useApplications", () => ({ useApplications: () => q.applications }));
-vi.mock("@/hooks/useInterview", () => ({ useInterviewSessions: () => q.interviews }));
+vi.mock("@/hooks/useInterview", () => ({
+  useInterviewSessions: (...args: unknown[]) => {
+    q.interviewArgs.push(args);
+    return q.interviews;
+  },
+}));
 vi.mock("@/hooks/useVisa", () => ({ useVisaConsultations: () => q.visa }));
 
 const { useJourney } = await import("@/hooks/useJourney");
@@ -78,6 +84,7 @@ beforeEach(() => {
   q.analysisResumeIds = [];
   q.documents = loaded({ items: [], total: 0 });
   q.documentArgs = [];
+  q.interviewArgs = [];
   q.applications = loaded([]);
   q.interviews = loaded([]);
   q.visa = loaded([]);
@@ -154,6 +161,11 @@ describe("useJourney", () => {
     // told to make it again. 100 is the backend's maximum.
     renderHook(() => useJourney());
     expect(q.documentArgs.at(-1)).toEqual([undefined, 100]);
+  });
+
+  it("asks for the largest page of interview sessions too", () => {
+    renderHook(() => useJourney());
+    expect(q.interviewArgs.at(-1)).toEqual([100]);
   });
 
   it("says which steps are being checked again", () => {
