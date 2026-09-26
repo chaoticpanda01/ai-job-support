@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { LanguageProvider } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { computeJourney, type JourneyInput } from "@/lib/journey";
@@ -12,7 +12,10 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
-vi.mock("@clerk/nextjs", () => ({ UserButton: () => null }));
+// A real button, so the tests can see where an account menu is offered.
+vi.mock("@clerk/nextjs", () => ({
+  UserButton: () => <button type="button">Open user menu</button>,
+}));
 vi.mock("@/hooks/useMe", () => ({ useMe: () => ({ data: state.me }) }));
 vi.mock("@/hooks/useJourney", () => ({ useJourney: () => state.journey }));
 vi.mock("@/hooks/useAiQuota", () => ({ useAiQuota: () => ({ data: undefined }) }));
@@ -46,6 +49,38 @@ function groupName(labelKey: string, done: number, total: number) {
   return `${n(labelKey)}${n("countSep")}${count}`;
 }
 
+/**
+ * jsdom has no matchMedia. This one answers the drawer's "(min-width: 1024px)"
+ * query and lets a test change the answer, as resizing a window would.
+ */
+const media = vi.hoisted(() => ({
+  wide: false,
+  listeners: new Set<(event: { matches: boolean }) => void>(),
+}));
+window.matchMedia = ((query: string) => ({
+  media: query,
+  get matches() {
+    return media.wide;
+  },
+  addEventListener: (_: string, fn: (event: { matches: boolean }) => void) =>
+    media.listeners.add(fn),
+  removeEventListener: (_: string, fn: (event: { matches: boolean }) => void) =>
+    media.listeners.delete(fn),
+})) as unknown as typeof window.matchMedia;
+
+function resizeTo(wide: boolean) {
+  media.wide = wide;
+  act(() => media.listeners.forEach((fn) => fn({ matches: wide })));
+}
+
+/**
+ * Accessible names as a browser computes them. jsdom puts a space between
+ * inline elements that browsers don't ("Prepare , 5 of…"), so compare with
+ * the space before punctuation removed.
+ */
+const named = (expected: string) => (name: string) =>
+  name.replace(/\s+([,、])/g, "$1") === expected;
+
 function renderLayout() {
   const ui = () => (
     <LanguageProvider initialLang={LANG}>
@@ -59,6 +94,8 @@ function renderLayout() {
 }
 
 beforeEach(() => {
+  media.wide = false;
+  media.listeners.clear();
   nav.pathname = "/dashboard";
   state.me = { user: { role: "user", email: "a@example.com", full_name: "Budi Santoso" } };
   state.journey = useJourneyResult(PREPARED);
@@ -81,6 +118,16 @@ describe("dashboard shell", () => {
     expect(screen.getByRole("list", { name: groupName("groupApply", 0, 2) })).toBeInTheDocument();
     expect(
       screen.getByRole("list", { name: groupName("groupSettleIn", 0, 1) }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts each stage's progress in its heading too, for readers that skip list names", () => {
+    renderLayout();
+    expect(
+      screen.getByRole("heading", { name: named(groupName("groupPrepare", 5, 5)) }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: named(groupName("groupApply", 0, 2)) }),
     ).toBeInTheDocument();
   });
 
@@ -116,6 +163,7 @@ describe("dashboard shell", () => {
     renderLayout();
     expect(screen.queryByRole("link", { name: n("admin") })).not.toBeInTheDocument();
 
+    cleanup();
     state.me = { user: { role: "admin", email: "a@example.com", full_name: null } };
     renderLayout();
     expect(screen.getByRole("link", { name: n("admin") })).toHaveAttribute("href", "/admin");
@@ -145,6 +193,28 @@ describe("phone drawer", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     // Radix hands focus back in a setTimeout(0) after the dialog unmounts.
     await waitFor(() => expect(menuButton).toHaveFocus());
+  });
+
+  it("leaves the account menu to the top bar", () => {
+    // Clerk's menu can't be clicked inside the modal drawer (it inherits
+    // pointer-events: none), and the top bar right above has its own.
+    renderLayout();
+    fireEvent.click(screen.getByRole("button", { name: n("openMenu") }));
+    const drawer = screen.getByRole("dialog", { name: n("menu") });
+    expect(
+      within(drawer).queryByRole("button", { name: "Open user menu" }),
+    ).not.toBeInTheDocument();
+    expect(within(drawer).queryByText("a@example.com")).not.toBeInTheDocument();
+  });
+
+  it("closes when the window grows wide enough for the sidebar", () => {
+    renderLayout();
+    fireEvent.click(screen.getByRole("button", { name: n("openMenu") }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    resizeTo(true);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("closes when the page changes", () => {

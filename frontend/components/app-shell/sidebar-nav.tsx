@@ -147,7 +147,14 @@ function Account() {
  * The sidebar's content: shown in the fixed desktop sidebar and, on phones,
  * inside the drawer. onNavigate lets the drawer close when a link is used.
  */
-export function SidebarNav({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+export function SidebarNav({
+  onNavigate,
+  showAccount = true,
+}: {
+  onNavigate?: (() => void) | undefined;
+  /** Off in the phone drawer, where Clerk's menu can't be clicked; see MobileTopBar. */
+  showAccount?: boolean;
+}) {
   const { lang } = useLang();
   const pathname = usePathname();
   const { data: me } = useMe();
@@ -204,10 +211,18 @@ export function SidebarNav({ onNavigate }: { onNavigate?: (() => void) | undefin
                     {stage.done}/{stage.total}
                   </span>
                 )}
+                {count && (
+                  <span className="sr-only">
+                    {t("nav", "countSep", lang)}
+                    {count}
+                  </span>
+                )}
               </h2>
-              {/* The list carries the spoken count ("Prepare, 5 of 5 steps
-                  done") as one aria-label, so it reads the same in every
-                  engine; the "5/5" above is visual only. */}
+              {/* The spoken count ("Prepare, 5 of 5 steps done") is in both
+                  places: the heading, for heading navigation, and the list's
+                  aria-label, which reads the same in every engine. Some
+                  screen readers skip list names, so it can't live there
+                  alone. The "5/5" above is visual only. */}
               <ul aria-label={count ? `${label}${t("nav", "countSep", lang)}${count}` : label}>
                 {group.items.map((item) => (
                   <li key={item.href}>
@@ -254,7 +269,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: (() => void) | undefin
             </li>
           )}
         </ul>
-        <Account />
+        {showAccount && <Account />}
       </div>
     </div>
   );

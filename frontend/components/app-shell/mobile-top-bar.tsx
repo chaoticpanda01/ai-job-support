@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { UserButton } from "@clerk/nextjs";
@@ -24,6 +25,19 @@ export function MobileTopBar({
   onOpenChange: (open: boolean) => void;
 }) {
   const { lang } = useLang();
+
+  // The drawer is portalled, so the bar's lg:hidden doesn't reach it: widen
+  // the window past lg (Tailwind's 1024px) with it open and its overlay and
+  // scroll lock would sit over the desktop sidebar. Close it instead.
+  useEffect(() => {
+    if (!open) return;
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const closeIfWide = (event: { matches: boolean }) => {
+      if (event.matches) onOpenChange(false);
+    };
+    wide.addEventListener("change", closeIfWide);
+    return () => wide.removeEventListener("change", closeIfWide);
+  }, [open, onOpenChange]);
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-card px-2 lg:hidden">
       <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -51,7 +65,10 @@ export function MobileTopBar({
                 <X aria-hidden="true" />
               </Button>
             </DialogPrimitive.Close>
-            <SidebarNav onNavigate={() => onOpenChange(false)} />
+            {/* No account block: Clerk's menu opens inside this modal dialog
+                with pointer-events: none and can't be clicked. The avatar in
+                the bar above is the phone's account menu. */}
+            <SidebarNav onNavigate={() => onOpenChange(false)} showAccount={false} />
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
