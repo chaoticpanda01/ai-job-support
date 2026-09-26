@@ -7,7 +7,7 @@ import { SIGN_IN_ROUTE, SIGN_UP_ROUTE } from "@/lib/routes";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
-const DASHBOARD_ROUTE = "/dashboard/resumes";
+const DASHBOARD_ROUTE = "/dashboard";
 
 const FEATURES = [
   { icon: "📄", titleKey: "resume", descKey: "resumeDesc" },

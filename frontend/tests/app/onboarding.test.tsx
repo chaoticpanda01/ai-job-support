@@ -176,7 +176,7 @@ describe("onboarding, where a returning user lands", () => {
   it("sends a finished user to the dashboard", async () => {
     await renderPage(me({ onboarding_step: 5, onboarding_completed: true }));
 
-    expect(routerObject.replaces).toEqual(["/dashboard/resumes"]);
+    expect(routerObject.replaces).toEqual(["/dashboard"]);
   });
 
   it("leaves an unfinished user alone", async () => {
@@ -439,7 +439,7 @@ describe("onboarding, step 5 personal details", () => {
     await submit(container);
 
     expect(updateProfile.saves[0]).toMatchObject({ onboarding_step: 5 });
-    expect(routerObject.pushes).toEqual(["/dashboard/resumes"]);
+    expect(routerObject.pushes).toEqual(["/dashboard"]);
   });
 
   it("stays put when the last save fails", async () => {

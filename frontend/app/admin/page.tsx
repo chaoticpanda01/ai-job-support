@@ -114,7 +114,7 @@ export default function AdminPage() {
         <p className="text-sm text-muted-foreground">
           Your account doesn&apos;t have permission to view this page.
         </p>
-        <Link href="/dashboard/resumes" className="text-sm text-indigo hover:underline">
+        <Link href="/dashboard" className="text-sm text-indigo hover:underline">
           ← Back to app
         </Link>
       </main>
@@ -130,10 +130,7 @@ export default function AdminPage() {
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               <span aria-hidden="true">🏠</span> Home
             </Link>
-            <Link
-              href="/dashboard/resumes"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
+            <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
               ← Back to app
             </Link>
             <span className="font-semibold">Admin Panel</span>

@@ -80,7 +80,7 @@ export default function OnboardingPage() {
   // If already completed, redirect
   useEffect(() => {
     if (me?.profile?.onboarding_completed) {
-      router.replace("/dashboard/resumes");
+      router.replace("/dashboard");
     }
   }, [me?.profile?.onboarding_completed, router]);
 
@@ -267,7 +267,7 @@ export default function OnboardingPage() {
                   ...(data.personal_requests ? { personal_requests: data.personal_requests } : {}),
                   onboarding_step: 5,
                 });
-                router.push("/dashboard/resumes");
+                router.push("/dashboard");
               } catch (err) {
                 setError(apiErrorMessage(err, lang));
               }
