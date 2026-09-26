@@ -18,6 +18,11 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t, type Language } from "@/lib/i18n";
 import { SIGN_IN_ROUTE } from "@/lib/routes";
+import {
+  computeMissingRirekishoFields,
+  missingFieldLabel,
+  totalRequiredCount,
+} from "@/lib/rirekisho-completeness";
 import { PhotoUploader } from "@/components/profile/PhotoUploader";
 import type {
   Gender,
@@ -45,115 +50,6 @@ const LANGUAGES: { value: PreferredLanguage; label: string }[] = [
   { value: "en", label: "English" },
   { value: "ja", label: "Japanese (日本語)" },
 ];
-
-// Keys mirror rirekisho_missing_fields()'s "key" values in
-// backend/app/services/rirekisho_completeness.py — kept in sync manually,
-// see the comment on computeMissingRirekishoFields below.
-const REQUIRED_FIELD_LABEL_KEYS: Record<string, string> = {
-  full_name: "fullName",
-  name_kana: "nameKana",
-  date_of_birth: "dateOfBirth",
-  gender: "gender",
-  phone_number: "phone",
-  mailing_address: "address",
-  visa_category: "visaCategory",
-  residence_card_expiration: "visaExpiration",
-};
-
-function missingFieldLabel(key: string, lang: Language): string {
-  return t("settings", REQUIRED_FIELD_LABEL_KEYS[key] ?? key, lang);
-}
-
-// The full set of keys computeMissingRirekishoFields() can report, split
-// into always-required and visa-held-only. totalRequiredCount() and
-// computeMissingRirekishoFields() both iterate these same arrays (via
-// isFieldMissing below), so the banner's "X of Y" denominator and the
-// missing-key list it's paired with can't drift from each other — there's
-// exactly one place each key's applicability is decided.
-const BASE_REQUIRED_KEYS = [
-  "full_name",
-  "name_kana",
-  "date_of_birth",
-  "gender",
-  "phone_number",
-  "mailing_address",
-] as const;
-const VISA_HELD_REQUIRED_KEYS = ["visa_category", "residence_card_expiration"] as const;
-
-function applicableRequiredKeys(visaStatus: VisaStatus | undefined): readonly string[] {
-  return visaStatus === "held"
-    ? [...BASE_REQUIRED_KEYS, ...VISA_HELD_REQUIRED_KEYS]
-    : BASE_REQUIRED_KEYS;
-}
-
-function totalRequiredCount(visaStatus: VisaStatus | undefined): number {
-  return applicableRequiredKeys(visaStatus).length;
-}
-
-/**
- * date_of_birth is a "YYYY-MM-DD" date-only string. `new Date(str)` parses
- * that as UTC midnight, but getMonth()/getDate() read it back in the
- * browser's local timezone — in any timezone behind UTC this silently
- * rolls the parsed date back a day, which can flip the 16/80 age boundary
- * a day early. Parsing the components directly keeps this in local time
- * throughout, matching how <input type="date"> treats it.
- */
-function isDateOfBirthMissing(dateOfBirth: string | undefined): boolean {
-  if (!dateOfBirth) return true;
-
-  // <input type="date"> always yields "YYYY-MM-DD"; the "0" fallbacks
-  // only satisfy noUncheckedIndexedAccess and are never actually hit.
-  const [dobYearStr = "0", dobMonthStr = "0", dobDayStr = "0"] = dateOfBirth.split("-");
-  const dob = new Date(Number(dobYearStr), Number(dobMonthStr) - 1, Number(dobDayStr));
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const hadBirthdayThisYear =
-    today.getMonth() > dob.getMonth() ||
-    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
-  if (!hadBirthdayThisYear) age -= 1;
-  return age < 16 || age > 80;
-}
-
-function isFieldMissing(key: string, form: ProfileUpdateRequest): boolean {
-  switch (key) {
-    case "full_name":
-      return !form.full_name;
-    case "name_kana":
-      return !form.name_kana;
-    case "date_of_birth":
-      return isDateOfBirthMissing(form.date_of_birth);
-    case "gender":
-      return !form.gender;
-    case "phone_number":
-      return !form.phone_number;
-    case "mailing_address":
-      return !form.mailing_address;
-    case "visa_category":
-      return !form.visa_category;
-    case "residence_card_expiration":
-      return !form.residence_card_expiration;
-    default:
-      return false;
-  }
-}
-
-/**
- * Deliberate, bounded duplication of a subset of
- * rirekisho_missing_fields() (backend/app/services/rirekisho_completeness.py):
- * simple presence checks, the date-of-birth age-range rule, and the
- * visa-held conditional. Needed so the Settings banner can update as the
- * user types, without a network round-trip per keystroke. If the backend's
- * required-field set changes, both BASE_REQUIRED_KEYS/VISA_HELD_REQUIRED_KEYS
- * above and isFieldMissing() must be updated too — everywhere else (the
- * rirekisho generation wizard) reads the backend's computed answer directly
- * with no duplication at all.
- */
-function computeMissingRirekishoFields(
-  form: ProfileUpdateRequest,
-  visaStatus: VisaStatus | undefined,
-): string[] {
-  return applicableRequiredKeys(visaStatus).filter((key) => isFieldMissing(key, form));
-}
 
 // Shared by RirekishoInfoSection and JobPreferencesSection, whose save
 // forms are otherwise independent (own state, own mutation) but end in an
