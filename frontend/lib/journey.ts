@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type {
   Document,
   DocumentType,
@@ -31,7 +32,7 @@ export interface JourneyStep {
   id: StepId;
   stage: StageId;
   state: StepState;
-  href: string;
+  href: Route;
 }
 
 export interface JourneyStage {
@@ -120,7 +121,8 @@ export function computeJourney(input: JourneyInput): Journey {
     {
       id: "resumeAnalysed",
       stage: "prepare",
-      href: primary ? `/dashboard/resumes/${primary.id}` : "/dashboard/resumes",
+      // Typed routes can't check a path built from a runtime id; hence the cast.
+      href: primary ? (`/dashboard/resumes/${primary.id}` as Route) : "/dashboard/resumes",
       state: analysisState(resumes, primary, input.primaryAnalysis),
     },
     {

@@ -59,6 +59,20 @@ export const translations = {
     closeMenu: { en: "Close menu", id: "Tutup menu", ja: "メニューを閉じる" },
     goToDashboard: { en: "Go to Dashboard", id: "Ke Dasbor", ja: "ダッシュボードへ" },
     admin: { en: "Admin", id: "Admin", ja: "管理" },
+    home: { en: "Home", id: "Beranda", ja: "ホーム" },
+    // Landmark name for the sidebar <nav>; menu is the phone drawer's dialog title.
+    main: { en: "Main", id: "Utama", ja: "メイン" },
+    menu: { en: "Menu", id: "Menu", ja: "メニュー" },
+    groupPrepare: { en: "Prepare", id: "Persiapan", ja: "準備" },
+    groupApply: { en: "Apply", id: "Melamar", ja: "応募" },
+    groupSettleIn: { en: "Settle in", id: "Menetap", ja: "生活準備" },
+    // Joins a stage name and its count for screen readers: "Prepare, 5 of 5 steps done".
+    countSep: { en: ", ", id: ", ", ja: "、" },
+    stepsDone: {
+      en: "{done} of {total} steps done",
+      id: "{done} dari {total} langkah selesai",
+      ja: "{total}ステップ中{done}完了",
+    },
     language: { en: "Language", id: "Bahasa", ja: "言語" },
   },
 
@@ -1625,12 +1639,13 @@ export const translations = {
   },
 
   // ---------------------------------------------------------------------------
-  // AI quota badge — fragments, composed with numbers in ai-quota-badge.tsx
+  // AI quota meter — fragments, composed with numbers in ai-quota-meter.tsx
   // ---------------------------------------------------------------------------
   aiQuota: {
     // Word separator. Japanese sets no space between clauses or between a
     // number and its counter, so composed strings join with "" there.
     sep: { en: " ", id: " ", ja: "" },
+    meterTitle: { en: "AI calls", id: "Panggilan AI", ja: "AI利用" },
     left: { en: "AI calls left", id: "panggilan AI tersisa", ja: "回のAI利用が可能" },
     exhausted: {
       en: "AI limit reached.",
@@ -1651,6 +1666,186 @@ export const translations = {
       id: "Batas 24 jam kamu",
       ja: "あなたの24時間の上限",
     },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Journey steps (lib/journey.ts): the board label, then the next-step card's
+  // title, reason and button. The uploaded CV is "レジュメ" in Japanese so it
+  // doesn't collide with the 履歴書 document on the same board.
+  // ---------------------------------------------------------------------------
+  journey: {
+    profile: {
+      en: "Complete your profile",
+      id: "Lengkapi profilmu",
+      ja: "プロフィールを完成させる",
+    },
+    profileTitle: {
+      en: "Complete your profile",
+      id: "Lengkapi profilmu",
+      ja: "プロフィールを完成させましょう",
+    },
+    profileWhy: {
+      en: "Your 履歴書 is filled in from your profile, so missing details make a weaker document.",
+      id: "履歴書 diisi dari profilmu, jadi data yang kurang membuat dokumennya lebih lemah.",
+      ja: "履歴書はプロフィールから作成されます。不足があると書類の完成度が下がります。",
+    },
+    profileCta: { en: "Open settings", id: "Buka pengaturan", ja: "設定を開く" },
+
+    resumeUploaded: { en: "Upload a resume", id: "Unggah resume", ja: "レジュメをアップロード" },
+    resumeUploadedTitle: {
+      en: "Upload your resume",
+      id: "Unggah resumemu",
+      ja: "レジュメをアップロードしましょう",
+    },
+    resumeUploadedWhy: {
+      en: "The analysis, your documents and job matching all start from it.",
+      id: "Analisis, dokumen, dan pencocokan lowongan semuanya dimulai dari sini.",
+      ja: "分析・書類作成・求人マッチングはすべてここから始まります。",
+    },
+    resumeUploadedCta: { en: "Upload resume", id: "Unggah resume", ja: "アップロード" },
+
+    resumeAnalysed: {
+      en: "Get your resume analysed",
+      id: "Analisis resumemu",
+      ja: "レジュメを分析する",
+    },
+    resumeAnalysedTitle: {
+      en: "Get your resume analysed",
+      id: "Minta analisis resumemu",
+      ja: "レジュメを分析しましょう",
+    },
+    resumeAnalysedWhy: {
+      en: "See how it reads to Japanese employers, and what to strengthen before you apply.",
+      id: "Lihat bagaimana perusahaan Jepang membacanya, dan apa yang perlu diperkuat sebelum melamar.",
+      ja: "日本の採用担当者にどう見えるか、応募前に何を強化すべきかがわかります。",
+    },
+    resumeAnalysedCta: { en: "Analyse", id: "Analisis", ja: "分析する" },
+
+    rirekisho: { en: "Create a 履歴書", id: "Buat 履歴書", ja: "履歴書を作成" },
+    rirekishoTitle: {
+      en: "Create your 履歴書",
+      id: "Buat 履歴書-mu",
+      ja: "履歴書を作成しましょう",
+    },
+    rirekishoWhy: {
+      en: "The standard Japanese application form. Nearly every application asks for one.",
+      id: "Formulir lamaran standar Jepang. Hampir setiap lamaran memintanya.",
+      ja: "日本の標準的な応募書類です。ほぼすべての応募で求められます。",
+    },
+    rirekishoCta: { en: "Create", id: "Buat", ja: "作成する" },
+
+    shokumu: { en: "Create a 職務経歴書", id: "Buat 職務経歴書", ja: "職務経歴書を作成" },
+    shokumuTitle: {
+      en: "Create your 職務経歴書",
+      id: "Buat 職務経歴書-mu",
+      ja: "職務経歴書を作成しましょう",
+    },
+    shokumuWhy: {
+      en: "Most employers ask for it alongside the 履歴書, to see your work history in detail.",
+      id: "Kebanyakan perusahaan memintanya bersama 履歴書 untuk melihat riwayat kerjamu secara rinci.",
+      ja: "多くの企業が履歴書とあわせて求め、職歴を詳しく確認します。",
+    },
+    shokumuCta: { en: "Create", id: "Buat", ja: "作成する" },
+
+    application: { en: "Track an application", id: "Lacak lamaran", ja: "応募を記録する" },
+    applicationTitle: {
+      en: "Track your first application",
+      id: "Lacak lamaran pertamamu",
+      ja: "最初の応募を記録しましょう",
+    },
+    applicationWhy: {
+      en: "Save a job you're applying for, so its status and notes stay in one place.",
+      id: "Simpan lowongan yang kamu lamar agar status dan catatannya ada di satu tempat.",
+      ja: "応募する求人を保存すると、状況やメモを一か所で管理できます。",
+    },
+    applicationCta: { en: "Browse jobs", id: "Lihat lowongan", ja: "求人を見る" },
+
+    interview: { en: "Practise an interview", id: "Latihan wawancara", ja: "面接を練習する" },
+    interviewTitle: {
+      en: "Practise an interview",
+      id: "Latihan wawancara",
+      ja: "面接を練習しましょう",
+    },
+    interviewWhy: {
+      en: "A mock interview with feedback, before the real one.",
+      id: "Simulasi wawancara dengan masukan, sebelum yang sebenarnya.",
+      ja: "本番の前に、フィードバック付きの模擬面接で練習できます。",
+    },
+    interviewCta: { en: "Start practice", id: "Mulai latihan", ja: "練習を始める" },
+
+    visa: { en: "Check your visa options", id: "Cek opsi visamu", ja: "ビザの選択肢を確認" },
+    visaTitle: {
+      en: "Check your visa options",
+      id: "Cek opsi visamu",
+      ja: "ビザの選択肢を確認しましょう",
+    },
+    visaWhy: {
+      en: "Find which visa fits your background, and what you'll need to apply for it.",
+      id: "Temukan visa yang cocok dengan latar belakangmu, dan apa yang dibutuhkan untuk mengajukannya.",
+      ja: "経歴に合うビザと、申請に必要なものがわかります。",
+    },
+    visaCta: { en: "Check visa", id: "Cek visa", ja: "確認する" },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Home (app/dashboard/page.tsx)
+  // ---------------------------------------------------------------------------
+  home: {
+    greeting: { en: "Welcome back", id: "Selamat datang kembali", ja: "おかえりなさい" },
+    greetingNamed: {
+      en: "Welcome back, {name}",
+      id: "Selamat datang kembali, {name}",
+      ja: "おかえりなさい、{name}さん",
+    },
+    progress: {
+      en: "{done} of {total} steps · your move to Japan",
+      id: "{done} dari {total} langkah · perjalananmu ke Jepang",
+      ja: "全{total}ステップ中{done}完了 · 日本への道のり",
+    },
+    progressLabel: { en: "Journey progress", id: "Progres perjalanan", ja: "進捗状況" },
+    nextStep: { en: "Next step", id: "Langkah berikutnya", ja: "次のステップ" },
+    // Read after a finished step's struck-through label, which a screen reader can't see.
+    stepDone: { en: "(done)", id: "(selesai)", ja: "（完了）" },
+    couldntCheck: { en: "Couldn't check", id: "Tidak dapat memeriksa", ja: "確認できませんでした" },
+    allDoneTitle: {
+      en: "You've completed every step",
+      id: "Kamu sudah menyelesaikan semua langkah",
+      ja: "すべてのステップを完了しました",
+    },
+    allDoneBody: {
+      en: "Keep preparing with the culture guides: workplace customs, keigo and what interviews look for.",
+      id: "Lanjutkan persiapan dengan panduan budaya: kebiasaan kerja, keigo, dan apa yang dicari saat wawancara.",
+      ja: "文化ガイドで準備を続けましょう。職場の習慣、敬語、面接で見られるポイントを解説しています。",
+    },
+    allDoneCta: {
+      en: "Read the culture guides",
+      id: "Baca panduan budaya",
+      ja: "文化ガイドを読む",
+    },
+    activityTitle: { en: "Recent activity", id: "Aktivitas terbaru", ja: "最近のアクティビティ" },
+    activityResumeUploaded: {
+      en: "Resume uploaded",
+      id: "Resume diunggah",
+      ja: "レジュメをアップロード",
+    },
+    activityResumeAnalysed: {
+      en: "Resume analysed",
+      id: "Resume dianalisis",
+      ja: "レジュメを分析",
+    },
+    activityRirekisho: { en: "履歴書 generated", id: "履歴書 dibuat", ja: "履歴書を作成" },
+    activityShokumu: {
+      en: "職務経歴書 generated",
+      id: "職務経歴書 dibuat",
+      ja: "職務経歴書を作成",
+    },
+    activityApplication: { en: "Application added", id: "Lamaran ditambahkan", ja: "応募を追加" },
+    activityInterview: {
+      en: "Interview practice completed",
+      id: "Latihan wawancara selesai",
+      ja: "面接練習を完了",
+    },
+    activityVisa: { en: "Visa options checked", id: "Opsi visa dicek", ja: "ビザを確認" },
   },
 
   // ---------------------------------------------------------------------------
