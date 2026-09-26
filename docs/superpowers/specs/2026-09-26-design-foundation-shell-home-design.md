@@ -216,11 +216,10 @@ Account (Clerk UserButton with name + email)
   | `nav.stepsDone` | "{done} of {total} steps done" | (translated) | (translated) |
   | `nav.aiQuotaLeft` | (quota label) | (translated) | (translated) |
 
-  `t()` has no interpolation today, and word order differs between the
-  languages (ja puts the name before さん). So `lib/i18n.ts` gains
-  `tf(section, key, lang, vars)`, which calls `t()` and replaces each
-  `{var}` with `vars[var]`, leaving unknown placeholders intact. It is
-  covered in `tests/lib/i18n.test.ts`.
+  Placeholders follow the existing idiom in `lib/api-error.ts`:
+  `t(section, key, lang).replace("{n}", value)`. The word order lives in each
+  language's string (ja puts the name before さん), and the existing i18n
+  test already fails if a placeholder is missing from any language.
 
 ## 4. Journey Home
 
@@ -303,7 +302,7 @@ Query's cache means the sidebar and Home share one set of requests.
   - **Description**: "{done} of {total} steps · your move to Japan".
   - Below it, a `Progress` bar.
 - **Next-step card**: shown when `next` exists. It's a `Card` with a seal
-  left edge and `seal-soft` eyebrow "Next step". It holds a per-step title,
+  left edge and a `text-seal` eyebrow "Next step". On the board, the next step's row is tinted `seal-soft`. It holds a per-step title,
   a one-line reason and a `Button asChild` link to the step's `href`. For
   example, shokumu reads: "Create your 職務経歴書", "Most employers ask for
   it alongside the 履歴書.", "Create".
@@ -410,8 +409,6 @@ Tests use the existing vitest + RTL setup under `frontend/tests/`, with
   `/dashboard/resumes` expectations become `/dashboard`.
   `tests/app/jobs-detail.test.tsx`'s `/dashboard/resumes` link is about
   resumes and stays.
-- **`tests/lib/i18n.test.ts`**: `tf()` replaces known placeholders and
-  leaves unknown ones intact.
 - **Invariants**: the existing i18n completeness test covers every new key.
 - **Gates**: `npm test`, `npm run lint`, `npm run type-check` and
   `npm run format:check` all pass.
