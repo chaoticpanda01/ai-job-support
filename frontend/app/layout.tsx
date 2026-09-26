@@ -64,7 +64,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <ClerkProvider appearance={clerkAppearance}>
       <html
         lang={lang}
-        className={`${notoSans.variable} ${notoSansJP.variable} ${shipporiMincho.variable}`}
+        className={`${notoSans.variable} ${notoSansJP.variable} ${shipporiMincho.variable} motion-safe:scroll-smooth`}
       >
         <body className="min-h-screen bg-background font-sans antialiased">
           <Providers initialLang={lang}>

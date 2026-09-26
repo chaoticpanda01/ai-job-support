@@ -54,10 +54,8 @@ export const translations = {
     culture: { en: "Culture", id: "Budaya", ja: "文化" },
     settings: { en: "Settings", id: "Pengaturan", ja: "設定" },
     signIn: { en: "Sign in", id: "Masuk", ja: "ログイン" },
-    getStarted: { en: "Get started free", id: "Mulai gratis", ja: "無料で始める" },
     openMenu: { en: "Open menu", id: "Buka menu", ja: "メニューを開く" },
     closeMenu: { en: "Close menu", id: "Tutup menu", ja: "メニューを閉じる" },
-    goToDashboard: { en: "Go to Dashboard", id: "Ke Dasbor", ja: "ダッシュボードへ" },
     admin: { en: "Admin", id: "Admin", ja: "管理" },
     home: { en: "Home", id: "Beranda", ja: "ホーム" },
     // Landmark name for the sidebar <nav>; menu is the phone drawer's dialog title.
@@ -134,67 +132,169 @@ export const translations = {
   // Landing page
   // ---------------------------------------------------------------------------
   landing: {
-    badge: {
-      en: "For Indonesian professionals pursuing careers in Japan",
-      id: "Untuk profesional Indonesia yang mengejar karier di Jepang",
-      ja: "日本でキャリアを目指すインドネシア人向け",
+    eyebrow: {
+      en: "For Indonesian professionals",
+      id: "Untuk profesional Indonesia",
+      ja: "インドネシアのプロフェッショナルへ",
     },
-    heroTitle1: {
-      en: "Your AI-powered guide to",
-      id: "Panduan bertenaga AI untuk",
-      ja: "日本で働くための",
+    heroTitle: {
+      en: "Your move to Japan, one step at a time.",
+      id: "Pindah kerja ke Jepang, selangkah demi selangkah.",
+      ja: "日本で働くまでを、一歩ずつ。",
     },
-    heroTitle2: { en: "working in Japan", id: "bekerja di Jepang", ja: "AIガイド" },
-    heroSub: {
-      en: "Japan Job Support helps Indonesian professionals navigate the Japanese job market — from resume translation to visa guidance — all powered by AI and explained in Bahasa Indonesia.",
-      id: "Japan Job Support membantu profesional Indonesia menavigasi pasar kerja Jepang — dari terjemahan resume hingga panduan visa — semua didukung AI dan dijelaskan dalam Bahasa Indonesia.",
-      ja: "Japan Job Supportは、インドネシア人プロフェッショナルが日本の就職市場をナビゲートするためのAIプラットフォームです。",
+    heroLead: {
+      en: "Build your 履歴書, practise interviews in Japanese, and find the right visa, with the whole app in English, Bahasa Indonesia or 日本語.",
+      id: "Buat 履歴書-mu, latihan wawancara dalam bahasa Jepang, dan temukan visa yang tepat, dengan seluruh aplikasi dalam bahasa Inggris, Bahasa Indonesia, atau 日本語.",
+      ja: "履歴書の作成、日本語での面接練習、最適なビザ探しまで。アプリはすべて英語・インドネシア語・日本語で使えます。",
     },
-    ctaPrimary: { en: "Get started for free", id: "Mulai gratis", ja: "無料で始める" },
-    ctaSecondary: {
-      en: "Browse culture guide",
-      id: "Jelajahi panduan budaya",
-      ja: "文化ガイドを見る",
+    startFree: { en: "Start free", id: "Mulai gratis", ja: "無料で始める" },
+    goToDashboard: { en: "Go to your dashboard", id: "Ke dasbor kamu", ja: "ダッシュボードへ" },
+    seeHow: { en: "See how it works", id: "Lihat cara kerjanya", ja: "使い方を見る" },
+    journeyTitle: {
+      en: "From your resume to your visa",
+      id: "Dari resume sampai visa",
+      ja: "レジュメからビザまで",
     },
-    featuresTitle: {
-      en: "Everything you need to land a job in Japan",
-      id: "Semua yang kamu butuhkan untuk mendapat pekerjaan di Jepang",
-      ja: "日本での就職に必要なすべて",
+    journeyLead: {
+      en: "Three stages, the same ones you'll follow in the app.",
+      id: "Tiga tahap, sama seperti yang akan kamu ikuti di aplikasi.",
+      ja: "アプリで進むのと同じ、3つのステージ。",
     },
-    howTitle: { en: "How it works", id: "Cara kerjanya", ja: "使い方" },
-    ctaTitle: {
-      en: "Ready to start your Japan career journey?",
-      id: "Siap memulai perjalanan karier Jepang kamu?",
-      ja: "日本でのキャリアを始める準備はできましたか？",
+    prepareTitle: {
+      en: "Documents Japanese employers expect",
+      id: "Dokumen yang diharapkan perusahaan Jepang",
+      ja: "日本企業が求める応募書類",
     },
-    ctaSub: {
-      en: "Create a free account and upload your first resume in minutes.",
-      id: "Buat akun gratis dan unggah resume pertamamu dalam hitungan menit.",
-      ja: "無料アカウントを作成して、数分で最初の履歴書をアップロードしましょう。",
+    prepareLead: {
+      en: "See your resume the way a Japanese recruiter reads it, then turn it into the forms they ask for.",
+      id: "Lihat resumemu seperti perekrut Jepang membacanya, lalu ubah menjadi formulir yang mereka minta.",
+      ja: "日本の採用担当者の目線でレジュメを見直し、求められる書類の形に仕上げます。",
     },
-    ctaBtn: { en: "Create free account", id: "Buat akun gratis", ja: "無料アカウント作成" },
+    prepareTool1: {
+      en: "Resume analysis with a Japan-market score",
+      id: "Analisis resume dengan skor pasar Jepang",
+      ja: "日本市場スコア付きのレジュメ分析",
+    },
+    prepareTool2: {
+      en: "履歴書 in JIS format, as a portrait or landscape PDF",
+      id: "履歴書 format JIS, sebagai PDF potret atau lanskap",
+      ja: "JIS規格の履歴書（縦・横どちらのPDFにも対応）",
+    },
+    prepareTool3: {
+      en: "職務経歴書 written from your work history",
+      id: "職務経歴書 yang disusun dari riwayat kerjamu",
+      ja: "職歴から作成する職務経歴書",
+    },
+    applyTitle: {
+      en: "Postings you can actually read",
+      id: "Lowongan yang benar-benar bisa kamu pahami",
+      ja: "ちゃんと読める求人情報",
+    },
+    applyLead: {
+      en: "Paste a Japanese job ad and read it in Bahasa Indonesia, scored for how open it is to foreign hires.",
+      id: "Tempel iklan lowongan berbahasa Jepang dan baca dalam Bahasa Indonesia, lengkap dengan skor keterbukaan bagi pekerja asing.",
+      ja: "日本語の求人を貼り付けると、インドネシア語で読めて、外国人採用への前向きさもスコアで分かります。",
+    },
+    applyTool1: {
+      en: "Translation with a foreigner-friendliness score",
+      id: "Terjemahan dengan skor keramahan bagi pekerja asing",
+      ja: "外国人フレンドリー度付きの翻訳",
+    },
+    applyTool2: {
+      en: "A match score against your resume",
+      id: "Skor kecocokan dengan resumemu",
+      ja: "レジュメとのマッチ度",
+    },
+    applyTool3: {
+      en: "Mock interviews with written feedback, in Japanese too",
+      id: "Simulasi wawancara dengan masukan tertulis, juga dalam bahasa Jepang",
+      ja: "フィードバック付きの模擬面接（日本語にも対応）",
+    },
+    settleTitle: {
+      en: "The visa, and the workplace",
+      id: "Visa dan dunia kerja",
+      ja: "ビザと職場",
+    },
+    settleLead: {
+      en: "Find the visa that fits your background, and learn how a Japanese workplace runs.",
+      id: "Temukan visa yang cocok dengan latar belakangmu, dan pelajari cara kerja di perusahaan Jepang.",
+      ja: "経歴に合うビザを見つけ、日本の職場の仕組みを学べます。",
+    },
+    settleTool1: {
+      en: "Visa options with a step-by-step roadmap and checklist",
+      id: "Pilihan visa dengan peta jalan dan daftar periksa langkah demi langkah",
+      ja: "ステップごとのロードマップとチェックリスト付きのビザ診断",
+    },
+    settleTool2: {
+      en: "Culture guides and a workplace glossary",
+      id: "Panduan budaya dan glosarium dunia kerja",
+      ja: "文化ガイドと職場用語集",
+    },
+    // Visually hidden heading for the facts strip, so the outline has no gap.
+    factsTitle: { en: "Why it's different", id: "Apa bedanya", ja: "ここが違う" },
+    fact1Title: { en: "Three languages", id: "Tiga bahasa", ja: "3つの言語" },
+    fact1Text: {
+      en: "Every screen in English, Bahasa Indonesia or 日本語, and your resume feedback too.",
+      id: "Setiap layar dalam bahasa Inggris, Bahasa Indonesia, atau 日本語, termasuk masukan untuk resumemu.",
+      ja: "すべての画面が英語・インドネシア語・日本語に対応。レジュメへのフィードバックも。",
+    },
+    fact2Title: { en: "JIS-format 履歴書", id: "履歴書 format JIS", ja: "JIS規格の履歴書" },
+    fact2Text: {
+      en: "Real PDFs, portrait or landscape, ready to send.",
+      id: "PDF asli, potret atau lanskap, siap dikirim.",
+      ja: "縦・横どちらでも、そのまま送れるPDF。",
+    },
+    fact3Title: {
+      en: "Interviews in Japanese",
+      id: "Wawancara dalam bahasa Jepang",
+      ja: "日本語での面接",
+    },
+    fact3Text: {
+      en: "Practise the real thing, with feedback on each answer.",
+      id: "Latihan seperti aslinya, dengan masukan untuk setiap jawaban.",
+      ja: "本番さながらの練習と、回答ごとのフィードバック。",
+    },
+    fact4Title: { en: "Free to try", id: "Gratis dicoba", ja: "無料で試せる" },
+    fact4Text: {
+      en: "Sign up and start with your resume. No payment details needed.",
+      id: "Daftar dan mulai dari resumemu. Tanpa data pembayaran.",
+      ja: "登録してレジュメから始めるだけ。支払い情報は不要です。",
+    },
+    aboutTitle: {
+      en: "About this project",
+      id: "Tentang proyek ini",
+      ja: "このプロジェクトについて",
+    },
+    // {name} is the author's handle, set in bold by the page.
+    aboutBuiltBy: {
+      en: "Built by {name} as a portfolio project.",
+      id: "Dibuat oleh {name} sebagai proyek portofolio.",
+      ja: "{name}がポートフォリオとして制作したプロジェクトです。",
+    },
+    aboutCode: {
+      en: "View the code on GitHub",
+      id: "Lihat kodenya di GitHub",
+      ja: "GitHubでコードを見る",
+    },
+    opensNewTab: {
+      en: "(opens in a new tab)",
+      id: "(terbuka di tab baru)",
+      ja: "（新しいタブで開きます）",
+    },
+    finalTitle: {
+      en: "Start with your resume",
+      id: "Mulai dari resumemu",
+      ja: "まずはレジュメから",
+    },
+    finalLead: {
+      en: "Upload it and see how a Japanese recruiter would read it.",
+      id: "Unggah dan lihat bagaimana perekrut Jepang akan membacanya.",
+      ja: "アップロードして、日本の採用担当者の視点で確認しましょう。",
+    },
     footer: {
-      en: "Built for Indonesian professionals.",
-      id: "Dibuat untuk profesional Indonesia.",
-      ja: "インドネシア人プロフェッショナルのために。",
-    },
-    step1Title: { en: "Create an account", id: "Buat akun", ja: "アカウントを作成" },
-    step1Desc: {
-      en: "Sign up for free in under a minute.",
-      id: "Daftar gratis dalam kurang dari satu menit.",
-      ja: "1分以内に無料登録できます。",
-    },
-    step2Title: { en: "Upload your resume", id: "Unggah resumemu", ja: "履歴書をアップロード" },
-    step2Desc: {
-      en: "Upload your existing English resume in PDF or DOCX format.",
-      id: "Unggah resume bahasa Inggrismu dalam format PDF atau DOCX.",
-      ja: "既存の英語履歴書をPDFまたはDOCX形式でアップロードします。",
-    },
-    step3Title: { en: "Let AI do the work", id: "Biarkan AI bekerja", ja: "AIに任せる" },
-    step3Desc: {
-      en: "Get your Japanese documents, scores, and visa roadmap instantly.",
-      id: "Dapatkan dokumen Jepang, skor, dan peta jalan visa secara instan.",
-      ja: "日本語書類、スコア、ビザロードマップを即座に取得します。",
+      en: "© {year} · Built for Indonesian professionals",
+      id: "© {year} · Dibuat untuk profesional Indonesia",
+      ja: "© {year} · インドネシアのプロフェッショナルのために",
     },
     // Product previews (components/landing/previews.tsx). Each preview is one
     // image to screen readers; the label is all they hear of it.
@@ -254,52 +354,6 @@ export const translations = {
       ja: "在留資格認定証明書",
     },
     visaItem3: { en: "Employment contract", id: "Kontrak kerja", ja: "雇用契約書" },
-  },
-
-  // ---------------------------------------------------------------------------
-  // Features
-  // ---------------------------------------------------------------------------
-  features: {
-    resume: { en: "Resume Analysis", id: "Analisis Resume", ja: "履歴書分析" },
-    resumeDesc: {
-      en: "Upload your English resume and get an instant Japan-market score with actionable feedback.",
-      id: "Unggah resume bahasa Inggrismu dan dapatkan skor pasar Jepang instan dengan masukan yang dapat ditindaklanjuti.",
-      ja: "英語の履歴書をアップロードして、日本市場スコアとフィードバックを即座に取得します。",
-    },
-    docs: {
-      en: "Japanese Document Generation",
-      id: "Pembuatan Dokumen Jepang",
-      ja: "日本語書類生成",
-    },
-    docsDesc: {
-      en: "Automatically generate a 履歴書 and 職務経歴書 tailored for Japanese employers.",
-      id: "Buat 履歴書 dan 職務経歴書 secara otomatis yang disesuaikan untuk perusahaan Jepang.",
-      ja: "日本の雇用主向けに最適化された履歴書と職務経歴書を自動生成します。",
-    },
-    jobs: { en: "Job Posting Translation", id: "Terjemahan Lowongan Kerja", ja: "求人翻訳" },
-    jobsDesc: {
-      en: "Paste any Japanese job posting and get a full Indonesian translation with a match score.",
-      id: "Tempelkan lowongan kerja Jepang apa pun dan dapatkan terjemahan Indonesia lengkap dengan skor kecocokan.",
-      ja: "日本語の求人をペーストして、インドネシア語の完全翻訳とマッチスコアを取得します。",
-    },
-    interview: { en: "Interview Preparation", id: "Persiapan Wawancara", ja: "面接準備" },
-    interviewDesc: {
-      en: "Practice with AI-generated interview questions based on your resume and target role.",
-      id: "Berlatih dengan pertanyaan wawancara yang dihasilkan AI berdasarkan resume dan peran targetmu.",
-      ja: "履歴書と目標職種に基づいたAI生成の面接質問で練習します。",
-    },
-    visa: { en: "Visa Guidance", id: "Panduan Visa", ja: "ビザガイダンス" },
-    visaDesc: {
-      en: "Get a personalised visa roadmap and step-by-step checklist based on your profile.",
-      id: "Dapatkan peta jalan visa yang dipersonalisasi dan daftar periksa langkah demi langkah.",
-      ja: "あなたのプロフィールに基づいた個別のビザロードマップとチェックリストを取得します。",
-    },
-    culture: { en: "Culture & Glossary", id: "Budaya & Glosarium", ja: "文化・用語集" },
-    cultureDesc: {
-      en: "Learn Japanese workplace culture, business etiquette, and key terms in Indonesian.",
-      id: "Pelajari budaya tempat kerja Jepang, etiket bisnis, dan istilah kunci dalam Bahasa Indonesia.",
-      ja: "日本の職場文化、ビジネスマナー、重要な用語をインドネシア語で学びます。",
-    },
   },
 
   // ---------------------------------------------------------------------------

@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils";
 /**
  * The seal logo: a vermilion circle with 職 ("job"), and the wordmark. The
  * seal is decorative; the wordmark carries the name, visually hidden when
- * compact so a link wrapping it still has one.
+ * compact (always, or with "mobile" only below the sm breakpoint) so a link
+ * wrapping it still has one.
  */
 export function BrandMark({
   compact = false,
   className,
 }: {
-  compact?: boolean;
+  compact?: boolean | "mobile";
   className?: string;
 }) {
   return (
@@ -20,7 +21,13 @@ export function BrandMark({
       >
         職
       </span>
-      <span className={cn("whitespace-nowrap text-[15px] font-bold", compact && "sr-only")}>
+      <span
+        className={cn(
+          "whitespace-nowrap text-[15px] font-bold",
+          compact === true && "sr-only",
+          compact === "mobile" && "sr-only sm:not-sr-only",
+        )}
+      >
         Japan Job Support
       </span>
     </span>

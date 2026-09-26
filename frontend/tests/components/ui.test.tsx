@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import Link from "next/link";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -105,5 +105,16 @@ describe("BrandMark", () => {
       </Link>,
     );
     expect(screen.getByRole("link", { name: "Japan Job Support" })).toBeInTheDocument();
+  });
+
+  it("hides only the wordmark's text below sm when compact is 'mobile'", () => {
+    render(
+      <Link href="/">
+        <BrandMark compact="mobile" />
+      </Link>,
+    );
+    const link = screen.getByRole("link", { name: "Japan Job Support" });
+    const wordmark = within(link).getByText("Japan Job Support");
+    expect(wordmark).toHaveClass("sr-only", "sm:not-sr-only");
   });
 });
