@@ -63,7 +63,7 @@ export default function TranslateJobPage() {
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://www.indeed.com/..."
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <p className="text-xs text-muted-foreground">{t("jobs", "sourceUrlHint", lang)}</p>
         </div>
@@ -80,7 +80,7 @@ export default function TranslateJobPage() {
             maxLength={MAX_JOB_TEXT}
             rows={16}
             placeholder={t("jobs", "jobTextPlaceholder", lang)}
-            className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">{t("jobs", "minChars", lang)}</p>

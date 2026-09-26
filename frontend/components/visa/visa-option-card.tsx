@@ -37,7 +37,7 @@ export function VisaOptionCard({
   return (
     <div
       className={`rounded-lg border bg-card p-5 ${
-        option.recommended ? "border-primary ring-1 ring-primary/30" : ""
+        option.recommended ? "border-primary ring-1 ring-ring/30" : ""
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -45,7 +45,7 @@ export function VisaOptionCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold">{option.visa_type}</p>
             {option.recommended && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              <span className="rounded-full bg-indigo-soft px-2 py-0.5 text-xs font-medium text-indigo">
                 {t("visa", "recommendedBadge", lang)}
               </span>
             )}

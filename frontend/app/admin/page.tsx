@@ -114,7 +114,7 @@ export default function AdminPage() {
         <p className="text-sm text-muted-foreground">
           Your account doesn&apos;t have permission to view this page.
         </p>
-        <Link href="/dashboard/resumes" className="text-sm text-primary hover:underline">
+        <Link href="/dashboard/resumes" className="text-sm text-indigo hover:underline">
           ← Back to app
         </Link>
       </main>
@@ -138,7 +138,7 @@ export default function AdminPage() {
             </Link>
             <span className="font-semibold">Admin Panel</span>
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+          <span className="rounded-full bg-indigo-soft px-2.5 py-0.5 text-xs font-medium text-indigo">
             Admin
           </span>
         </div>
@@ -259,7 +259,7 @@ function UsersTab() {
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       user.role === "admin"
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-indigo-soft text-indigo"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >

@@ -87,7 +87,7 @@ export function DocumentWizard({
                         year: "numeric",
                       })}
                       {r.is_primary && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-indigo-soft px-2 py-0.5 text-xs font-medium text-indigo">
                           {t("documents", "wizPrimary", lang)}
                         </span>
                       )}
@@ -130,7 +130,7 @@ export function DocumentWizard({
           onChange={(e) => setJobPostingId(e.target.value)}
           placeholder={t("documents", "wizJobIdPlaceholder", lang)}
           aria-invalid={jobIdInvalid}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         {jobIdInvalid && (
           <p className="text-xs text-destructive">{t("documents", "wizJobIdInvalid", lang)}</p>

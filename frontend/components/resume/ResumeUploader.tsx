@@ -81,7 +81,7 @@ export function ResumeUploader({ onUploaded }: Props) {
         className={[
           "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 text-center transition-colors",
           isDragActive
-            ? "border-primary bg-primary/5"
+            ? "border-primary bg-indigo-soft"
             : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/40",
           uploadMutation.isPending ? "pointer-events-none opacity-60" : "",
         ].join(" ")}

@@ -94,7 +94,7 @@ export default function NewInterviewPage() {
             id="language"
             value={language}
             onChange={(e) => setLanguage(e.target.value as InterviewLanguage)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {INTERVIEW_LANGUAGES.map((code) => (
               <option key={code} value={code}>
@@ -117,14 +117,14 @@ export default function NewInterviewPage() {
             value={targetRole}
             onChange={(e) => setTargetRole(e.target.value)}
             placeholder={t("interview", "rolePlaceholder", lang)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <input
             type="text"
             value={targetCompany}
             onChange={(e) => setTargetCompany(e.target.value)}
             placeholder={t("interview", "companyPlaceholder", lang)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 

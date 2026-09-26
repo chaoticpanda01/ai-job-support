@@ -153,7 +153,7 @@ function PhaseNumber({ index, done }: { index: number; done: boolean }) {
   return (
     <span
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        done ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"
+        done ? "bg-green-100 text-green-700" : "bg-indigo-soft text-indigo"
       }`}
     >
       {done ? "✓" : index + 1}
@@ -208,7 +208,7 @@ function StepRow({
               {(step.resources.length > 0 || step.detail.length > 120) && (
                 <button
                   onClick={() => setExpanded((v) => !v)}
-                  className="mt-1 text-xs text-primary hover:underline"
+                  className="mt-1 text-xs text-indigo hover:underline"
                 >
                   {expanded ? t("visa", "showLess", lang) : t("visa", "showMore", lang)}
                 </button>

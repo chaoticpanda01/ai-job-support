@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Reads source files from disk; jsdom's import.meta.url isn't a file: URL.
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -86,5 +86,29 @@ describe("design tokens", () => {
     ["destructive-foreground", "destructive"],
   ])("%s on %s passes WCAG AA", (fg, bg) => {
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("colour roles", () => {
+  // primary is ink: right for fills (bg-primary) and selected borders, wrong
+  // for accents, where it turns links and focus rings black. Accents use indigo.
+  const ACCENT_MISUSES = [
+    /\btext-primary(?![-\w])/,
+    /\bring-primary\b/,
+    /\bbg-primary\/(?:5|10)\b/,
+  ];
+
+  it("uses indigo, not primary, for accents", () => {
+    const offenders: string[] = [];
+    for (const dir of ["app", "components"]) {
+      const files = readdirSync(join(FRONTEND, dir), { recursive: true }) as string[];
+      for (const file of files.filter((f) => f.endsWith(".tsx"))) {
+        const source = readFileSync(join(FRONTEND, dir, file), "utf8");
+        for (const pattern of ACCENT_MISUSES) {
+          if (pattern.test(source)) offenders.push(`${dir}/${file}: ${pattern}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

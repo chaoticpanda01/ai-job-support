@@ -126,7 +126,7 @@ export default function ResumeDetailPage({ params }: Props) {
             <p className="mt-1 text-sm text-muted-foreground">
               {fileSizeKB} KB · {t("resumes", "uploaded", lang)} {uploadedAt}
               {resume.is_primary && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                <span className="ml-2 inline-flex items-center rounded-full bg-indigo-soft px-2 py-0.5 text-xs font-medium text-indigo">
                   {t("common", "primary", lang)}
                 </span>
               )}

@@ -71,7 +71,7 @@ export default function LandingPage() {
             </div>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
               {t("landing", "heroTitle1", lang)}{" "}
-              <span className="text-primary">{t("landing", "heroTitle2", lang)}</span>
+              <span className="text-indigo">{t("landing", "heroTitle2", lang)}</span>
             </h1>
             <p className="mt-6 text-lg text-muted-foreground">{t("landing", "heroSub", lang)}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">

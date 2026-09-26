@@ -179,7 +179,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   const { lang } = useLang();
   const styles: Record<DocumentStatus, string> = {
     pending: "bg-warning/10 text-warning",
-    processing: "bg-primary/10 text-primary",
+    processing: "bg-indigo-soft text-indigo",
     completed: "bg-success/10 text-success",
     failed: "bg-destructive/10 text-destructive",
   };

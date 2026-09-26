@@ -28,7 +28,7 @@ const COLUMN_KEYS: ApplicationStatus[] = [
 
 const COLUMN_COLORS: Record<ApplicationStatus, string> = {
   planning: "bg-muted border-border",
-  applied: "bg-primary/5 border-primary/20",
+  applied: "bg-indigo-soft border-primary/20",
   interviewing: "bg-warning/10 border-warning/30",
   offered: "bg-success/10 border-success/30",
   rejected: "bg-destructive/10 border-destructive/30",
@@ -232,7 +232,7 @@ function ApplicationCard({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               autoFocus
-              className="w-full resize-none rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full resize-none rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </label>
           <div className="flex gap-1.5">

@@ -199,7 +199,7 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
           </div>
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-indigo hover:underline"
           >
             {expanded ? t("jobs", "showLess", lang) : t("jobs", "showFull", lang)}
           </button>
@@ -358,7 +358,7 @@ function MatchSection({ jobId }: { jobId: string }) {
             <select
               value={selectedResumeId}
               onChange={(e) => setSelectedResumeId(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">{t("jobs", "selectResume", lang)}</option>
               {resumes.map((r) => (

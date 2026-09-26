@@ -60,7 +60,7 @@ export default function VisaConsultationPage({ params }: Props) {
       </div>
 
       {/* Visa type banner */}
-      <div className="rounded-lg border bg-primary/5 px-5 py-4">
+      <div className="rounded-lg border bg-indigo-soft px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t("visa", "recommendedVisa", lang)}
         </p>
@@ -93,7 +93,7 @@ function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
       {checklist.phases.map((phase, idx) => (
         <div key={idx} className="overflow-hidden rounded-lg border bg-card">
           <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-soft text-xs font-bold text-indigo">
               {idx + 1}
             </span>
             <div>

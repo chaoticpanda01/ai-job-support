@@ -16,7 +16,7 @@ export function VisaRoadmapView({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-primary/5 px-5 py-4">
+      <div className="rounded-lg border bg-indigo-soft px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t("visa", "recommendedVisa", lang)}
         </p>

@@ -49,7 +49,7 @@ export function VisaRoadmapSwitcher({
                 aria-current={roadmap.id === activeId ? "true" : undefined}
                 className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs disabled:opacity-50 ${
                   roadmap.id === activeId
-                    ? "border-primary bg-primary/10 font-medium text-primary"
+                    ? "border-primary bg-indigo-soft font-medium text-indigo"
                     : "hover:bg-accent"
                 }`}
               >

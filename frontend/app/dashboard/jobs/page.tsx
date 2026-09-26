@@ -59,7 +59,7 @@ export default function JobsPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("jobs", "searchPlaceholder", lang)}
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <label htmlFor="job-min-score" className="sr-only">
           {t("jobs", "minScoreLabel", lang)}
@@ -68,7 +68,7 @@ export default function JobsPage() {
           id="job-min-score"
           value={minScore ?? ""}
           onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : undefined)}
-          className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">{t("jobs", "allScores", lang)}</option>
           <option value="60">Score ≥ 60</option>

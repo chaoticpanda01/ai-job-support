@@ -297,7 +297,7 @@ export default function InterviewSessionPage({ params }: Props) {
               placeholder={t("interview", "inputPlaceholder", lang)}
               rows={3}
               disabled={state.isStreaming}
-              className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
             />
             <button
               onClick={handleSend}
