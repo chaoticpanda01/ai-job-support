@@ -425,8 +425,22 @@ Expected: FAIL, listing about 25 files.
 
 ```bash
 cd frontend
-files=$(grep -rlE 'text-primary|ring-primary|bg-primary/(5|10)' app components --include='*.tsx')
-perl -pi -e 's/\bring-primary\b/ring-ring/g; s/\btext-primary(?![-\w])/text-indigo/g; s/\bbg-primary\/(?:5|10)\b/bg-indigo-soft/g' $files
+# Python, not `perl -pi $files`: zsh doesn't word-split an unquoted $files,
+# so the perl form silently edits nothing there.
+python3 - <<'PY'
+import pathlib, re
+rules = [(r"\bring-primary\b", "ring-ring"),
+         (r"\btext-primary(?![-\w])", "text-indigo"),
+         (r"\bbg-primary/(?:5|10)\b", "bg-indigo-soft")]
+for root in ("app", "components"):
+    for p in pathlib.Path(root).rglob("*.tsx"):
+        s = p.read_text()
+        n = s
+        for rx, rep in rules:
+            n = re.sub(rx, rep, n)
+        if n != s:
+            p.write_text(n)
+PY
 grep -rnP '\btext-primary(?![-\w])|\bring-primary\b|\bbg-primary/(5|10)\b' app components || echo "sweep clean"
 ```
 
