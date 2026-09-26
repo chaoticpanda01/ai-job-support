@@ -196,6 +196,64 @@ export const translations = {
       id: "Dapatkan dokumen Jepang, skor, dan peta jalan visa secara instan.",
       ja: "日本語書類、スコア、ビザロードマップを即座に取得します。",
     },
+    // Product previews (components/landing/previews.tsx). Each preview is one
+    // image to screen readers; the label is all they hear of it.
+    previewHomeLabel: {
+      en: "Preview of the Home page: the next step is to create your 職務経歴書",
+      id: "Pratinjau halaman Beranda: langkah berikutnya adalah membuat 職務経歴書",
+      ja: "ホーム画面のプレビュー：次のステップは職務経歴書の作成",
+    },
+    previewScoreLabel: {
+      en: "Preview of a resume analysis: Japan-market score 72",
+      id: "Pratinjau analisis resume: skor pasar Jepang 72",
+      ja: "レジュメ分析のプレビュー：日本市場スコア72",
+    },
+    previewJobLabel: {
+      en: "Preview of a translated job posting: Backend Engineer in Tokyo, foreigner-friendliness 85",
+      id: "Pratinjau lowongan yang diterjemahkan: Backend Engineer di Tokyo, keramahan bagi pekerja asing 85",
+      ja: "翻訳された求人のプレビュー：東京のバックエンドエンジニア、外国人フレンドリー度85",
+    },
+    previewVisaLabel: {
+      en: "Preview of a visa roadmap: step 2 of 5",
+      id: "Pratinjau peta jalan visa: langkah 2 dari 5",
+      ja: "ビザロードマップのプレビュー：5ステップ中2",
+    },
+    scoreTitle: { en: "Japan-market score", id: "Skor pasar Jepang", ja: "日本市場スコア" },
+    scoreStrengths: { en: "Strengths", id: "Kekuatan", ja: "強み" },
+    scoreImprove: { en: "To improve", id: "Perlu ditingkatkan", ja: "改善点" },
+    jobTitle: {
+      en: "Backend Engineer · Tokyo",
+      id: "Backend Engineer · Tokyo",
+      ja: "バックエンドエンジニア・東京",
+    },
+    jobTranslated: {
+      en: "Translated from Japanese",
+      id: "Diterjemahkan dari bahasa Jepang",
+      ja: "日本語から翻訳",
+    },
+    jobVisa: { en: "Visa sponsorship", id: "Sponsor visa", ja: "ビザサポートあり" },
+    jobFriendliness: {
+      en: "Foreigner-friendliness",
+      id: "Keramahan bagi pekerja asing",
+      ja: "外国人フレンドリー度",
+    },
+    visaName: {
+      en: "Engineer / Specialist in Humanities",
+      id: "Engineer / Specialist in Humanities",
+      ja: "技術・人文知識・国際業務",
+    },
+    visaStep: {
+      en: "Roadmap · step 2 of 5",
+      id: "Peta jalan · langkah 2 dari 5",
+      ja: "ロードマップ・5ステップ中2",
+    },
+    visaItem1: { en: "Degree certificate", id: "Ijazah", ja: "卒業証明書" },
+    visaItem2: {
+      en: "Certificate of Eligibility",
+      id: "Certificate of Eligibility (COE)",
+      ja: "在留資格認定証明書",
+    },
+    visaItem3: { en: "Employment contract", id: "Kontrak kerja", ja: "雇用契約書" },
   },
 
   // ---------------------------------------------------------------------------
