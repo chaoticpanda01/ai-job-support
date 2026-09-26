@@ -252,6 +252,8 @@ function RecentActivity({ items }: { items: ActivityItem[] }) {
                   {t("home", ACTIVITY_LABEL[item.kind], lang)}
                   {item.name && <span className="text-muted-foreground"> · {item.name}</span>}
                 </span>
+                {/* Flex hides this space, but it keeps a screen reader from
+                    running the label into the time ("generatedlast month"). */}{" "}
                 <time dateTime={item.at} className="shrink-0 text-xs text-muted-foreground">
                   {formatRelative(item.at, lang, now)}
                 </time>

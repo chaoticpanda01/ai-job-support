@@ -172,6 +172,8 @@ describe("Home", () => {
     const rows = within(activity).getAllByRole("listitem");
     expect(rows).toHaveLength(5);
     expect(rows[0]).toHaveTextContent(h("activityVisa"));
+    // The label and the relative time are separate words, not "checkedlast month".
+    expect(rows[0]?.textContent).toMatch(new RegExp(`${h("activityVisa")} \\S`));
     expect(rows[1]).toHaveTextContent(h("activityInterview"));
   });
 
