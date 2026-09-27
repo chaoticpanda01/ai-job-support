@@ -1,23 +1,24 @@
 "use client";
 
-import {
-  cloneElement,
-  isValidElement,
-  useState,
-  useEffect,
-  useId,
-  useRef,
-  type ReactElement,
-} from "react";
+import { useState, useEffect, useRef, type Ref } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMe, useUpdateProfile, useRecordConsent } from "@/hooks/useMe";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
-import { t } from "@/lib/i18n";
+import { LANGUAGES, t, type Language } from "@/lib/i18n";
 import { PhotoUploader } from "@/components/profile/PhotoUploader";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import type { Gender, JapaneseLevel, VisaStatus } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -26,7 +27,6 @@ import type { Gender, JapaneseLevel, VisaStatus } from "@/types/api";
 
 const step2Schema = z.object({
   full_name: z.string().min(1, "Name is required"),
-  preferred_language: z.enum(["id", "en", "ja"] as const),
 });
 
 const step3Schema = z.object({
@@ -39,8 +39,8 @@ const step3Schema = z.object({
 const step4Schema = z.object({
   japanese_level: z.enum(["N1", "N2", "N3", "N4", "N5", "none"] as const),
   visa_status: z.enum(["none", "pending", "held"] as const),
-  target_industry: z.string().min(1, "Enter at least one industry"),
-  target_role: z.string().min(1, "Enter at least one role"),
+  target_industry: z.array(z.string()).min(1, "Enter at least one industry"),
+  target_role: z.array(z.string()).min(1, "Enter at least one role"),
 });
 
 const step5BaseSchema = z.object({
@@ -76,6 +76,18 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const didSyncStep = useRef(false);
+  // Each step's first control is the same element to React, so after
+  // Continue the keyboard focus would sit on the next step's Back button.
+  // Move it to the new step's title instead (not on first render).
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    titleRef.current?.focus();
+  }, [step]);
 
   // If already completed, redirect
   useEffect(() => {
@@ -137,18 +149,12 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="mb-4 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive"
-          >
-            {error}
-          </div>
-        )}
+        {error && <Alert className="mb-4">{error}</Alert>}
 
         {/* Step 1 — Consent */}
         {step === 1 && (
           <Step1Consent
+            titleRef={titleRef}
             onNext={async () => {
               setError(null);
               try {
@@ -165,12 +171,13 @@ export default function OnboardingPage() {
         {/* Step 2 — Name + language */}
         {step === 2 && (
           <Step2
+            titleRef={titleRef}
             onNext={async (data) => {
               setError(null);
               try {
                 await updateProfile.mutateAsync({
                   full_name: data.full_name,
-                  preferred_language: data.preferred_language,
+                  preferred_language: lang,
                   onboarding_step: 1,
                 });
                 setStep(3);
@@ -186,6 +193,7 @@ export default function OnboardingPage() {
         {/* Step 3 — Location + experience */}
         {step === 3 && (
           <Step3
+            titleRef={titleRef}
             onNext={async (data) => {
               setError(null);
               try {
@@ -209,20 +217,15 @@ export default function OnboardingPage() {
         {/* Step 4 — Japanese level + preferences */}
         {step === 4 && (
           <Step4
+            titleRef={titleRef}
             onNext={async (data) => {
               setError(null);
               try {
                 await updateProfile.mutateAsync({
                   japanese_level: data.japanese_level as JapaneseLevel,
                   visa_status: data.visa_status as VisaStatus,
-                  target_industry: data.target_industry
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  target_role: data.target_role
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                  target_industry: data.target_industry,
+                  target_role: data.target_role,
                   onboarding_step: 4,
                 });
                 setStep(5);
@@ -238,6 +241,7 @@ export default function OnboardingPage() {
         {/* Step 5 — Personal info for 履歴書 */}
         {step === 5 && (
           <Step5
+            titleRef={titleRef}
             visaHeld={me?.profile?.visa_status === "held"}
             defaults={{
               name_kana: me?.profile?.name_kana ?? undefined,
@@ -285,16 +289,26 @@ export default function OnboardingPage() {
 // Step 1 — AI processing consent
 // ---------------------------------------------------------------------------
 
-function Step1Consent({ onNext, loading }: { onNext: () => Promise<void>; loading: boolean }) {
+function Step1Consent({
+  titleRef,
+  onNext,
+  loading,
+}: {
+  titleRef: Ref<HTMLHeadingElement>;
+  onNext: () => Promise<void>;
+  loading: boolean;
+}) {
   const { lang } = useLang();
   const [checked, setChecked] = useState(false);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("onboarding", "s1Title", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("onboarding", "s1Sub", lang)}</p>
-      </div>
+      <PageHeader
+        className="mb-0"
+        titleRef={titleRef}
+        title={t("onboarding", "s1Title", lang)}
+        description={t("onboarding", "s1Sub", lang)}
+      />
 
       <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
         <p>{t("onboarding", "s1Agree", lang)}</p>
@@ -313,22 +327,22 @@ function Step1Consent({ onNext, loading }: { onNext: () => Promise<void>; loadin
       </div>
 
       <label className="flex cursor-pointer items-start gap-3">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={checked}
           onChange={(e) => setChecked(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          className="mt-0.5"
         />
         <span className="text-sm">{t("onboarding", "s1Checkbox", lang)}</span>
       </label>
 
-      <button
-        onClick={onNext}
-        disabled={!checked || loading}
-        className="flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+      <Button
+        className="w-full"
+        onClick={() => void onNext()}
+        disabled={!checked}
+        loading={loading}
       >
         {loading ? t("common", "saving", lang) : t("onboarding", "s1Btn", lang)}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -338,47 +352,49 @@ function Step1Consent({ onNext, loading }: { onNext: () => Promise<void>; loadin
 // ---------------------------------------------------------------------------
 
 function Step2({
+  titleRef,
   onNext,
   onBack,
   loading,
 }: {
+  titleRef: Ref<HTMLHeadingElement>;
   onNext: (data: Step2Data) => Promise<void>;
   onBack: () => void;
   loading: boolean;
 }) {
-  const { lang } = useLang();
+  const { lang, setLang } = useLang();
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<Step2Data>({
-    resolver: zodResolver(step2Schema),
-    defaultValues: { preferred_language: "id" },
-  });
+  } = useForm<Step2Data>({ resolver: zodResolver(step2Schema) });
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">{t("onboarding", "s2Title", lang)}</h1>
-      <p className="text-sm text-muted-foreground">{t("onboarding", "s2Sub", lang)}</p>
+      <PageHeader
+        className="mb-0"
+        titleRef={titleRef}
+        title={t("onboarding", "s2Title", lang)}
+        description={t("onboarding", "s2Sub", lang)}
+      />
 
       <Field label={t("onboarding", "s2Name", lang)} error={errors.full_name?.message}>
-        <input {...register("full_name")} placeholder="Budi Santoso" className={inputCls} />
+        <Input {...register("full_name")} placeholder="Budi Santoso" />
       </Field>
 
-      <Field label={t("onboarding", "s2Lang", lang)} error={errors.preferred_language?.message}>
-        <select {...register("preferred_language")} className={inputCls}>
-          <option value="id">Indonesian (Bahasa Indonesia)</option>
-          <option value="en">English</option>
-          <option value="ja">Japanese (日本語)</option>
-        </select>
-      </Field>
-
-      <div className="flex gap-3">
-        <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          {t("common", "back", lang)}
-        </button>
-        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
+      <div className="space-y-1.5">
+        {/* The app's own language, as in Settings: it switches at once. */}
+        <SegmentedControl<Language>
+          legend={t("onboarding", "s2AppLang", lang)}
+          name="app_language"
+          value={lang}
+          onChange={setLang}
+          options={LANGUAGES.map(({ code, name }) => ({ value: code, label: name, lang: code }))}
+        />
+        <p className="text-xs text-muted-foreground">{t("onboarding", "s2AppLangHint", lang)}</p>
       </div>
+
+      <StepButtons onBack={onBack} loading={loading} label={t("common", "continue", lang)} />
     </form>
   );
 }
@@ -388,10 +404,12 @@ function Step2({
 // ---------------------------------------------------------------------------
 
 function Step3({
+  titleRef,
   onNext,
   onBack,
   loading,
 }: {
+  titleRef: Ref<HTMLHeadingElement>;
   onNext: (data: Step3Data) => Promise<void>;
   onBack: () => void;
   loading: boolean;
@@ -408,41 +426,30 @@ function Step3({
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">{t("onboarding", "s3Title", lang)}</h1>
-      <p className="text-sm text-muted-foreground">{t("onboarding", "s3Sub", lang)}</p>
+      <PageHeader
+        className="mb-0"
+        titleRef={titleRef}
+        title={t("onboarding", "s3Title", lang)}
+        description={t("onboarding", "s3Sub", lang)}
+      />
 
       <Field label={t("onboarding", "s3Nation", lang)} error={errors.nationality?.message}>
-        <input {...register("nationality")} placeholder="Indonesian" className={inputCls} />
+        <Input {...register("nationality")} placeholder="Indonesian" />
       </Field>
 
       <Field label={t("onboarding", "s3CurrLoc", lang)} error={errors.current_location?.message}>
-        <input
-          {...register("current_location")}
-          placeholder="Jakarta, Indonesia"
-          className={inputCls}
-        />
+        <Input {...register("current_location")} placeholder="Jakarta, Indonesia" />
       </Field>
 
       <Field label={t("onboarding", "s3TargLoc", lang)} error={errors.target_location?.message}>
-        <input {...register("target_location")} placeholder="Tokyo" className={inputCls} />
+        <Input {...register("target_location")} placeholder="Tokyo" />
       </Field>
 
       <Field label={t("onboarding", "s3ExpYears", lang)} error={errors.years_experience?.message}>
-        <input
-          {...register("years_experience")}
-          type="number"
-          min={0}
-          max={80}
-          className={inputCls}
-        />
+        <Input {...register("years_experience")} type="number" min={0} max={80} />
       </Field>
 
-      <div className="flex gap-3">
-        <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          {t("common", "back", lang)}
-        </button>
-        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
-      </div>
+      <StepButtons onBack={onBack} loading={loading} label={t("common", "continue", lang)} />
     </form>
   );
 }
@@ -452,10 +459,12 @@ function Step3({
 // ---------------------------------------------------------------------------
 
 function Step4({
+  titleRef,
   onNext,
   onBack,
   loading,
 }: {
+  titleRef: Ref<HTMLHeadingElement>;
   onNext: (data: Step4Data) => Promise<void>;
   onBack: () => void;
   loading: boolean;
@@ -463,59 +472,81 @@ function Step4({
   const { lang } = useLang();
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<Step4Data>({
     resolver: zodResolver(step4Schema),
-    defaultValues: { japanese_level: "none", visa_status: "none" },
+    defaultValues: {
+      japanese_level: "none",
+      visa_status: "none",
+      target_industry: [],
+      target_role: [],
+    },
   });
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">{t("onboarding", "s4Title", lang)}</h1>
-      <p className="text-sm text-muted-foreground">{t("onboarding", "s4Sub", lang)}</p>
+      <PageHeader
+        className="mb-0"
+        titleRef={titleRef}
+        title={t("onboarding", "s4Title", lang)}
+        description={t("onboarding", "s4Sub", lang)}
+      />
 
       <Field label={t("onboarding", "s4JpLevel", lang)} error={errors.japanese_level?.message}>
-        <select {...register("japanese_level")} className={inputCls}>
+        <Select {...register("japanese_level")}>
           <option value="none">{t("onboarding", "noJapanese", lang)}</option>
           <option value="N5">N5 — Basic</option>
           <option value="N4">N4 — Elementary</option>
           <option value="N3">N3 — Intermediate</option>
           <option value="N2">N2 — Upper-intermediate</option>
           <option value="N1">N1 — Advanced</option>
-        </select>
+        </Select>
       </Field>
 
       <Field label={t("onboarding", "s4Visa", lang)} error={errors.visa_status?.message}>
-        <select {...register("visa_status")} className={inputCls}>
+        <Select {...register("visa_status")}>
           <option value="none">{t("onboarding", "visaNone", lang)}</option>
           <option value="pending">{t("onboarding", "visaPending", lang)}</option>
           <option value="held">{t("onboarding", "visaHeld", lang)}</option>
-        </select>
+        </Select>
       </Field>
 
-      <Field label={t("onboarding", "s4Industries", lang)} error={errors.target_industry?.message}>
-        <input
-          {...register("target_industry")}
-          placeholder="IT, Manufacturing, Finance"
-          className={inputCls}
-        />
-      </Field>
+      <Controller
+        control={control}
+        name="target_industry"
+        render={({ field }) => (
+          <Field
+            label={t("onboarding", "s4Industries", lang)}
+            error={errors.target_industry?.message}
+          >
+            <TagInput
+              value={field.value}
+              onChange={field.onChange}
+              placeholder={t("settings", "addIndustry", lang)}
+              removeLabel={t("settings", "removeTag", lang)}
+            />
+          </Field>
+        )}
+      />
 
-      <Field label={t("onboarding", "s4Roles", lang)} error={errors.target_role?.message}>
-        <input
-          {...register("target_role")}
-          placeholder="Software Engineer, Project Manager"
-          className={inputCls}
-        />
-      </Field>
+      <Controller
+        control={control}
+        name="target_role"
+        render={({ field }) => (
+          <Field label={t("onboarding", "s4Roles", lang)} error={errors.target_role?.message}>
+            <TagInput
+              value={field.value}
+              onChange={field.onChange}
+              placeholder={t("settings", "addRole", lang)}
+              removeLabel={t("settings", "removeTag", lang)}
+            />
+          </Field>
+        )}
+      />
 
-      <div className="flex gap-3">
-        <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          {t("common", "back", lang)}
-        </button>
-        <SubmitBtn loading={loading} label={t("common", "continue", lang)} />
-      </div>
+      <StepButtons onBack={onBack} loading={loading} label={t("common", "continue", lang)} />
     </form>
   );
 }
@@ -525,12 +556,14 @@ function Step4({
 // ---------------------------------------------------------------------------
 
 function Step5({
+  titleRef,
   visaHeld,
   defaults,
   onNext,
   onBack,
   loading,
 }: {
+  titleRef: Ref<HTMLHeadingElement>;
   visaHeld: boolean;
   // Not Partial<Step5Data>: with exactOptionalPropertyTypes, an optional key
   // from Partial<T> still requires T when present, so a caller that supplies
@@ -571,38 +604,37 @@ function Step5({
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      <h1 className="text-2xl font-semibold">{t("onboarding", "s5Title", lang)}</h1>
-      <p className="text-sm text-muted-foreground">{t("onboarding", "s5Sub", lang)}</p>
+      <PageHeader
+        className="mb-0"
+        titleRef={titleRef}
+        title={t("onboarding", "s5Title", lang)}
+        description={t("onboarding", "s5Sub", lang)}
+      />
 
       <p className="text-xs font-semibold uppercase text-muted-foreground">
         {t("onboarding", "s5GroupIdentity", lang)}
       </p>
       <Field label={t("onboarding", "s5NameKana", lang)} error={errors.name_kana?.message}>
-        <input
-          {...register("name_kana")}
-          lang="ja"
-          placeholder="ヤマダ タロウ"
-          className={inputCls}
-        />
+        <Input {...register("name_kana")} lang="ja" placeholder="ヤマダ タロウ" />
       </Field>
       <Field label={t("onboarding", "s5DateOfBirth", lang)} error={errors.date_of_birth?.message}>
-        <input {...register("date_of_birth")} type="date" className={inputCls} />
+        <Input {...register("date_of_birth")} type="date" />
       </Field>
       <Field label={t("onboarding", "s5Gender", lang)} error={errors.gender?.message}>
-        <select {...register("gender")} className={inputCls}>
+        <Select {...register("gender")}>
           <option value="male">{t("onboarding", "s5GenderMale", lang)}</option>
           <option value="female">{t("onboarding", "s5GenderFemale", lang)}</option>
-        </select>
+        </Select>
       </Field>
 
       <p className="text-xs font-semibold uppercase text-muted-foreground">
         {t("onboarding", "s5GroupContact", lang)}
       </p>
       <Field label={t("onboarding", "s5Phone", lang)} error={errors.phone_number?.message}>
-        <input {...register("phone_number")} type="tel" className={inputCls} />
+        <Input {...register("phone_number")} type="tel" />
       </Field>
       <Field label={t("onboarding", "s5Address", lang)} error={errors.mailing_address?.message}>
-        <input {...register("mailing_address")} className={inputCls} />
+        <Input {...register("mailing_address")} />
       </Field>
 
       <p className="text-xs font-semibold uppercase text-muted-foreground">
@@ -612,42 +644,40 @@ function Step5({
         label={t("onboarding", "s5VisaExpiration", lang)}
         error={errors.residence_card_expiration?.message}
       >
-        <input {...register("residence_card_expiration")} type="date" className={inputCls} />
+        <Input {...register("residence_card_expiration")} type="date" />
       </Field>
       {visaHeld && (
         <Field
           label={t("onboarding", "s5VisaCategory", lang)}
           error={errors.visa_category?.message}
         >
-          <input {...register("visa_category")} className={inputCls} />
+          <Input {...register("visa_category")} />
         </Field>
       )}
 
       <p className="text-xs font-semibold uppercase text-muted-foreground">
         {t("onboarding", "s5GroupExtras", lang)}
       </p>
-      <Field label={t("onboarding", "s5Photo", lang)} hint={t("onboarding", "s5PhotoHint", lang)}>
+      {/* Not a Field: PhotoUploader takes no id for a label to point at. */}
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">{t("onboarding", "s5Photo", lang)}</p>
         <PhotoUploader />
-      </Field>
+        <p className="text-xs text-muted-foreground">{t("onboarding", "s5PhotoHint", lang)}</p>
+      </div>
       <Field label={t("onboarding", "s5Hobbies", lang)}>
-        <input {...register("hobbies")} className={inputCls} />
+        <Input {...register("hobbies")} />
       </Field>
       <Field label={t("onboarding", "s5SpecialSkills", lang)}>
-        <input {...register("special_skills")} className={inputCls} />
+        <Input {...register("special_skills")} />
       </Field>
       <Field
         label={t("onboarding", "s5PersonalRequests", lang)}
         hint={t("onboarding", "s5PersonalRequestsHint", lang)}
       >
-        <input {...register("personal_requests")} className={inputCls} />
+        <Input {...register("personal_requests")} />
       </Field>
 
-      <div className="flex gap-3">
-        <button type="button" onClick={onBack} className={secondaryBtnCls}>
-          {t("common", "back", lang)}
-        </button>
-        <SubmitBtn loading={loading} label={t("onboarding", "completeBtn", lang)} />
-      </div>
+      <StepButtons onBack={onBack} loading={loading} label={t("onboarding", "completeBtn", lang)} />
     </form>
   );
 }
@@ -656,69 +686,24 @@ function Step5({
 // Shared UI
 // ---------------------------------------------------------------------------
 
-function Field({
+function StepButtons({
+  onBack,
+  loading,
   label,
-  hint,
-  error,
-  children,
 }: {
+  onBack: () => void;
+  loading: boolean;
   label: string;
-  hint?: string;
-  error?: string | undefined;
-  children: React.ReactNode;
 }) {
-  const id = useId();
-  const hintId = hint ? `${id}-hint` : undefined;
-  const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const { lang } = useLang();
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
-        {label}
-      </label>
-      {hint && (
-        <p id={hintId} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      )}
-      {isValidElement(children)
-        ? cloneElement(
-            children as ReactElement<{
-              id?: string;
-              "aria-describedby"?: string;
-              "aria-invalid"?: boolean;
-            }>,
-            {
-              id,
-              "aria-invalid": Boolean(error),
-              ...(describedBy ? { "aria-describedby": describedBy } : {}),
-            },
-          )
-        : children}
-      {error && (
-        <p id={errorId} className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
+    <div className="flex gap-3">
+      <Button type="button" variant="secondary" className="w-full" onClick={onBack}>
+        {t("common", "back", lang)}
+      </Button>
+      <Button type="submit" className="w-full" loading={loading}>
+        {loading ? t("common", "saving", lang) : label}
+      </Button>
     </div>
   );
 }
-
-function SubmitBtn({ label, loading }: { label: string; loading: boolean }) {
-  const { lang } = useLang();
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-    >
-      {loading ? t("common", "saving", lang) : label}
-    </button>
-  );
-}
-
-const inputCls =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
-
-const secondaryBtnCls =
-  "flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent";

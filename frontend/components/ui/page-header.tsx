@@ -10,6 +10,11 @@ interface PageHeaderProps {
   /** Extra content under the description, such as a progress bar. */
   children?: React.ReactNode;
   className?: string;
+  /**
+   * For flows that move focus to the title when their step changes. The title
+   * then takes script focus (tabIndex -1), without a focus outline.
+   */
+  titleRef?: React.Ref<HTMLHeadingElement> | undefined;
 }
 
 /**
@@ -23,6 +28,7 @@ export function PageHeader({
   actions,
   children,
   className,
+  titleRef,
 }: PageHeaderProps) {
   return (
     <header
@@ -37,7 +43,13 @@ export function PageHeader({
             {eyebrow}
           </p>
         )}
-        <h1 className="font-display text-2xl font-bold leading-tight sm:text-[28px]">{title}</h1>
+        <h1
+          ref={titleRef}
+          tabIndex={titleRef ? -1 : undefined}
+          className="font-display text-2xl font-bold leading-tight focus:outline-none sm:text-[28px]"
+        >
+          {title}
+        </h1>
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
         {children}
       </div>

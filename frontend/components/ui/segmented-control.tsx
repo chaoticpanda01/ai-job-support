@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
+  /** For a label in another language than the page, e.g. 日本語. */
+  lang?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export function SegmentedControl<T extends string>({
                 "peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground",
                 "peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-ring",
               )}
+              lang={option.lang}
             >
               {option.label}
             </span>

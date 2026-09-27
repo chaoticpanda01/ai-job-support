@@ -52,8 +52,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
 const NOT_YET_MIGRATED: Record<string, string> = {
-  // Task 6: Onboarding
-  "app/onboarding/page.tsx": "Onboarding, task 6",
   // Task 7: the rest
   "app/admin/page.tsx": "Admin, task 7",
   "components/chat-widget.tsx": "Chat widget, task 7",
@@ -69,7 +67,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
  * draws the arrow as a lucide icon instead. Each area task deletes its own.
  */
 const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {
-  "onboarding.s1DangerZone": "Onboarding, task 6",
   "jobs.jobBoard": "Rebuilt in spec 3",
 };
 

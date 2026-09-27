@@ -541,10 +541,17 @@ export const translations = {
       id: "Kamu dapat mencabut persetujuan kapan saja dengan menghapus akun dari",
       ja: "アカウントを削除することで、いつでも同意を取り消せます（",
     },
+    // Settings has no "Danger zone" any more: its last card is "Delete account".
     s1DangerZone: {
-      en: "Settings → Danger zone",
-      id: "Pengaturan → Zona berbahaya",
-      ja: "設定 → 危険ゾーン",
+      en: "Settings, under Delete account",
+      id: "Pengaturan, di bagian Hapus akun",
+      ja: "設定の「アカウント削除」から）",
+    },
+    s2AppLang: { en: "App language", id: "Bahasa aplikasi", ja: "表示言語" },
+    s2AppLangHint: {
+      en: "Changes the app straight away. You can change it later in Settings.",
+      id: "Langsung mengubah bahasa aplikasi. Bisa diubah nanti di Pengaturan.",
+      ja: "すぐにアプリに反映されます。あとで設定から変更できます。",
     },
     s1Checkbox: {
       en: "I understand and consent to AI processing of my resume data as described above.",
@@ -564,7 +571,6 @@ export const translations = {
       ja: "お名前と使用言語を教えてください。",
     },
     s2Name: { en: "Full name", id: "Nama lengkap", ja: "氏名" },
-    s2Lang: { en: "Preferred language", id: "Bahasa yang digunakan", ja: "使用言語" },
     // Step 3
     s3Title: { en: "Your background", id: "Latar belakangmu", ja: "あなたの背景" },
     s3Sub: {

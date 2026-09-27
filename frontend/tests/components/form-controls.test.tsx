@@ -124,6 +124,24 @@ describe("SegmentedControl", () => {
   });
 });
 
+describe("SegmentedControl, languages", () => {
+  it("marks a segment's language when it differs from the page", () => {
+    render(
+      <SegmentedControl
+        legend="App language"
+        name="lang"
+        value="en"
+        onChange={() => {}}
+        options={[
+          { value: "en", label: "English" },
+          { value: "ja", label: "日本語", lang: "ja" },
+        ]}
+      />,
+    );
+    expect(screen.getByText("日本語")).toHaveAttribute("lang", "ja");
+  });
+});
+
 describe("TagInput", () => {
   function Harness({ initial = [] as string[] }) {
     const [tags, setTags] = useState(initial);
