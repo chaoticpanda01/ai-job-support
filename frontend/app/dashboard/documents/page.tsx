@@ -21,7 +21,7 @@ import type { Document, DocumentType } from "@/types/api";
 
 export default function DocumentsPage() {
   const [filter, setFilter] = useState<DocumentType | "all">("all");
-  const { data, isLoading, isFetching, error, refetch } = useDocuments(
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useDocuments(
     filter === "all" ? undefined : filter,
   );
   const { lang } = useLang();
@@ -64,7 +64,10 @@ export default function DocumentsPage() {
         {isLoading && <DocumentsSkeleton />}
 
         {error && (
-          <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+          <Alert
+            announceKey={errorUpdateCount}
+            action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}
+          >
             {t("documents", "loadError", lang)}
           </Alert>
         )}

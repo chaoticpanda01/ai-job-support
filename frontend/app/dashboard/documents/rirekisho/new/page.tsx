@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { Route } from "next";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
 import { useMe } from "@/hooks/useMe";
@@ -16,7 +17,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
-import { missingFieldLabel } from "@/lib/rirekisho-completeness";
+import {
+  REQUIRED_FIELD_LABEL_KEYS,
+  VISA_HELD_REQUIRED_KEYS,
+  missingFieldLabel,
+} from "@/lib/rirekisho-completeness";
 import { t } from "@/lib/i18n";
 import type { DocumentOrientation } from "@/types/api";
 
@@ -33,7 +38,13 @@ function NewRirekishoPageInner() {
   const searchParams = useSearchParams();
   const initialJobPostingId = searchParams.get("job") ?? undefined;
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
-  const { data: me, isLoading: meLoading, isFetching: meFetching, refetch: refetchMe } = useMe();
+  const {
+    data: me,
+    isLoading: meLoading,
+    isFetching: meFetching,
+    errorUpdateCount: meErrorCount,
+    refetch: refetchMe,
+  } = useMe();
   const createMutation = useCreateDocument("rirekisho");
   const { lang } = useLang();
 
@@ -95,7 +106,10 @@ function NewRirekishoPageInner() {
       )}
 
       {meStatus === "error" && (
-        <Alert action={<RetryButton retrying={meFetching} onRetry={() => void refetchMe()} />}>
+        <Alert
+          announceKey={meErrorCount}
+          action={<RetryButton retrying={meFetching} onRetry={() => void refetchMe()} />}
+        >
           {t("documents", "profileLoadError", lang)}
         </Alert>
       )}
@@ -108,11 +122,17 @@ function NewRirekishoPageInner() {
           </p>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             {me.rirekisho_missing_fields.map((f) => (
-              <li key={f.key}>{missingFieldLabel(f.key, lang)}</li>
+              <li key={f.key}>
+                {/* The backend's own (English) label only for a field this
+                    page has no name for yet. */}
+                {f.key in REQUIRED_FIELD_LABEL_KEYS ? missingFieldLabel(f.key, lang) : f.label}
+              </li>
             ))}
           </ul>
           <Button asChild>
-            <Link href="/dashboard/settings#profile">{t("documents", "goToSettings", lang)}</Link>
+            <Link href={settingsHref(me.rirekisho_missing_fields.map((f) => f.key))}>
+              {t("documents", "goToSettings", lang)}
+            </Link>
           </Button>
         </Card>
       )}
@@ -131,4 +151,12 @@ function NewRirekishoPageInner() {
       )}
     </div>
   );
+}
+
+/** The Settings card to open: Visa when only visa details are missing. */
+function settingsHref(missingKeys: string[]): Route {
+  const visaOnly =
+    missingKeys.length > 0 &&
+    missingKeys.every((key) => (VISA_HELD_REQUIRED_KEYS as readonly string[]).includes(key));
+  return visaOnly ? "/dashboard/settings#visa" : "/dashboard/settings#profile";
 }

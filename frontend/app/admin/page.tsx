@@ -197,12 +197,16 @@ export default function AdminPage() {
 // ---------------------------------------------------------------------------
 
 function StatsTab() {
-  const { data, isLoading, isFetching, error, refetch } = useStats();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useStats();
 
   if (isLoading) return <Loading />;
   if (error)
     return (
-      <LoadFailed retrying={isFetching} onRetry={() => void refetch()}>
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
         Failed to load stats. Are you an admin?
       </LoadFailed>
     );
@@ -234,7 +238,7 @@ function StatsTab() {
 // ---------------------------------------------------------------------------
 
 function UsersTab() {
-  const { data, isLoading, isFetching, error, refetch } = useUsers();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useUsers();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -250,7 +254,11 @@ function UsersTab() {
   if (isLoading) return <Loading />;
   if (error)
     return (
-      <LoadFailed retrying={isFetching} onRetry={() => void refetch()}>
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
         Failed to load users.
       </LoadFailed>
     );
@@ -314,7 +322,7 @@ function UsersTab() {
 // ---------------------------------------------------------------------------
 
 function CultureTab() {
-  const { data, isLoading, isFetching, error, refetch } = useTopics();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useTopics();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirmDialog = useConfirm();
@@ -375,7 +383,11 @@ function CultureTab() {
   if (isLoading) return <Loading />;
   if (error)
     return (
-      <LoadFailed retrying={isFetching} onRetry={() => void refetch()}>
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
         Failed to load topics.
       </LoadFailed>
     );
@@ -496,7 +508,7 @@ function CultureTab() {
 // ---------------------------------------------------------------------------
 
 function GlossaryTab() {
-  const { data, isLoading, isFetching, error, refetch } = useGlossary();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useGlossary();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirmDialog = useConfirm();
@@ -542,7 +554,11 @@ function GlossaryTab() {
   if (isLoading) return <Loading />;
   if (error)
     return (
-      <LoadFailed retrying={isFetching} onRetry={() => void refetch()}>
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
         Failed to load glossary.
       </LoadFailed>
     );
@@ -639,16 +655,19 @@ function Loading() {
 
 /** English, like the rest of this page, so not the translated RetryButton. */
 function LoadFailed({
+  failureCount,
   retrying,
   onRetry,
   children,
 }: {
+  failureCount: number;
   retrying: boolean;
   onRetry: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Alert
+      announceKey={failureCount}
       action={
         <Button variant="secondary" size="sm" loading={retrying} onClick={onRetry}>
           Try again

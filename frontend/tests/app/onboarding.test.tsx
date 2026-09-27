@@ -158,6 +158,14 @@ describe("onboarding, where a returning user lands", () => {
     expect(screen.getByText(stepLine(expected))).toBeInTheDocument();
   });
 
+  it("doesn't pull focus to the title when it resumes a returning user", async () => {
+    // Jumping to the saved step is not the reader moving on, so the page
+    // loads as any other would, without focus landing on its heading.
+    await renderPage(me({ onboarding_step: 2 }, { full_name: "Budi Santoso" }));
+    expect(screen.getByText(stepLine(4))).toBeInTheDocument();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("holds a user with no name at step 2 however far they got", async () => {
     // Step 2 is the only place full_name is captured. Letting them jump to
     // step 5 would complete onboarding with it still unset, and the redirect
@@ -193,6 +201,16 @@ describe("onboarding, where a returning user lands", () => {
 });
 
 describe("onboarding, step 1 consent", () => {
+  it("says where consent is withdrawn in one well-punctuated sentence", async () => {
+    // It was built as text + " " + place + ".", which put a space after the
+    // Japanese bracket and an English full stop at the end.
+    await renderPage();
+    const sentence = screen.getByText(/取り消せます/);
+    expect(sentence.textContent).toBe(
+      "アカウントを削除することで、いつでも同意を取り消せます（設定の「アカウント削除」から）。",
+    );
+  });
+
   it("will not continue until the box is ticked", async () => {
     await renderPage();
 
@@ -353,6 +371,30 @@ describe("onboarding, the steps that save", () => {
 
     expect(updateProfile.saves).toHaveLength(2);
     expect(screen.getByText("Enter at least one industry")).toBeInTheDocument();
+  });
+
+  it("focuses the first empty tag field when Continue is refused", async () => {
+    // Without the field's ref, react-hook-form had nothing to focus: focus
+    // stayed on Continue and a screen reader heard nothing about the error.
+    const { container } = await toStep4();
+    await submit(container);
+    expect(document.activeElement).toBe(screen.getByLabelText(new RegExp(o("s4Industries"))));
+  });
+
+  it("keeps a half-typed tag once the box loses focus", async () => {
+    // Clicking or tabbing to Continue blurs the box before the submit.
+    const { container } = await toStep4();
+    const industries = screen.getByLabelText(new RegExp(o("s4Industries")));
+    fireEvent.change(industries, { target: { value: "IT" } });
+    fireEvent.blur(industries);
+    const roles = screen.getByLabelText(new RegExp(o("s4Roles")));
+    fireEvent.change(roles, { target: { value: "Backend Engineer" } });
+    fireEvent.blur(roles);
+    await submit(container);
+    expect(updateProfile.saves[2]).toMatchObject({
+      target_industry: ["IT"],
+      target_role: ["Backend Engineer"],
+    });
   });
 
   it("explains a save that fails and stays on the step", async () => {

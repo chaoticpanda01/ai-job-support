@@ -89,7 +89,10 @@ export default function DocumentDetailPage({ params }: Props) {
         {isMissingResourceError(loadError) ? (
           <Alert>{t("documents", "notFound", lang)}</Alert>
         ) : (
-          <Alert key={errorCount} action={<RetryButton retrying={isChecking} onRetry={recheck} />}>
+          <Alert
+            announceKey={errorCount}
+            action={<RetryButton retrying={isChecking} onRetry={recheck} />}
+          >
             {t("documents", "statusLoadError", lang)}
           </Alert>
         )}
@@ -109,7 +112,10 @@ export default function DocumentDetailPage({ params }: Props) {
       {/* The document below is real, just possibly out of date: say so rather
           than replacing it with an error. */}
       {pollError && (
-        <Alert key={errorCount} action={<RetryButton retrying={isChecking} onRetry={recheck} />}>
+        <Alert
+          announceKey={errorCount}
+          action={<RetryButton retrying={isChecking} onRetry={recheck} />}
+        >
           {t("documents", "statusPollError", lang)}
         </Alert>
       )}
@@ -235,7 +241,7 @@ function StatusBody({
         // The document was generated; only the link failed. Saying so beats a
         // spinner that never resolves.
         <Alert
-          key={downloadErrorCount}
+          announceKey={downloadErrorCount}
           action={<RetryButton retrying={retryingDownload} onRetry={onRetryDownload} />}
         >
           {t("documents", "linkError", lang)}

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
-import type { ComponentType } from "react";
+import { StrictMode, type ComponentType } from "react";
 import { renderIn } from "../helpers";
 import { ApiClientError } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
@@ -172,6 +172,37 @@ describe("the new 履歴書 page, before the profile is ready", () => {
     );
   });
 
+  it("links to the visa card when only visa details are missing", async () => {
+    me.current = {
+      ...me.current,
+      data: {
+        rirekisho_ready: false,
+        rirekisho_missing_fields: [{ key: "residence_card_expiration", label: "Card expiry" }],
+      },
+    };
+    await act(async () => {
+      renderIn(LANG, <Rirekisho />);
+    });
+    expect(screen.getByRole("link", { name: d("goToSettings") })).toHaveAttribute(
+      "href",
+      "/dashboard/settings#visa",
+    );
+  });
+
+  it("falls back to the backend's label for a field it has no name for", async () => {
+    me.current = {
+      ...me.current,
+      data: {
+        rirekisho_ready: false,
+        rirekisho_missing_fields: [{ key: "something_new", label: "Something new" }],
+      },
+    };
+    await act(async () => {
+      renderIn(LANG, <Rirekisho />);
+    });
+    expect(screen.getByText("Something new")).toBeInTheDocument();
+  });
+
   it("explains a profile that can't be loaded, and retries it", async () => {
     me.current = { ...me.current, data: undefined };
     await act(async () => {
@@ -184,6 +215,25 @@ describe("the new 履歴書 page, before the profile is ready", () => {
 });
 
 describe("the new-document wizard, by keyboard", () => {
+  it("doesn't move focus on first render, even when effects run twice", async () => {
+    // React's StrictMode runs effects twice in development; a "first render"
+    // flag in a ref survived that and moved focus to the title on load.
+    create.current = {
+      mutateAsync: () => Promise.resolve({ id: "d" }),
+      isPending: false,
+      error: null,
+    };
+    await act(async () => {
+      renderIn(
+        LANG,
+        <StrictMode>
+          <Shokumu />
+        </StrictMode>,
+      );
+    });
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("moves focus to the next step's title, not onto the next step's Back button", async () => {
     // Each step's first button is the same element to React, so focus used to
     // stay put and land on Back: a second Enter went straight back a step.

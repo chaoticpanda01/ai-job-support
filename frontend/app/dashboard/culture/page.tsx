@@ -29,6 +29,7 @@ export default function CulturePage() {
     isLoading: topicsLoading,
     error: topicsError,
     isFetching: topicsFetching,
+    errorUpdateCount: topicsErrorCount,
     refetch: refetchTopics,
   } = useCultureTopics({ tag: selectedTag });
   const {
@@ -36,6 +37,7 @@ export default function CulturePage() {
     isLoading: glossaryLoading,
     error: glossaryError,
     isFetching: glossaryFetching,
+    errorUpdateCount: glossaryErrorCount,
     refetch: refetchGlossary,
   } = useGlossary();
 
@@ -74,6 +76,7 @@ export default function CulturePage() {
           {topicsLoading && <TopicsSkeleton />}
           {topicsError && (
             <Alert
+              announceKey={topicsErrorCount}
               action={
                 <RetryButton retrying={topicsFetching} onRetry={() => void refetchTopics()} />
               }
@@ -97,6 +100,7 @@ export default function CulturePage() {
           {glossaryLoading && <GlossarySkeleton />}
           {glossaryError && (
             <Alert
+              announceKey={glossaryErrorCount}
               action={
                 <RetryButton retrying={glossaryFetching} onRetry={() => void refetchGlossary()} />
               }

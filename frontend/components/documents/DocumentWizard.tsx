@@ -52,14 +52,17 @@ export function DocumentWizard({
   const [orientation, setOrientation] = useState<DocumentOrientation>("portrait");
   // Each step's first button is the same element to React, so after Next the
   // keyboard focus would land on the new step's Back button, and a second
-  // Enter would go straight back. Move it to the new step's title instead.
+  // Enter would go straight back. A step the reader moves to (goToStep) takes
+  // focus to its title instead; nothing moves focus on first render.
   const titleRef = useRef<HTMLParagraphElement>(null);
-  const firstStep = useRef(true);
+  const focusTitle = useRef(false);
+  function goToStep(next: Step) {
+    focusTitle.current = true;
+    setStep(next);
+  }
   useEffect(() => {
-    if (firstStep.current) {
-      firstStep.current = false;
-      return;
-    }
+    if (!focusTitle.current) return;
+    focusTitle.current = false;
     titleRef.current?.focus();
   }, [step]);
   const { lang } = useLang();
@@ -129,7 +132,7 @@ export function DocumentWizard({
         )}
 
         <div className="flex justify-end">
-          <Button onClick={() => setStep("job")} disabled={!resumeId}>
+          <Button onClick={() => goToStep("job")} disabled={!resumeId}>
             {t("documents", "wizNext", lang)}
             <ArrowRight aria-hidden="true" />
           </Button>
@@ -181,10 +184,10 @@ export function DocumentWizard({
         )}
 
         <div className="flex justify-between">
-          <Button variant="secondary" onClick={() => setStep("resume")}>
+          <Button variant="secondary" onClick={() => goToStep("resume")}>
             {t("common", "back", lang)}
           </Button>
-          <Button onClick={() => setStep("confirm")} disabled={jobIdInvalid}>
+          <Button onClick={() => goToStep("confirm")} disabled={jobIdInvalid}>
             {t("documents", "wizNext", lang)}
             <ArrowRight aria-hidden="true" />
           </Button>
@@ -231,7 +234,7 @@ export function DocumentWizard({
       {error && <Alert>{error}</Alert>}
 
       <div className="flex justify-between">
-        <Button variant="secondary" onClick={() => setStep("job")} disabled={isPending}>
+        <Button variant="secondary" onClick={() => goToStep("job")} disabled={isPending}>
           {t("common", "back", lang)}
         </Button>
         <Button

@@ -20,9 +20,11 @@ type Rule = "palette" | "glyph" | "rawControl" | "h1";
 const RULES: Record<Rule, RegExp> = {
   // A Tailwind palette colour instead of a token: text-green-600, bg-blue-100…
   palette:
-    /\b(?:text|bg|border|ring|from|to|via|fill|stroke|divide|outline|placeholder|accent|decoration)-(?:red|green|blue|yellow|amber|orange|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose|lime|gray|slate|zinc|neutral|stone)-\d{2,3}\b/,
-  // An arrow, shape, dingbat or emoji used as an icon: ← → ▲ ▼ ✓ ✕ 🏠 🤖 💬…
-  glyph: /[\u2190-\u21FF\u25A0-\u25FF\u2600-\u27BF\u{1F300}-\u{1FAFF}]/u,
+    /\b(?:text|bg|border(?:-[xytrblse])?|ring(?:-offset)?|shadow|caret|from|to|via|fill|stroke|divide|outline|placeholder|accent|decoration)-(?:red|green|blue|yellow|amber|orange|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose|lime|gray|slate|zinc|neutral|stone)-\d{2,3}\b/,
+  // An arrow, shape, symbol, dingbat, flag or emoji used as an icon or
+  // decoration: × ← → ⏳ ▲ ▼ ✓ ✕ ⬅ ⭐ 🇯🇵 🏠 🤖 💬…
+  glyph:
+    /[\u00D7\u2190-\u21FF\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF\u2B00-\u2BFF\u{1F000}-\u{1FAFF}]/u,
   // A control built by hand instead of the form primitives. react-dropzone's
   // hidden file input is the one raw <input> allowed.
   rawControl: /<(?:input|select|textarea)\b(?!\s*\{\.\.\.getInputProps\(\)\}\s*\/>)/,
@@ -91,9 +93,38 @@ function sourceFiles(): string[] {
   return files.sort();
 }
 
-/** Comments may say anything: "→" in a note is not an icon. URLs keep their //. */
+/**
+ * Comments may say anything: "→" in a note is not an icon. Walks the source
+ * once, keeping every string and template literal (their text is what the
+ * rules check, and a "//" or "/" + "*" inside one is not a comment) and
+ * dropping line and block comments, including JSX's braced ones.
+ */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  let out = "";
+  let quote: string | null = null;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i] as string;
+    const next = source[i + 1];
+    if (quote) {
+      out += c;
+      if (c === "\\") {
+        out += next ?? "";
+        i++;
+      } else if (c === quote || (c === "\n" && quote !== "`")) {
+        quote = null;
+      }
+    } else if (c === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i++;
+      out += "\n";
+    } else if (c === "/" && next === "*") {
+      const end = source.indexOf("*/", i + 2);
+      i = end === -1 ? source.length : end + 1;
+    } else {
+      if (c === '"' || c === "'" || c === "`") quote = c;
+      out += c;
+    }
+  }
+  return out;
 }
 
 function violations(source: string): Rule[] {
@@ -122,6 +153,20 @@ describe("the design guard", () => {
     expect(violations("<input {...getInputProps()} />")).toEqual([]);
     expect(violations("// a note → about text-red-500\n/* <h1> */")).toEqual([]);
     expect(violations('<a href="https://example.com">x</a>')).toEqual([]);
+    // Flags, clock and arrow symbols, and the × sign are glyphs too.
+    expect(violations("<p>Welcome! 🇯🇵</p>")).toEqual(["glyph"]);
+    expect(violations("<span>⏳</span>")).toEqual(["glyph"]);
+    expect(violations("<span>⬅ Back</span>")).toEqual(["glyph"]);
+    expect(violations("<button>×</button>")).toEqual(["glyph"]);
+    // Side borders, shadows and ring offsets carry palette colours too.
+    expect(violations('<div className="border-t-blue-800" />')).toEqual(["palette"]);
+    expect(violations('<div className="shadow-red-500/20" />')).toEqual(["palette"]);
+    expect(violations('<div className="ring-offset-gray-100" />')).toEqual(["palette"]);
+    // "/*" inside a string is not a comment: what follows is still scanned.
+    expect(violations('<Dropzone accept="image/*" />\n<p className="text-red-600" />')).toEqual([
+      "palette",
+    ]);
+    expect(violations("const url = 'https://x.test/a'; // note → here\n")).toEqual([]);
     // Tokens and CJK text are fine.
     expect(
       violations('<p lang="ja" className="bg-indigo-soft text-success">履歴書・職務経歴書</p>'),

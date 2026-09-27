@@ -379,7 +379,7 @@ function LoadProblemNotice({
 
   return (
     <Alert
-      key={failureCount}
+      announceKey={failureCount}
       tone={offline ? "neutral" : "danger"}
       action={retry}
       className={variant === "inline" ? "mx-auto w-fit" : undefined}

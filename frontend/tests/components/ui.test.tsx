@@ -197,6 +197,28 @@ describe("Alert", () => {
     },
   );
 
+  it("re-announces a repeated failure without remounting its action", () => {
+    // Keying the whole Alert on a failure count remounted the focused Retry
+    // button, dropping keyboard focus to <body> each time a retry failed.
+    const { rerender } = render(
+      <Alert announceKey={1} action={<button type="button">Try again</button>}>
+        Could not load.
+      </Alert>,
+    );
+    const retry = screen.getByRole("button", { name: "Try again" });
+    const message = screen.getByRole("alert");
+    retry.focus();
+    rerender(
+      <Alert announceKey={2} action={<button type="button">Try again</button>}>
+        Could not load.
+      </Alert>,
+    );
+    expect(document.activeElement).toBe(retry);
+    expect(screen.getByRole("button", { name: "Try again" })).toBe(retry);
+    // The message itself is a new element, so assistive tech reads it again.
+    expect(screen.getByRole("alert")).not.toBe(message);
+  });
+
   it("shows a title above the message", () => {
     render(
       <Alert tone="danger" title="Generation failed">

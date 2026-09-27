@@ -85,9 +85,9 @@ export const translations = {
     },
     poweredBy: { en: "Powered by Gemini AI", id: "Didukung Gemini AI", ja: "Gemini AI 搭載" },
     greeting: {
-      en: "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips! 🇯🇵",
-      id: "Hai! Saya asisten Japan Job Support kamu. Tanya apa saja soal bekerja di Jepang, visa, budaya kerja Jepang, atau tips resume! 🇯🇵",
-      ja: "こんにちは！日本就職サポートのアシスタントです。日本での就労、ビザ、職場文化、履歴書のコツなど、何でも聞いてください！🇯🇵",
+      en: "Hi! I'm your Japan Job Support assistant. Ask me anything about working in Japan, visas, Japanese workplace culture, or resume tips!",
+      id: "Hai! Saya asisten Japan Job Support kamu. Tanya apa saja soal bekerja di Jepang, visa, budaya kerja Jepang, atau tips resume!",
+      ja: "こんにちは！日本就職サポートのアシスタントです。日本での就労、ビザ、職場文化、履歴書のコツなど、何でも聞いてください！",
     },
     signedOutPrompt: {
       en: "Sign in first before chatting with the Japan Job Assistant.",
@@ -536,16 +536,18 @@ export const translations = {
       id: "Mengirim data penggunaan anonim sebagai bagian dari operasi API normal. Data pribadimu tidak pernah digunakan untuk melatih model AI.",
       ja: "通常のAPI運用の一環として匿名データを送信します。個人情報はAIの学習に使用されません。",
     },
+    // One sentence with {place} where s1WithdrawPlace goes (shown in bold), so
+    // each language keeps its own spacing and punctuation around it.
     s1Withdraw: {
-      en: "You can withdraw consent at any time by deleting your account from",
-      id: "Kamu dapat mencabut persetujuan kapan saja dengan menghapus akun dari",
-      ja: "アカウントを削除することで、いつでも同意を取り消せます（",
+      en: "You can withdraw consent at any time by deleting your account from {place}.",
+      id: "Kamu dapat mencabut persetujuan kapan saja dengan menghapus akun dari {place}.",
+      ja: "アカウントを削除することで、いつでも同意を取り消せます（{place}から）。",
     },
-    // Settings has no "Danger zone" any more: its last card is "Delete account".
-    s1DangerZone: {
+    // Settings' last card, "Delete account" (it used to say "Danger zone").
+    s1WithdrawPlace: {
       en: "Settings, under Delete account",
       id: "Pengaturan, di bagian Hapus akun",
-      ja: "設定の「アカウント削除」から）",
+      ja: "設定の「アカウント削除」",
     },
     s2AppLang: { en: "App language", id: "Bahasa aplikasi", ja: "表示言語" },
     s2AppLangHint: {

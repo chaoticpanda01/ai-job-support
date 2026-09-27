@@ -9,21 +9,16 @@ import { cn } from "@/lib/utils";
  * A list of short strings as chips. Enter or a comma adds what's typed
  * (trimmed; blanks and duplicates ignored), Backspace in an empty box removes
  * the last chip, and leaving the box keeps a half-typed entry rather than
- * dropping it. Field's id and aria props land on the text box.
+ * dropping it. Field's id and aria props, and the forwarded ref, land on the
+ * text box, so a form library can focus it (react-hook-form's Controller
+ * passes field.ref and field.onBlur).
  */
-export function TagInput({
-  id,
-  value,
-  onChange,
-  placeholder,
-  removeLabel,
-  changed = false,
-  className,
-  ...aria
-}: {
+export interface TagInputProps {
   id?: string;
   value: string[];
   onChange: (next: string[]) => void;
+  /** After the box loses focus (and any half-typed tag is committed). */
+  onBlur?: () => void;
   placeholder: string;
   /** "Remove {tag}", translated. */
   removeLabel: string;
@@ -32,9 +27,15 @@ export function TagInput({
   "aria-label"?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;
-}) {
+}
+
+export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>(function TagInput(
+  { id, value, onChange, placeholder, removeLabel, changed = false, className, onBlur, ...aria },
+  ref,
+) {
   const [draft, setDraft] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
+  React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
   function withAdded(list: string[], text: string): string[] {
     const tag = text.trim();
@@ -105,9 +106,10 @@ export function TagInput({
         }}
         onBlur={() => {
           if (draft.trim()) commit(draft);
+          onBlur?.();
         }}
         className="min-w-24 flex-1 bg-transparent py-0.5 text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>
   );
-}
+});

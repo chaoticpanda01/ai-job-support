@@ -51,6 +51,14 @@ describe("the visa page", () => {
     expect(screen.getByText(t("nav", "groupSettleIn", LANG))).toBeInTheDocument();
   });
 
+  it("doesn't show an Assess label that may be wrong while loading", async () => {
+    // Until the latest assessment is known, the button can't know whether
+    // it will say "Assess" or "Re-assess".
+    await renderPage({ isLoading: true });
+    expect(screen.queryByText(v("assessBtn"))).not.toBeInTheDocument();
+    expect(screen.queryByText(v("reassessBtn"))).not.toBeInTheDocument();
+  });
+
   it("explains there is no assessment yet", async () => {
     await renderPage({ error: new ApiClientError(404, "none") });
     expect(screen.getByText(v("noAssessment"))).toBeInTheDocument();

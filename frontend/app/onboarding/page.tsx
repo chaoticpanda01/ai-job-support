@@ -78,14 +78,17 @@ export default function OnboardingPage() {
   const didSyncStep = useRef(false);
   // Each step's first control is the same element to React, so after
   // Continue the keyboard focus would sit on the next step's Back button.
-  // Move it to the new step's title instead (not on first render).
+  // Steps the reader moves to (goToStep) take focus to the new title. The
+  // resume jump below uses setStep directly: a page load isn't a move.
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const firstStep = useRef(true);
+  const focusTitle = useRef(false);
+  function goToStep(next: number) {
+    focusTitle.current = true;
+    setStep(next);
+  }
   useEffect(() => {
-    if (firstStep.current) {
-      firstStep.current = false;
-      return;
-    }
+    if (!focusTitle.current) return;
+    focusTitle.current = false;
     titleRef.current?.focus();
   }, [step]);
 
@@ -159,7 +162,7 @@ export default function OnboardingPage() {
               setError(null);
               try {
                 await recordConsent.mutateAsync();
-                setStep(2);
+                goToStep(2);
               } catch (err) {
                 setError(apiErrorMessage(err, lang));
               }
@@ -180,12 +183,12 @@ export default function OnboardingPage() {
                   preferred_language: lang,
                   onboarding_step: 1,
                 });
-                setStep(3);
+                goToStep(3);
               } catch (err) {
                 setError(apiErrorMessage(err, lang));
               }
             }}
-            onBack={() => setStep(1)}
+            onBack={() => goToStep(1)}
             loading={updateProfile.isPending}
           />
         )}
@@ -204,12 +207,12 @@ export default function OnboardingPage() {
                   years_experience: data.years_experience,
                   onboarding_step: 2,
                 });
-                setStep(4);
+                goToStep(4);
               } catch (err) {
                 setError(apiErrorMessage(err, lang));
               }
             }}
-            onBack={() => setStep(2)}
+            onBack={() => goToStep(2)}
             loading={updateProfile.isPending}
           />
         )}
@@ -228,12 +231,12 @@ export default function OnboardingPage() {
                   target_role: data.target_role,
                   onboarding_step: 4,
                 });
-                setStep(5);
+                goToStep(5);
               } catch (err) {
                 setError(apiErrorMessage(err, lang));
               }
             }}
-            onBack={() => setStep(3)}
+            onBack={() => goToStep(3)}
             loading={updateProfile.isPending}
           />
         )}
@@ -276,7 +279,7 @@ export default function OnboardingPage() {
                 setError(apiErrorMessage(err, lang));
               }
             }}
-            onBack={() => setStep(4)}
+            onBack={() => goToStep(4)}
             loading={updateProfile.isPending}
           />
         )}
@@ -300,6 +303,7 @@ function Step1Consent({
 }) {
   const { lang } = useLang();
   const [checked, setChecked] = useState(false);
+  const [before = "", after = ""] = t("onboarding", "s1Withdraw", lang).split("{place}");
 
   return (
     <div className="space-y-6">
@@ -318,11 +322,11 @@ function Step1Consent({
           <li>{t("onboarding", "s1P3", lang)}</li>
         </ul>
         <p>
-          {t("onboarding", "s1Withdraw", lang)}{" "}
+          {before}
           <span className="font-medium text-foreground">
-            {t("onboarding", "s1DangerZone", lang)}
+            {t("onboarding", "s1WithdrawPlace", lang)}
           </span>
-          .
+          {after}
         </p>
       </div>
 
@@ -522,8 +526,10 @@ function Step4({
             error={errors.target_industry?.message}
           >
             <TagInput
+              ref={field.ref}
               value={field.value}
               onChange={field.onChange}
+              onBlur={field.onBlur}
               placeholder={t("settings", "addIndustry", lang)}
               removeLabel={t("settings", "removeTag", lang)}
             />
@@ -537,8 +543,10 @@ function Step4({
         render={({ field }) => (
           <Field label={t("onboarding", "s4Roles", lang)} error={errors.target_role?.message}>
             <TagInput
+              ref={field.ref}
               value={field.value}
               onChange={field.onChange}
+              onBlur={field.onBlur}
               placeholder={t("settings", "addRole", lang)}
               removeLabel={t("settings", "removeTag", lang)}
             />

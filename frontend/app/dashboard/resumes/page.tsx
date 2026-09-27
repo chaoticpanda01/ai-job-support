@@ -19,7 +19,7 @@ import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
 
 export default function ResumesPage() {
-  const { data, isLoading, isFetching, error, refetch } = useResumes();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useResumes();
   const { lang } = useLang();
 
   return (
@@ -40,7 +40,10 @@ export default function ResumesPage() {
           {isLoading && <ResumesSkeleton />}
 
           {error && (
-            <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+            <Alert
+              announceKey={errorUpdateCount}
+              action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}
+            >
               {t("resumes", "loadError", lang)}
             </Alert>
           )}

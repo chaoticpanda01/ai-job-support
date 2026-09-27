@@ -3,6 +3,7 @@ import { act, fireEvent, screen, type RenderResult } from "@testing-library/reac
 import { renderIn } from "../helpers";
 import { ApiClientError } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
+import { LanguageProvider } from "@/lib/language-context";
 
 const resumes = vi.hoisted(() => ({ current: {} as Record<string, unknown>, refetches: 0 }));
 
@@ -81,6 +82,23 @@ describe("the resumes list", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(r("loadError"));
     fireEvent.click(screen.getByRole("button", { name: t("common", "tryAgain", LANG) }));
     expect(resumes.refetches).toBe(1);
+  });
+
+  it("announces a repeated failure again, keeping focus on Try again", async () => {
+    const view = await renderPage({ error: new ApiClientError(500, "boom"), errorUpdateCount: 1 });
+    const message = screen.getByRole("alert");
+    const retry = screen.getByRole("button", { name: t("common", "tryAgain", LANG) });
+    retry.focus();
+    resumes.current = query({ error: new ApiClientError(500, "boom"), errorUpdateCount: 2 });
+    await act(async () => {
+      view.rerender(
+        <LanguageProvider initialLang={LANG}>
+          <ResumesPage />
+        </LanguageProvider>,
+      );
+    });
+    expect(screen.getByRole("alert")).not.toBe(message);
+    expect(document.activeElement).toBe(retry);
   });
 
   it("marks the primary resume", async () => {

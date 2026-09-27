@@ -182,7 +182,7 @@ export default function ResumeDetailPage({ params }: Props) {
 
         {statusError && !analysis && (
           <Alert
-            key={statusErrorCount}
+            announceKey={statusErrorCount}
             action={<RetryButton retrying={checkingStatus} onRetry={() => refetchStatus()} />}
           >
             {t("resumes", "analysisStatusError", lang)}

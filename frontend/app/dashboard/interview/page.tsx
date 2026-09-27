@@ -17,7 +17,14 @@ import { INTERVIEW_SCORE_BANDS, scoreTone, toneText } from "@/lib/tones";
 import type { InterviewSession } from "@/types/api";
 
 export default function InterviewPage() {
-  const { data: sessions, isLoading, isFetching, error, refetch } = useInterviewSessions();
+  const {
+    data: sessions,
+    isLoading,
+    isFetching,
+    error,
+    errorUpdateCount,
+    refetch,
+  } = useInterviewSessions();
   const { lang } = useLang();
 
   return (
@@ -38,7 +45,10 @@ export default function InterviewPage() {
       <div className="space-y-6">
         {isLoading && <SessionsSkeleton />}
         {error && (
-          <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+          <Alert
+            announceKey={errorUpdateCount}
+            action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}
+          >
             {t("interview", "loadError", lang)}
           </Alert>
         )}

@@ -24,7 +24,14 @@ import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
 export default function VisaPage() {
-  const { data: latest, isLoading, isFetching, error, refetch } = useLatestVisaConsultation();
+  const {
+    data: latest,
+    isLoading,
+    isFetching,
+    error,
+    errorUpdateCount,
+    refetch,
+  } = useLatestVisaConsultation();
   const { data: list } = useVisaConsultations();
   const assess = useAssessVisa();
   const selectRoadmap = useSelectRoadmap(latest?.id);
@@ -77,11 +84,16 @@ export default function VisaPage() {
             disabled={isLoading}
             loading={assess.isPending}
           >
-            {assess.isPending
-              ? t("visa", "assessing", lang)
-              : latest
-                ? t("visa", "reassessBtn", lang)
-                : t("visa", "assessBtn", lang)}
+            {isLoading ? (
+              // Assess or Re-assess isn't known until the latest assessment is.
+              <Skeleton className="h-4 w-24 bg-primary-foreground/30" />
+            ) : assess.isPending ? (
+              t("visa", "assessing", lang)
+            ) : latest ? (
+              t("visa", "reassessBtn", lang)
+            ) : (
+              t("visa", "assessBtn", lang)
+            )}
           </Button>
         }
       />
@@ -109,7 +121,10 @@ export default function VisaPage() {
         )}
 
         {loadFailed && !assess.isPending && (
-          <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+          <Alert
+            announceKey={errorUpdateCount}
+            action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}
+          >
             {t("visa", "loadFail", lang)}
           </Alert>
         )}
