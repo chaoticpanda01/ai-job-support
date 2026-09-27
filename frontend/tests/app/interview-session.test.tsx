@@ -4,6 +4,7 @@ import { act, fireEvent, screen, type RenderResult } from "@testing-library/reac
 import { renderIn } from "../helpers";
 import { ApiClientError } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
+import { LanguageProvider } from "@/lib/language-context";
 import type * as UseInterview from "@/hooks/useInterview";
 import type {
   InterviewEvaluation,
@@ -12,9 +13,15 @@ import type {
   InterviewSummary,
 } from "@/types/api";
 
-// jsdom implements no layout, so the page's scroll-to-bottom effect would
-// throw on every render without this.
-Element.prototype.scrollIntoView = vi.fn();
+// jsdom implements no scrolling. The page must scroll only its message list:
+// scrollIntoView also scrolls the window, which pushed the header under the
+// phone top bar, so it is recorded here to prove it stays unused.
+const scrollIntoView = vi.fn();
+Element.prototype.scrollIntoView = scrollIntoView;
+const scrolled: Element[] = [];
+Element.prototype.scrollTo = function (this: Element) {
+  scrolled.push(this);
+} as typeof Element.prototype.scrollTo;
 
 const sessionQuery = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const interview = vi.hoisted(() => ({
@@ -160,6 +167,8 @@ async function renderPage(
 }
 
 beforeEach(() => {
+  scrollIntoView.mockClear();
+  scrolled.length = 0;
   interview.sent = [];
   interview.ended = [];
   interview.aborts = 0;
@@ -276,6 +285,35 @@ describe("interview session page, an active session", () => {
     expect(screen.getByText("Tell me about yourself.")).toBeInTheDocument();
     expect(screen.getByText("I fixed an N+1 query.")).toBeInTheDocument();
     expect(screen.getByText(iv("statusActive"))).toBeInTheDocument();
+  });
+
+  it("scrolls only the message list to the newest message", async () => {
+    await renderPage();
+
+    const list = screen.getByText("I fixed an N+1 query.").closest("[aria-busy]");
+    expect(list).not.toBeNull();
+    expect(scrolled).toContain(list);
+    expect(scrolled.every((el) => el === list)).toBe(true);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("lifts the chat button clear of the answer box, only while it shows", async () => {
+    const offset = () => document.documentElement.style.getPropertyValue("--bottom-bar-offset");
+    const { rerender } = await renderPage();
+    expect(offset()).not.toBe("");
+
+    sessionQuery.current = query({ data: { ...SESSION, status: "completed" } });
+    await act(async () => {
+      rerender(
+        <LanguageProvider initialLang={LANG}>
+          <Suspense fallback={null}>
+            <InterviewSessionPage params={Promise.resolve({ id: "s1" })} />
+          </Suspense>
+        </LanguageProvider>,
+      );
+    });
+    expect(screen.queryByLabelText(iv("answerLabel"))).not.toBeInTheDocument();
+    expect(offset()).toBe("");
   });
 
   it("tags the interviewer's language, but not the candidate's", async () => {

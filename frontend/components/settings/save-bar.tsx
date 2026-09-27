@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useBottomBarOffset } from "@/hooks/useBottomBarOffset";
 import { t, type Language } from "@/lib/i18n";
 
 /**
- * Fixed to the bottom of the screen while there are unsaved changes. It sets
- * --save-bar-offset to its height, which the chat button adds to its bottom
- * margin, so the button never covers Save.
+ * Fixed to the bottom of the screen while there are unsaved changes. The chat
+ * button rises above it, so it never covers Save.
  */
 export function SaveBar({
   count,
@@ -23,20 +23,7 @@ export function SaveBar({
   lang: Language;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const bar = ref.current;
-    if (!bar) return;
-    const root = document.documentElement;
-    const setOffset = () => root.style.setProperty("--save-bar-offset", `${bar.offsetHeight}px`);
-    setOffset();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(setOffset);
-    observer?.observe(bar);
-    return () => {
-      observer?.disconnect();
-      root.style.removeProperty("--save-bar-offset");
-    };
-  }, []);
+  useBottomBarOffset(ref);
 
   const label =
     count === 1

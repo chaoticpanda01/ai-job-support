@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useBottomBarOffset } from "@/hooks/useBottomBarOffset";
 import { ApiClientError } from "@/lib/api-client";
 import { interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
@@ -39,6 +40,11 @@ import type {
 
 // SendMessageRequest.content limit on the backend. Longer answers get a 422.
 const MAX_ANSWER_LENGTH = 4000;
+
+// The chat fills the screen below the phone top bar (h-14, gone from lg up),
+// and -my-8 cancels the dashboard main's py-8, so the window never scrolls and
+// the header stays in view. dvh follows mobile browser chrome as it shows and hides.
+const FULL_HEIGHT = "-my-8 flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -74,7 +80,7 @@ export default function InterviewSessionPage({ params }: Props) {
 
   const problem = loadProblemOf(error, fetchStatus === "paused");
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -115,8 +121,10 @@ export default function InterviewSessionPage({ params }: Props) {
     else pendingTurnRef.current = null;
   }, [state.isStreaming, state.error, undoPendingTurn]);
 
+  // Scrolls the list itself. scrollIntoView would also scroll the window.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    list?.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [localMessages, state.streamingText, state.lastEval, state.summary, problem]);
 
   // No data yet: the skeleton while it loads, otherwise why it didn't load (a
@@ -219,7 +227,7 @@ export default function InterviewSessionPage({ params }: Props) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+    <div className={FULL_HEIGHT}>
       <LiveAnnouncer message={announcement} />
 
       {/* Header */}
@@ -253,7 +261,11 @@ export default function InterviewSessionPage({ params }: Props) {
       </div>
 
       {/* Message list */}
-      <div aria-busy={state.isStreaming} className="flex-1 overflow-y-auto px-4 py-6">
+      <div
+        ref={listRef}
+        aria-busy={state.isStreaming}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-6"
+      >
         <div className="mx-auto max-w-2xl space-y-6">
           {localMessages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} sessionLanguage={session.language} />
@@ -283,14 +295,12 @@ export default function InterviewSessionPage({ params }: Props) {
               onRetry={() => void refetch()}
             />
           )}
-
-          <div ref={bottomRef} />
         </div>
       </div>
 
       {/* Input area */}
       {isActive && (
-        <div className="shrink-0 border-t bg-background px-4 py-3">
+        <AnswerBar>
           <div className="mx-auto flex max-w-2xl gap-2">
             <label htmlFor="interview-answer" className="sr-only">
               {t("interview", "answerLabel", lang)}
@@ -319,8 +329,19 @@ export default function InterviewSessionPage({ params }: Props) {
           <p className="mx-auto mt-1.5 max-w-2xl text-right text-xs text-muted-foreground">
             {t("interview", "enterHint", lang)}
           </p>
-        </div>
+        </AnswerBar>
       )}
+    </div>
+  );
+}
+
+/** Pinned under the messages. The chat button rises above it, clear of Send. */
+function AnswerBar({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useBottomBarOffset(ref);
+  return (
+    <div ref={ref} className="shrink-0 border-t bg-background px-4 py-3">
+      {children}
     </div>
   );
 }
@@ -615,7 +636,7 @@ function StatusPill({ status }: { status: InterviewStatus }) {
 
 function PageSkeleton() {
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+    <div className={FULL_HEIGHT}>
       <Skeleton className="h-14 rounded-none border-b" />
       <div className="flex-1 space-y-4 p-6">
         {Array.from({ length: 3 }).map((_, i) => (
