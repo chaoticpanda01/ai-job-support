@@ -134,6 +134,13 @@ describe("the error code contracts match the backend", () => {
     expect(tsMembers.sort()).toEqual(pyMembers.sort());
   });
 
+  it("ApplicationStatus matches, in stage order", () => {
+    const tsMembers = tsUnionMembers(apiTypes, "ApplicationStatus");
+    const pyMembers = pythonEnumMembers(enums, "ApplicationStatus");
+    expect(tsMembers.length).toBeGreaterThan(0);
+    expect(tsMembers).toEqual(pyMembers);
+  });
+
   it("every interview stream failure sends a code", () => {
     const route = readFileSync(join(BACKEND, "app/api/v1/interview.py"), "utf8");
     // _sse_error("...") with a bare string means a failure the client cannot

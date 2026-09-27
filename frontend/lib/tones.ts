@@ -47,6 +47,9 @@ export const RESUME_SCORE_BANDS: ScoreBands = { good: 81, fair: 61 };
 /** Interview answer scores, progress bars and the session's overall score. */
 export const INTERVIEW_SCORE_BANDS: ScoreBands = { good: 70, fair: 50 };
 
+/** A job's foreigner-friendliness and match scores. */
+export const JOB_SCORE_BANDS: ScoreBands = { good: 70, fair: 50 };
+
 export function scoreTone(score: number, bands: ScoreBands): Tone {
   if (score >= bands.good) return "success";
   if (score >= bands.fair) return "warning";

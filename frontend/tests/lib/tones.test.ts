@@ -3,6 +3,7 @@ import {
   DOCUMENT_STATUS_TONE,
   ELIGIBILITY_TONE,
   INTERVIEW_SCORE_BANDS,
+  JOB_SCORE_BANDS,
   RESUME_SCORE_BANDS,
   SESSION_STATUS_TONE,
   scoreTone,
@@ -70,5 +71,16 @@ describe("status tones", () => {
       eligible_with_gaps: "warning",
       not_eligible: "neutral",
     });
+  });
+});
+
+describe("job score bands", () => {
+  it.each([
+    [70, "success"],
+    [69, "warning"],
+    [50, "warning"],
+    [49, "danger"],
+  ] as const)("calls %i %s", (score, tone) => {
+    expect(scoreTone(score, JOB_SCORE_BANDS)).toBe(tone);
   });
 });

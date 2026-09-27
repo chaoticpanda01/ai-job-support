@@ -28,11 +28,14 @@ const COLUMN_KEYS: ApplicationStatus[] = [
 
 const COLUMN_COLORS: Record<ApplicationStatus, string> = {
   planning: "bg-muted border-border",
+  preparing: "bg-secondary border-border",
   applied: "bg-indigo-soft border-primary/20",
   interviewing: "bg-warning/10 border-warning/30",
   offered: "bg-success/10 border-success/30",
   rejected: "bg-destructive/10 border-destructive/30",
   withdrawn: "bg-muted border-border",
+  accepted: "bg-success-soft border-success/30",
+  skipped: "bg-secondary border-border",
 };
 
 const STATUS_NEXT: Partial<Record<ApplicationStatus, ApplicationStatus[]>> = {
