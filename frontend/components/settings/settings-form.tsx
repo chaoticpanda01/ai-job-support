@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { AccountCard } from "@/components/settings/account-card";
 import { CareerCard } from "@/components/settings/career-card";
@@ -48,6 +48,23 @@ export function SettingsForm({ me }: { me: MeResponse }) {
   const changes = changedFields(saved, values);
   const count = Object.keys(changes).length;
 
+  // Discard and Save close the bar under the focused button, which would drop
+  // a keyboard user's focus to <body>. So remember the last field focused
+  // outside the bar, and when the bar closes with focus in it, go back there
+  // (or to the form, if Discard remounted that field away).
+  const formRef = useRef<HTMLFormElement>(null);
+  const lastField = useRef<HTMLElement | null>(null);
+  const refocusAfterClose = useRef(false);
+  function noteFocusInBar() {
+    refocusAfterClose.current = Boolean(document.activeElement?.closest("[data-save-bar]"));
+  }
+  useEffect(() => {
+    if (count > 0 || !refocusAfterClose.current) return;
+    refocusAfterClose.current = false;
+    const field = lastField.current;
+    (field?.isConnected ? field : formRef.current)?.focus();
+  }, [count]);
+
   const confirm = useConfirm();
   const confirmLeave = useCallback(
     () =>
@@ -70,6 +87,7 @@ export function SettingsForm({ me }: { me: MeResponse }) {
   }
 
   function discard() {
+    noteFocusInBar();
     setValues(saved);
     setErrors({});
     setSaveError(null);
@@ -89,6 +107,7 @@ export function SettingsForm({ me }: { me: MeResponse }) {
       setSaveError(apiErrorMessage(error, lang));
       return;
     }
+    noteFocusInBar();
     const settled = settleAfterSave(saved, values);
     setSaved(settled);
     setValues(settled);
@@ -102,11 +121,19 @@ export function SettingsForm({ me }: { me: MeResponse }) {
       <SectionNav lang={lang} />
       <div className="min-w-0 space-y-6 pb-28">
         <form
+          ref={formRef}
+          // Only a fallback target for focus (see refocusAfterClose), never tabbed to.
+          tabIndex={-1}
+          onFocus={(event) => {
+            if (!(event.target as Element).closest("[data-save-bar]")) {
+              lastField.current = event.target as HTMLElement;
+            }
+          }}
           onSubmit={(event) => {
             event.preventDefault();
             void save();
           }}
-          className="space-y-6"
+          className="space-y-6 focus:outline-none"
         >
           <CompletenessBanner missingKeys={missingKeys} lang={lang} />
           <ProfileCard {...cardProps} email={me.user.email} />

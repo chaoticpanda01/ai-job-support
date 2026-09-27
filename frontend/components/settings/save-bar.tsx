@@ -46,6 +46,7 @@ export function SaveBar({
   return (
     <div
       ref={ref}
+      data-save-bar=""
       role="region"
       aria-label={label}
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-primary text-primary-foreground lg:left-60"

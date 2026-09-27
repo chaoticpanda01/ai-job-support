@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t, type Language } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ const SECTIONS = [
  */
 export function SectionNav({ lang }: { lang: Language }) {
   const [current, setCurrent] = useState<string>(SECTIONS[0].id);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
@@ -40,7 +41,8 @@ export function SectionNav({ lang }: { lang: Language }) {
         for (const entry of entries) inView.set(entry.target.id, entry.isIntersecting);
         pick();
       },
-      { rootMargin: "-96px 0px -55% 0px" },
+      // 112px is the phone's top bar and chip row, and the cards' scroll-mt-28.
+      { rootMargin: "-112px 0px -55% 0px" },
     );
     for (const section of SECTIONS) {
       const el = document.getElementById(section.id);
@@ -54,10 +56,25 @@ export function SectionNav({ lang }: { lang: Language }) {
     };
   }, []);
 
+  // On phones the chips overflow their row: keep the current one in view, or
+  // Career and Account would be highlighted off-screen. On lg the menu is a
+  // column that doesn't overflow, so this does nothing there.
+  useEffect(() => {
+    const nav = navRef.current;
+    const chip = nav?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!nav || !chip || nav.scrollWidth <= nav.clientWidth) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    nav.scrollTo({
+      left: chip.offsetLeft - (nav.clientWidth - chip.offsetWidth) / 2,
+      behavior: reduce ? "auto" : "smooth",
+    });
+  }, [current]);
+
   return (
     <nav
+      ref={navRef}
       aria-label={t("settings", "sectionsNav", lang)}
-      className="sticky top-14 z-30 -mx-4 mb-6 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:top-8 lg:mx-0 lg:mb-0 lg:self-start lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+      className="sticky top-14 z-30 -mx-4 mb-6 overflow-x-auto border-b bg-background/95 px-4 py-2 backdrop-blur [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:top-8 lg:mx-0 lg:mb-0 lg:self-start lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
     >
       <ul className="flex gap-2 lg:flex-col lg:gap-0.5">
         {SECTIONS.map((section) => {

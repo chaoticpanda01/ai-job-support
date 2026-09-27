@@ -323,6 +323,40 @@ describe("settings page, the save bar", () => {
     expect(screen.queryByText(unsaved(1))).not.toBeInTheDocument();
   });
 
+  it("gives focus back to the edited field when Discard closes the bar", async () => {
+    // The bar unmounts with the focused button inside it, which would drop a
+    // keyboard user's focus to <body>, back at the top of the page.
+    await renderPage();
+    field("phone").focus();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    const discard = screen.getByRole("button", { name: s("discard") });
+    discard.focus();
+    fireEvent.click(discard);
+    expect(document.activeElement).toBe(field("phone"));
+  });
+
+  it("gives focus back to the edited field after a save from the bar", async () => {
+    await renderPage();
+    field("hobbies").focus();
+    fireEvent.change(field("hobbies"), { target: { value: "登山" } });
+    saveButton().focus();
+    await save();
+    expect(document.activeElement).toBe(field("hobbies"));
+  });
+
+  it("falls back to the form when the edited field is gone", async () => {
+    // Discard remounts the extras card, so the commute box focused before is
+    // no longer in the page.
+    await renderPage(me({ commute_time: "約45分" }));
+    const commute = screen.getByRole("textbox", { name: s("commuteTime") });
+    commute.focus();
+    fireEvent.change(commute, { target: { value: "約1時間" } });
+    const discard = screen.getByRole("button", { name: s("discard") });
+    discard.focus();
+    fireEvent.click(discard);
+    expect(document.activeElement).toBe(field("phone").form);
+  });
+
   it("stops an impossible number of years before it is sent", async () => {
     // The input's own max makes the form invalid, so the browser blocks it.
     await renderPage();
@@ -609,6 +643,54 @@ describe("settings page, the section menu", () => {
       else delete (root as unknown as Record<string, unknown>)["scrollHeight"];
       if (own.scrollY) Object.defineProperty(window, "scrollY", own.scrollY);
       else delete (window as unknown as Record<string, unknown>)["scrollY"];
+    }
+  });
+
+  it("scrolls the chip row to keep the current section's chip in view", async () => {
+    // On a phone the five chips overflow their row, so a current section near
+    // the end (Career, Account) would be highlighted off-screen. jsdom has no
+    // layout, so the widths and offsets are stood in for here.
+    const scrolls: ScrollToOptions[] = [];
+    const layout = {
+      scrollWidth: { get: () => 600 },
+      clientWidth: { get: () => 375 },
+      offsetWidth: { get: () => 100 },
+      offsetLeft: {
+        get(this: HTMLElement) {
+          const i = ["#profile", "#visa", "#extras", "#career", "#account"].indexOf(
+            this.getAttribute("href") ?? "",
+          );
+          return i < 0 ? 0 : i * 110;
+        },
+      },
+    };
+    const saved = Object.fromEntries(
+      Object.keys(layout).map((key) => [
+        key,
+        Object.getOwnPropertyDescriptor(HTMLElement.prototype, key),
+      ]),
+    );
+    for (const [key, getter] of Object.entries(layout)) {
+      Object.defineProperty(HTMLElement.prototype, key, { configurable: true, ...getter });
+    }
+    const ownScrollTo = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTo");
+    const scrollTo = vi.fn((options: ScrollToOptions) => scrolls.push(options));
+    Element.prototype.scrollTo = scrollTo as unknown as typeof Element.prototype.scrollTo;
+    try {
+      await renderPage();
+      const nav = screen.getByRole("navigation", { name: s("sectionsNav") });
+      fireEvent.click(within(nav).getByRole("link", { name: s("sectionCareer") }));
+      // Career's chip starts at 330 and is 100 wide: centred in a 375 row, the
+      // row scrolls to 330 - (375 - 100) / 2.
+      expect(scrolls.at(-1)).toMatchObject({ left: 330 - (375 - 100) / 2 });
+    } finally {
+      for (const [key, descriptor] of Object.entries(saved)) {
+        // Put back jsdom's own property, or remove the stand-in if there was none.
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[key];
+      }
+      if (ownScrollTo) Object.defineProperty(Element.prototype, "scrollTo", ownScrollTo);
+      else delete (Element.prototype as unknown as Record<string, unknown>)["scrollTo"];
     }
   });
 

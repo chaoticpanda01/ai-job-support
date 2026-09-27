@@ -29,7 +29,12 @@ export function SegmentedControl<T extends string>({
   return (
     <fieldset className={className}>
       <legend className="mb-1.5 text-sm font-medium">{legend}</legend>
-      <div className="inline-flex flex-wrap overflow-hidden rounded-md border border-input bg-card">
+      {/*
+        Stacked on phones, equal columns from sm up. Free-width segments wrapped
+        into a ragged box when the labels were long (Indonesian, or lg with the
+        menu beside the cards); in a grid a long label wraps inside its own cell.
+      */}
+      <div className="grid divide-y divide-input overflow-hidden rounded-md border border-input bg-card sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0">
         {options.map((option) => (
           <label key={option.value} className="relative">
             <input
@@ -42,7 +47,7 @@ export function SegmentedControl<T extends string>({
             />
             <span
               className={cn(
-                "block cursor-pointer px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-secondary motion-reduce:transition-none",
+                "flex h-full cursor-pointer items-center px-3 py-2 text-sm text-secondary-foreground transition-colors hover:bg-secondary motion-reduce:transition-none sm:justify-center sm:text-center",
                 "peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground",
                 "peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-ring",
               )}
