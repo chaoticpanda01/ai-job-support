@@ -737,7 +737,7 @@ export function RadioCard({
   return (
     <label
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-secondary has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary motion-reduce:transition-none",
+        "flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-secondary has-[:checked]:border-primary has-[:checked]:bg-secondary motion-reduce:transition-none",
         className,
       )}
     >

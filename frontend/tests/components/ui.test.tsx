@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import Link from "next/link";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { FileText } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RadioCard } from "@/components/ui/radio-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -146,5 +154,148 @@ describe("BrandMark", () => {
     const link = screen.getByRole("link", { name: "Japan Job Support" });
     const wordmark = within(link).getByText("Japan Job Support");
     expect(wordmark).toHaveClass("sr-only", "sm:not-sr-only");
+  });
+});
+
+describe("EmptyState", () => {
+  it("shows its title, description and action, and hides its icon", () => {
+    const { container } = render(
+      <EmptyState
+        icon={FileText}
+        title="No resumes yet"
+        description="Upload one to get started."
+        action={<a href="/upload">Upload</a>}
+      />,
+    );
+    expect(screen.getByText("No resumes yet")).toBeInTheDocument();
+    expect(screen.getByText("Upload one to get started.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Upload" })).toBeInTheDocument();
+    // The title is text, not a heading: it must not break the page's outline.
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
+describe("Alert", () => {
+  it("announces a failure as an alert, and keeps its action out of the message", () => {
+    render(
+      <Alert tone="danger" action={<button type="button">Try again</button>}>
+        Could not load.
+      </Alert>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not load.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Try again");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it.each(["success", "info", "warning", "neutral"] as const)(
+    "announces a %s message politely, as a status",
+    (tone) => {
+      render(<Alert tone={tone}>Done.</Alert>);
+      expect(screen.getByRole("status")).toHaveTextContent("Done.");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows a title above the message", () => {
+    render(
+      <Alert tone="danger" title="Generation failed">
+        The resume could not be read.
+      </Alert>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Generation failedThe resume could not be read.",
+    );
+  });
+});
+
+describe("ToggleGroup", () => {
+  function Harness() {
+    const [value, setValue] = useState<"all" | "a">("all");
+    return (
+      <ToggleGroup
+        label="Filter by type"
+        value={value}
+        options={[
+          { value: "all", label: "All" },
+          { value: "a", label: "履歴書", lang: "ja" },
+        ]}
+        onChange={setValue}
+      />
+    );
+  }
+
+  it("is a named group whose pressed button follows the value", () => {
+    render(<Harness />);
+    const group = screen.getByRole("group", { name: "Filter by type" });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "履歴書" }));
+    expect(screen.getByRole("button", { name: "履歴書" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "履歴書" })).toHaveAttribute("lang", "ja");
+  });
+
+  it("reports a click on the pressed option too, so a caller can toggle it off", () => {
+    const seen: string[] = [];
+    render(
+      <ToggleGroup
+        label="Tags"
+        value="a"
+        options={[{ value: "a", label: "A" }]}
+        onChange={(v) => seen.push(v)}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "A" }));
+    expect(seen).toEqual(["a"]);
+  });
+});
+
+describe("Tabs", () => {
+  it("renders tabs whose panel follows the selected tab", () => {
+    function Harness() {
+      const [tab, setTab] = useState("one");
+      return (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList aria-label="Sections">
+            <TabsTrigger value="one">One</TabsTrigger>
+            <TabsTrigger value="two">Two</TabsTrigger>
+          </TabsList>
+          <TabsContent value="one">First panel</TabsContent>
+          <TabsContent value="two">Second panel</TabsContent>
+        </Tabs>
+      );
+    }
+    render(<Harness />);
+    expect(screen.getByRole("tablist", { name: "Sections" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "One" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("First panel");
+    // Radix selects on mousedown, not click.
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Two" }), { button: 0 });
+    expect(screen.getByRole("tab", { name: "Two" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Second panel");
+  });
+});
+
+describe("RadioCard", () => {
+  it("is a radio named by its card's content", () => {
+    const picked: string[] = [];
+    render(
+      <fieldset>
+        <legend>Resume</legend>
+        <RadioCard name="resume" value="r1" checked={false} onChange={() => picked.push("r1")}>
+          <p>cv.pdf</p>
+        </RadioCard>
+      </fieldset>,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: "cv.pdf" }));
+    expect(picked).toEqual(["r1"]);
+  });
+});
+
+describe("Checkbox", () => {
+  it("is a native checkbox that keeps the props it is given", () => {
+    render(<Checkbox aria-label="Publish" defaultChecked />);
+    expect(screen.getByRole("checkbox", { name: "Publish" })).toBeChecked();
   });
 });
