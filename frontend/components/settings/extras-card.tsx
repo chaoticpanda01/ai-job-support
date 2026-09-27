@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -31,6 +31,7 @@ function ToggleField({
 }) {
   const s = (key: string) => t("settings", key, lang);
   const [on, setOn] = useState(values[field] !== "");
+  const hintId = useId();
   return (
     <div className="space-y-2">
       <Switch
@@ -40,19 +41,25 @@ function ToggleField({
           if (!next) update(field, "");
         }}
         label={s(switchKey)}
+        describedBy={on ? undefined : hintId}
       />
       {on ? (
         <>
           <Input
             aria-label={s(labelKey)}
+            aria-describedby={hintId}
             value={values[field]}
             onChange={(e) => update(field, e.target.value)}
             changed={isChanged(saved, values, field)}
           />
-          <p className="text-xs text-muted-foreground">{s(exampleKey)}</p>
+          <p id={hintId} className="text-xs text-muted-foreground">
+            {s(exampleKey)}
+          </p>
         </>
       ) : (
-        <p className="text-xs text-muted-foreground">{s(offKey)}</p>
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {s(offKey)}
+        </p>
       )}
     </div>
   );

@@ -7,7 +7,6 @@ import {
   settleAfterSave,
   validateSettings,
 } from "@/lib/settings-form";
-import { t } from "@/lib/i18n";
 import type { MeResponse, Profile } from "@/types/api";
 
 const PROFILE = {
@@ -107,6 +106,16 @@ describe("changedFields", () => {
 
 describe("isChanged", () => {
   const saved = formFromProfile(me());
+  it("agrees with changedFields that emptying an unclearable field is no change", () => {
+    // Otherwise the field is outlined as edited while the save bar, which
+    // counts changedFields, says there is nothing to save.
+    const values = { ...saved, date_of_birth: "", years_experience: "" };
+    expect(isChanged(saved, values, "date_of_birth")).toBe(false);
+    expect(isChanged(saved, values, "years_experience")).toBe(false);
+    expect(isChanged(saved, { ...saved, hobbies: "" }, "hobbies")).toBe(false);
+    expect(isChanged(saved, { ...saved, phone_number: "" }, "phone_number")).toBe(true);
+  });
+
   it("says which fields differ", () => {
     const values = { ...saved, hobbies: "Hiking" };
     expect(isChanged(saved, values, "hobbies")).toBe(true);
@@ -129,12 +138,14 @@ describe("validateSettings", () => {
   const saved = formFromProfile(me());
 
   it.each(["-1", "81", "2.5"])("refuses %s years of experience", (years) => {
-    expect(validateSettings({ ...saved, years_experience: years }, "en")).toEqual({
-      years_experience: t("settings", "yearsRange", "en"),
+    // A key, not text: the card translates it when it renders, so the message
+    // follows a language switch while it's showing.
+    expect(validateSettings({ ...saved, years_experience: years })).toEqual({
+      years_experience: "yearsRange",
     });
   });
 
   it.each(["", "0", "80"])("accepts %s", (years) => {
-    expect(validateSettings({ ...saved, years_experience: years }, "en")).toEqual({});
+    expect(validateSettings({ ...saved, years_experience: years })).toEqual({});
   });
 });

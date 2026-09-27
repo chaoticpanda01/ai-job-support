@@ -111,6 +111,17 @@ describe("SegmentedControl", () => {
     fireEvent.click(within(group).getByRole("radio", { name: "Currently held" }));
     expect(within(group).getByRole("radio", { name: "Currently held" })).toBeChecked();
   });
+
+  it("rings the whole control on keyboard focus, outside the dark checked segment", () => {
+    // Tab lands on the checked radio, whose segment is near-black: an indigo
+    // ring drawn inside it measured about 1.5:1. The group's own ring sits
+    // outside, on the card, where indigo is well above 3:1.
+    render(<Harness />);
+    const segments = screen.getByRole("radio", { name: "No visa" }).closest("label")
+      ?.parentElement as HTMLElement;
+    expect(segments.className).toContain("has-[:focus-visible]:ring-2");
+    expect(segments.className).toContain("has-[:focus-visible]:ring-offset-2");
+  });
 });
 
 describe("TagInput", () => {
@@ -162,6 +173,15 @@ describe("TagInput", () => {
     render(<Harness initial={["SRE", "Data"]} />);
     fireEvent.keyDown(box(), { key: "Backspace" });
     expect(tags()).toBe("SRE");
+  });
+
+  it("keeps focus in the box after a tag is removed with its button", () => {
+    // The button goes away with its tag, which would drop focus to <body>.
+    render(<Harness initial={["SRE", "Data"]} />);
+    const remove = screen.getByRole("button", { name: "Remove SRE" });
+    remove.focus();
+    fireEvent.click(remove);
+    expect(document.activeElement).toBe(box());
   });
 
   it("removes a tag from its named button", () => {

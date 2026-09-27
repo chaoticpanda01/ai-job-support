@@ -34,6 +34,7 @@ export function TagInput({
   "aria-invalid"?: boolean;
 }) {
   const [draft, setDraft] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   function withAdded(list: string[], text: string): string[] {
     const tag = text.trim();
@@ -64,7 +65,11 @@ export function TagInput({
           <button
             type="button"
             aria-label={removeLabel.replace("{tag}", tag)}
-            onClick={() => onChange(value.filter((t) => t !== tag))}
+            onClick={() => {
+              onChange(value.filter((t) => t !== tag));
+              // The button leaves with its tag; without this focus drops to <body>.
+              inputRef.current?.focus();
+            }}
             className="rounded-full p-0.5 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X aria-hidden="true" className="h-3 w-3" />
@@ -72,6 +77,7 @@ export function TagInput({
         </span>
       ))}
       <input
+        ref={inputRef}
         id={id}
         {...aria}
         value={draft}

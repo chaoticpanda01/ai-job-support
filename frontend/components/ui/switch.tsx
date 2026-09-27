@@ -12,12 +12,15 @@ export function Switch({
   onCheckedChange,
   label,
   id: idProp,
+  describedBy,
   className,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: React.ReactNode;
   id?: string;
+  /** The id of a line that explains the switch, read after its name. */
+  describedBy?: string | undefined;
   className?: string;
 }) {
   const generated = React.useId();
@@ -29,6 +32,7 @@ export function Switch({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-describedby={describedBy}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
           "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",

@@ -33,8 +33,10 @@ export function SegmentedControl<T extends string>({
         Stacked on phones, equal columns from sm up. Free-width segments wrapped
         into a ragged box when the labels were long (Indonesian, or lg with the
         menu beside the cards); in a grid a long label wraps inside its own cell.
+        Keyboard focus rings the whole control, outside it: Tab lands on the
+        checked segment, which is near-black, and a ring inside it can't be seen.
       */}
-      <div className="grid divide-y divide-input overflow-hidden rounded-md border border-input bg-card sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0">
+      <div className="grid divide-y divide-input overflow-hidden rounded-md border border-input bg-card has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-card sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0">
         {options.map((option) => (
           <label key={option.value} className="relative">
             <input

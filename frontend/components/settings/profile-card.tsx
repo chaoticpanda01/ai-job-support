@@ -10,7 +10,14 @@ import { t } from "@/lib/i18n";
 import { isChanged } from "@/lib/settings-form";
 import type { Gender } from "@/types/api";
 
-export function ProfileCard({ values, saved, update, lang, email }: CardProps & { email: string }) {
+export function ProfileCard({
+  values,
+  saved,
+  update,
+  restoreIfEmpty,
+  lang,
+  email,
+}: CardProps & { email: string }) {
   const s = (key: string) => t("settings", key, lang);
   const changed = (key: keyof typeof values) => isChanged(saved, values, key);
   return (
@@ -39,6 +46,7 @@ export function ProfileCard({ values, saved, update, lang, email }: CardProps & 
           type="date"
           value={values.date_of_birth}
           onChange={(e) => update("date_of_birth", e.target.value)}
+          onBlur={() => restoreIfEmpty("date_of_birth")}
           changed={changed("date_of_birth")}
         />
       </Field>

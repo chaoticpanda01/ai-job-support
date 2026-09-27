@@ -44,11 +44,8 @@ export function missingFieldLabel(key: string, lang: Language): string {
 }
 
 // The full set of keys computeMissingRirekishoFields() can report, split
-// into always-required and visa-held-only. totalRequiredCount() and
-// computeMissingRirekishoFields() both iterate these same arrays (via
-// isFieldMissing below), so the banner's "X of Y" denominator and the
-// missing-key list it's paired with can't drift from each other — there's
-// exactly one place each key's applicability is decided.
+// into always-required and visa-held-only. applicableRequiredKeys() is the
+// one place each key's applicability is decided.
 export const BASE_REQUIRED_KEYS = [
   "full_name",
   "name_kana",
@@ -63,10 +60,6 @@ export function applicableRequiredKeys(visaStatus: VisaStatus | undefined): read
   return visaStatus === "held"
     ? [...BASE_REQUIRED_KEYS, ...VISA_HELD_REQUIRED_KEYS]
     : BASE_REQUIRED_KEYS;
-}
-
-export function totalRequiredCount(visaStatus: VisaStatus | undefined): number {
-  return applicableRequiredKeys(visaStatus).length;
 }
 
 /**

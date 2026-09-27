@@ -9,7 +9,7 @@ import { t } from "@/lib/i18n";
 import { isChanged } from "@/lib/settings-form";
 import type { VisaStatus } from "@/types/api";
 
-export function VisaCard({ values, saved, update, lang }: CardProps) {
+export function VisaCard({ values, saved, update, restoreIfEmpty, lang }: CardProps) {
   const s = (key: string) => t("settings", key, lang);
   const changed = (key: keyof typeof values) => isChanged(saved, values, key);
   // Category and expiry are needed only once a visa is held, and this reads
@@ -43,6 +43,7 @@ export function VisaCard({ values, saved, update, lang }: CardProps) {
           type="date"
           value={values.residence_card_expiration}
           onChange={(e) => update("residence_card_expiration", e.target.value)}
+          onBlur={() => restoreIfEmpty("residence_card_expiration")}
           changed={changed("residence_card_expiration")}
         />
       </Field>

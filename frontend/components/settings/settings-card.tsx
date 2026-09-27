@@ -9,6 +9,8 @@ export interface CardProps {
   saved: SettingsValues;
   errors: SettingsErrors;
   update: <K extends keyof SettingsValues>(key: K, value: SettingsValues[K]) => void;
+  /** On leaving a field the backend can't empty: put the saved value back if it's empty. */
+  restoreIfEmpty: (key: keyof SettingsValues) => void;
   lang: Language;
 }
 

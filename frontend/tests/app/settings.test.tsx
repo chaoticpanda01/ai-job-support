@@ -183,7 +183,7 @@ beforeEach(() => {
   toasts.list = [];
   confirm.calls = 0;
   confirm.answer = true;
-  document.body.querySelectorAll("a[href='/dashboard/jobs']").forEach((a) => a.remove());
+  document.body.querySelectorAll("a[data-test-link]").forEach((a) => a.remove());
 });
 
 describe("settings page, the 履歴書 completeness banner", () => {
@@ -357,6 +357,61 @@ describe("settings page, the save bar", () => {
     expect(document.activeElement).toBe(field("phone").form);
   });
 
+  it("keeps what was typed while a save was on its way", async () => {
+    // The save used to settle the form to the values it sent, overwriting
+    // anything typed while the request was out, with no bar left to say so.
+    const pending = { finish: () => {} };
+    updateProfile.current = {
+      ...updateProfile.current,
+      mutateAsync: (update: unknown) => {
+        updateProfile.saves.push(update);
+        return new Promise<void>((resolve) => {
+          pending.finish = resolve;
+        });
+      },
+    };
+    await renderPage();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    await save();
+    fireEvent.change(field("hobbies"), { target: { value: "登山" } });
+    await act(async () => {
+      pending.finish();
+    });
+    expect(updateProfile.saves).toEqual([{ phone_number: "080" }]);
+    expect(field("hobbies")).toHaveValue("登山");
+    expect(field("phone")).toHaveValue("080");
+    expect(screen.getByText(unsaved(1))).toBeInTheDocument();
+  });
+
+  it.each([
+    ["dateOfBirth", COMPLETE_PROFILE.date_of_birth],
+    ["yearsExp", "5"],
+  ] as Array<[Parameters<typeof s>[0], string]>)(
+    "treats emptying %s as no change, and puts it back on leaving",
+    async (labelKey, savedValue) => {
+      // The backend can't empty these, so the outline and the save bar both
+      // stay off, and the box doesn't pretend the value was removed.
+      await renderPage();
+      fireEvent.change(field(labelKey), { target: { value: "" } });
+      expect(field(labelKey).className).not.toContain("border-indigo");
+      expect(screen.queryByRole("button", { name: common("saveChanges") })).not.toBeInTheDocument();
+      fireEvent.blur(field(labelKey));
+      expect(field(labelKey)).toHaveValue(
+        labelKey === "yearsExp" ? Number(savedValue) : savedValue,
+      );
+    },
+  );
+
+  it("shows the years error in the language picked afterwards", async () => {
+    await renderPage();
+    fireEvent.change(field("yearsExp"), { target: { value: "81" } });
+    await act(async () => {
+      fireEvent.submit(field("yearsExp").form as HTMLFormElement);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /English/ }));
+    expect(screen.getByText(t("settings", "yearsRange", "en"))).toBeInTheDocument();
+  });
+
   it("stops an impossible number of years before it is sent", async () => {
     // The input's own max makes the form invalid, so the browser blocks it.
     await renderPage();
@@ -364,6 +419,9 @@ describe("settings page, the save bar", () => {
     await save();
     expect(field("yearsExp").validity.rangeOverflow).toBe(true);
     expect(updateProfile.saves).toEqual([]);
+    // The zod check would also stop the save, so the proof that the input's
+    // own max stopped it first is that zod's message never appeared.
+    expect(screen.queryByText(s("yearsRange"))).not.toBeInTheDocument();
   });
 
   it("still refuses it if the form is submitted past that", async () => {
@@ -466,6 +524,16 @@ describe("settings page, the fields", () => {
     fireEvent.click(toggle);
     await save();
     expect(updateProfile.saves).toEqual([{ commute_time: "" }]);
+  });
+
+  it("describes each 履歴書 switch and its box", async () => {
+    await renderPage(me({ commute_time: "約45分" }));
+    expect(screen.getByRole("textbox", { name: s("commuteTime") })).toHaveAccessibleDescription(
+      s("commuteExample"),
+    );
+    expect(screen.getByRole("switch", { name: s("showDependents") })).toHaveAccessibleDescription(
+      s("dependentsOff"),
+    );
   });
 
   it("offers the app language, not a preferred-language setting", async () => {
@@ -731,6 +799,7 @@ describe("settings page, leaving with unsaved changes", () => {
     const a = document.createElement("a");
     a.href = href;
     a.textContent = "Jobs";
+    a.dataset["testLink"] = "";
     document.body.appendChild(a);
     return a;
   }
@@ -760,6 +829,17 @@ describe("settings page, leaving with unsaved changes", () => {
       fireEvent.click(outsideLink());
     });
     expect(session.pushes).toEqual(["/dashboard/jobs"]);
+  });
+
+  it("doesn't ask for a link to this same page", async () => {
+    // The sidebar's own Settings link: following it would keep the edits
+    // anyway, so a "Discard" answer would have done nothing.
+    await renderPage();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    await act(async () => {
+      fireEvent.click(outsideLink(window.location.pathname));
+    });
+    expect(confirm.calls).toBe(0);
   });
 
   it("doesn't ask for the section menu's own jumps", async () => {

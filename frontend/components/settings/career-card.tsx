@@ -11,7 +11,7 @@ import type { JapaneseLevel } from "@/types/api";
 
 const JAPANESE_LEVELS: JapaneseLevel[] = ["N1", "N2", "N3", "N4", "N5", "none"];
 
-export function CareerCard({ values, saved, errors, update, lang }: CardProps) {
+export function CareerCard({ values, saved, errors, update, restoreIfEmpty, lang }: CardProps) {
   const s = (key: string) => t("settings", key, lang);
   const changed = (key: keyof SettingsValues) => isChanged(saved, values, key);
   return (
@@ -29,13 +29,14 @@ export function CareerCard({ values, saved, errors, update, lang }: CardProps) {
           ))}
         </Select>
       </Field>
-      <Field label={s("yearsExp")} error={errors.years_experience}>
+      <Field label={s("yearsExp")} error={errors.years_experience && s(errors.years_experience)}>
         <Input
           type="number"
           min={0}
           max={80}
           value={values.years_experience}
           onChange={(e) => update("years_experience", e.target.value)}
+          onBlur={() => restoreIfEmpty("years_experience")}
           changed={changed("years_experience")}
         />
       </Field>

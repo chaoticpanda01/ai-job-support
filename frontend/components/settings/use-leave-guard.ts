@@ -9,7 +9,8 @@ import { useRouter } from "next/navigation";
  * - closing or reloading the tab gets the browser's own "Leave site?";
  * - an in-app link click is cancelled before Next's Link sees it (Link skips
  *   navigation when defaultPrevented), and `confirmLeave` decides whether to
- *   follow it. Jumps within the page (the section menu) are left alone.
+ *   follow it. Links to this same page (the section menu's jumps, the sidebar's
+ *   own Settings link) are left alone.
  */
 export function useLeaveGuard(dirty: boolean, confirmLeave: () => Promise<boolean>) {
   const router = useRouter();
@@ -29,7 +30,11 @@ export function useLeaveGuard(dirty: boolean, confirmLeave: () => Promise<boolea
       if (link.target || link.hasAttribute("download")) return;
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin) return;
-      if (url.pathname === window.location.pathname && url.hash) return;
+      // Same page: a hash jump (the section menu), or a link to Settings
+      // itself, which leaves the form mounted and the edits in place anyway.
+      if (url.pathname === window.location.pathname && url.search === window.location.search) {
+        return;
+      }
 
       event.preventDefault();
       void confirmLeave().then((leave) => {

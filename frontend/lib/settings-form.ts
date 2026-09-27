@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { t, type Language } from "@/lib/i18n";
 import type {
   Gender,
   JapaneseLevel,
@@ -36,7 +35,12 @@ export interface SettingsValues {
   target_industry: string[];
 }
 
-export type SettingsErrors = Partial<Record<keyof SettingsValues, string>>;
+/**
+ * Keys into the settings strings, not the text itself: the field translates
+ * its error when it renders, so the message follows a language switch.
+ */
+export type SettingsErrorKey = "yearsRange";
+export type SettingsErrors = Partial<Record<keyof SettingsValues, SettingsErrorKey>>;
 
 /** "I will follow your company's rules": what a 履歴書 says when there's no request. */
 export const DEFAULT_PERSONAL_REQUESTS = "貴社の規定に従います。";
@@ -88,12 +92,24 @@ function same(a: unknown, b: unknown): boolean {
   return a === b;
 }
 
+/** Whether the backend can store this field as empty (see NOT_CLEARABLE). */
+export function canClear(key: keyof SettingsValues): boolean {
+  return !NOT_CLEARABLE.has(key);
+}
+
+/**
+ * Whether this field holds an unsaved change: it differs from what's saved,
+ * and it isn't an emptied field the backend can't clear. The outline on the
+ * field and the save bar's count both go by this, so they always agree.
+ */
 export function isChanged(
   saved: SettingsValues,
   values: SettingsValues,
   key: keyof SettingsValues,
 ): boolean {
-  return !same(saved[key], values[key]);
+  const value = values[key];
+  if (same(saved[key], value)) return false;
+  return !(value === "" && !canClear(key));
 }
 
 /**
@@ -104,9 +120,8 @@ export function isChanged(
 export function changedFields(saved: SettingsValues, values: SettingsValues): ProfileUpdateRequest {
   const update: Record<string, unknown> = {};
   for (const key of Object.keys(values) as (keyof SettingsValues)[]) {
+    if (!isChanged(saved, values, key)) continue;
     const value = values[key];
-    if (same(saved[key], value)) continue;
-    if (value === "" && NOT_CLEARABLE.has(key)) continue;
     update[key] = key === "years_experience" ? Number(value) : value;
   }
   return update as ProfileUpdateRequest;
@@ -128,9 +143,9 @@ export function settleAfterSave(saved: SettingsValues, values: SettingsValues): 
 const yearsSchema = z.coerce.number().int().min(0).max(80);
 
 /** Errors to show before sending. Missing 履歴書 fields never block a save. */
-export function validateSettings(values: SettingsValues, lang: Language): SettingsErrors {
+export function validateSettings(values: SettingsValues): SettingsErrors {
   if (values.years_experience !== "" && !yearsSchema.safeParse(values.years_experience).success) {
-    return { years_experience: t("settings", "yearsRange", lang) };
+    return { years_experience: "yearsRange" };
   }
   return {};
 }

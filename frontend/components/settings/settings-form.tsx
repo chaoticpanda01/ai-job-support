@@ -19,6 +19,7 @@ import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { computeMissingRirekishoFields } from "@/lib/rirekisho-completeness";
 import {
+  canClear,
   changedFields,
   formFromProfile,
   settleAfterSave,
@@ -86,6 +87,13 @@ export function SettingsForm({ me }: { me: MeResponse }) {
     setSaveError(null);
   }
 
+  function restoreIfEmpty(key: keyof SettingsValues) {
+    // Emptying one of these isn't a change (the backend can't store it), so
+    // don't leave the box looking as if the value were gone.
+    if (canClear(key)) return;
+    setValues((prev) => (prev[key] === "" ? { ...prev, [key]: saved[key] } : prev));
+  }
+
   function discard() {
     noteFocusInBar();
     setValues(saved);
@@ -95,7 +103,7 @@ export function SettingsForm({ me }: { me: MeResponse }) {
   }
 
   async function save() {
-    const found = validateSettings(values, lang);
+    const found = validateSettings(values);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     setSaveError(null);
@@ -108,13 +116,15 @@ export function SettingsForm({ me }: { me: MeResponse }) {
       return;
     }
     noteFocusInBar();
-    const settled = settleAfterSave(saved, values);
-    setSaved(settled);
-    setValues(settled);
+    // The new snapshot is what was sent. The form keeps building on the latest
+    // values, not these: anything typed while the request was out stays, and
+    // still counts as unsaved against the new snapshot.
+    setSaved(settleAfterSave(saved, values));
+    setValues((latest) => settleAfterSave(saved, latest));
     toast({ variant: "success", description: t("common", "saved", lang) });
   }
 
-  const cardProps = { values, saved, errors, update, lang };
+  const cardProps = { values, saved, errors, update, restoreIfEmpty, lang };
 
   return (
     <div className="lg:grid lg:grid-cols-[150px_minmax(0,1fr)] lg:gap-8">
