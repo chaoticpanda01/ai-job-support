@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 
@@ -11,15 +12,12 @@ export function NotFoundContent() {
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <div className="space-y-2">
         <p className="text-sm font-medium text-muted-foreground">404</p>
-        <h1 className="text-2xl font-semibold">{t("common", "notFoundTitle", lang)}</h1>
+        <h1 className="font-display text-2xl font-bold">{t("common", "notFoundTitle", lang)}</h1>
         <p className="text-sm text-muted-foreground">{t("common", "notFoundBody", lang)}</p>
       </div>
-      <Link
-        href="/"
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-      >
-        {t("common", "goHome", lang)}
-      </Link>
+      <Button asChild>
+        <Link href="/">{t("common", "goHome", lang)}</Link>
+      </Button>
     </div>
   );
 }

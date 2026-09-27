@@ -52,9 +52,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
 const NOT_YET_MIGRATED: Record<string, string> = {
-  // Task 7: the rest
-  "app/admin/page.tsx": "Admin, task 7",
-  "components/chat-widget.tsx": "Chat widget, task 7",
   // Rebuilt by spec 3 (the job pipeline), not migrated here.
   "app/dashboard/jobs/page.tsx": "Rebuilt in spec 3",
   "app/dashboard/jobs/[id]/page.tsx": "Rebuilt in spec 3",
