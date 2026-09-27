@@ -153,6 +153,17 @@ describe("the design guard", () => {
     },
   );
 
+  it("has migrated everything except the pages spec 3 rebuilds", () => {
+    // The end state of the page migration. Spec 3 (the job pipeline) rebuilds
+    // these on the design system and removes the last entries.
+    expect(Object.keys(NOT_YET_MIGRATED).sort()).toEqual([
+      "app/dashboard/jobs/[id]/page.tsx",
+      "app/dashboard/jobs/applications/page.tsx",
+      "app/dashboard/jobs/page.tsx",
+    ]);
+    expect(Object.keys(STRINGS_NOT_YET_MIGRATED)).toEqual(["jobs.jobBoard"]);
+  });
+
   it.each(Object.entries(ALLOWED))("%s still needs its exception", (file, { rules }) => {
     const found = violations(read(file));
     for (const rule of rules) expect(found).toContain(rule);
