@@ -921,7 +921,6 @@ export const translations = {
     },
     translateSubmit: { en: "Translate posting", id: "Terjemahkan lowongan", ja: "求人を翻訳" },
     translating: { en: "Translating…", id: "Menerjemahkan…", ja: "翻訳中…" },
-    backToJobs: { en: "← Back to jobs", id: "← Kembali ke lowongan", ja: "← 求人一覧へ" },
     jobNotFound: {
       en: "Job posting not found.",
       id: "Lowongan tidak ditemukan.",
@@ -1013,12 +1012,14 @@ export const translations = {
   // ---------------------------------------------------------------------------
   interview: {
     title: { en: "Interview Practice", id: "Latihan Wawancara", ja: "面接練習" },
+    roleLabel: { en: "Target role", id: "Peran target", ja: "希望職種" },
+    companyLabel: { en: "Target company", id: "Perusahaan target", ja: "希望企業" },
     sub: {
       en: "Practise with an AI interviewer and get real-time per-answer feedback.",
       id: "Berlatih dengan pewawancara AI dan dapatkan umpan balik real-time untuk setiap jawaban.",
       ja: "AIによる面接練習で、回答ごとのリアルタイムフィードバックを取得します。",
     },
-    newSession: { en: "+ New session", id: "+ Sesi baru", ja: "+ 新しいセッション" },
+    newSession: { en: "New session", id: "Sesi baru", ja: "新しいセッション" },
     noSessions: {
       en: "No completed sessions yet.",
       id: "Belum ada sesi yang selesai.",
@@ -1099,7 +1100,7 @@ export const translations = {
     langJa: { en: "Japanese", id: "Jepang", ja: "日本語" },
     langEn: { en: "English", id: "Inggris", ja: "英語" },
     langId: { en: "Indonesian", id: "Indonesia", ja: "インドネシア語" },
-    review: { en: "Review →", id: "Lihat →", ja: "レビュー →" },
+    review: { en: "Review", id: "Lihat", ja: "レビュー" },
     // New session
     newTitle: {
       en: "Start a Mock Interview",
@@ -1163,7 +1164,6 @@ export const translations = {
     },
     startBtn: { en: "Start interview", id: "Mulai wawancara", ja: "面接を開始" },
     starting: { en: "Starting session…", id: "Memulai sesi…", ja: "セッション開始中…" },
-    backToList: { en: "← Back", id: "← Kembali", ja: "← 戻る" },
     // Session page
     endSession: { en: "End session", id: "Akhiri sesi", ja: "セッションを終了" },
     endConfirm: {

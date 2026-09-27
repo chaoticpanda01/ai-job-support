@@ -1,54 +1,67 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
+import { ArrowRight, Mic, Plus } from "lucide-react";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useInterviewSessions } from "@/hooks/useInterview";
 import { interviewLanguageName, interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { INTERVIEW_SCORE_BANDS, scoreTone, toneText } from "@/lib/tones";
 import type { InterviewSession } from "@/types/api";
 
 export default function InterviewPage() {
-  const { data: sessions, isLoading, error } = useInterviewSessions();
+  const { data: sessions, isLoading, isFetching, error, refetch } = useInterviewSessions();
   const { lang } = useLang();
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("interview", "title", lang)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("interview", "sub", lang)}</p>
-        </div>
-        <Link
-          href="/dashboard/interview/new"
-          className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          {t("interview", "newSession", lang)}
-        </Link>
-      </div>
-
-      {isLoading && <SessionsSkeleton />}
-
-      {error && <p className="text-sm text-destructive">{t("interview", "loadError", lang)}</p>}
-
-      {sessions && sessions.length === 0 && !isLoading && (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">{t("interview", "noSessions", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <Link href="/dashboard/interview/new" className="underline hover:text-foreground">
-              {t("interview", "startFirst", lang)}
+    <>
+      <PageHeader
+        eyebrow={t("nav", "groupApply", lang)}
+        title={t("interview", "title", lang)}
+        description={t("interview", "sub", lang)}
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/interview/new">
+              <Plus aria-hidden="true" />
+              {t("interview", "newSession", lang)}
             </Link>
-          </p>
-        </div>
-      )}
-
-      {sessions && sessions.length > 0 && (
-        <ul className="space-y-3">
-          {sessions.map((s) => (
-            <SessionCard key={s.id} session={s} />
-          ))}
-        </ul>
-      )}
-    </div>
+          </Button>
+        }
+      />
+      <div className="space-y-6">
+        {isLoading && <SessionsSkeleton />}
+        {error && (
+          <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+            {t("interview", "loadError", lang)}
+          </Alert>
+        )}
+        {sessions && sessions.length === 0 && !isLoading && (
+          <EmptyState
+            icon={Mic}
+            title={t("interview", "noSessions", lang)}
+            action={
+              <Button asChild variant="secondary">
+                <Link href="/dashboard/interview/new">{t("interview", "startFirst", lang)}</Link>
+              </Button>
+            }
+          />
+        )}
+        {sessions && sessions.length > 0 && (
+          <ul className="space-y-3">
+            {sessions.map((s) => (
+              <SessionCard key={s.id} session={s} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -56,13 +69,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
   const { lang } = useLang();
   const score = s.overall_score !== null ? Math.round(s.overall_score) : null;
   const scoreColor =
-    score === null
-      ? "text-muted-foreground"
-      : score >= 70
-        ? "text-green-600"
-        : score >= 50
-          ? "text-yellow-600"
-          : "text-red-600";
+    score === null ? toneText.neutral : toneText[scoreTone(score, INTERVIEW_SCORE_BANDS)];
 
   const completedAt = s.completed_at
     ? new Date(s.completed_at).toLocaleDateString(lang, {
@@ -75,7 +82,7 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
   const langLabel = interviewLanguageName(s.language, lang);
 
   return (
-    <li className="flex items-center justify-between rounded-lg border bg-card p-4">
+    <li className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-medium">
           {interviewTitle(s.session_type, lang)}
@@ -92,19 +99,19 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
         )}
       </div>
 
-      <div className="ml-4 flex shrink-0 items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 sm:shrink-0">
         {score !== null && (
           <div className="text-right">
             <p className={`text-2xl font-bold tabular-nums ${scoreColor}`}>{score}</p>
             <p className="text-xs text-muted-foreground">{t("interview", "score", lang)}</p>
           </div>
         )}
-        <Link
-          href={`/dashboard/interview/${s.id}`}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {t("interview", "review", lang)}
-        </Link>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/dashboard/interview/${s.id}` as Route}>
+            {t("interview", "review", lang)}
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </Button>
       </div>
     </li>
   );
@@ -112,10 +119,10 @@ function SessionCard({ session: s }: { session: InterviewSession }) {
 
 function SessionsSkeleton() {
   return (
-    <ul className="space-y-3">
+    <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <li key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-20 rounded-lg" />
       ))}
-    </ul>
+    </div>
   );
 }

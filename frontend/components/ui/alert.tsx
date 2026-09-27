@@ -27,7 +27,7 @@ export function Alert({
   title?: React.ReactNode;
   children: React.ReactNode;
   action?: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
 }) {
   const Icon = ICONS[tone];
   return (

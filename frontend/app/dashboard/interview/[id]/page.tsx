@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import {
   isMissingSessionError,
   streamErrorMessage,
@@ -11,11 +12,30 @@ import {
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { LiveAnnouncer } from "@/components/live-announcer";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiClientError } from "@/lib/api-client";
 import { interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { InterviewEvaluation, InterviewMessage, InterviewSummary } from "@/types/api";
+import {
+  INTERVIEW_SCORE_BANDS,
+  SESSION_STATUS_TONE,
+  scoreTone,
+  toneFill,
+  toneText,
+} from "@/lib/tones";
+import type {
+  InterviewEvaluation,
+  InterviewMessage,
+  InterviewStatus,
+  InterviewSummary,
+} from "@/types/api";
 
 // SendMessageRequest.content limit on the backend. Longer answers get a 422.
 const MAX_ANSWER_LENGTH = 4000;
@@ -205,15 +225,13 @@ export default function InterviewSessionPage({ params }: Props) {
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/interview"
-            aria-label={t("interview", "backToSessions", lang)}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ←
-          </Link>
+          <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+            <Link href="/dashboard/interview" aria-label={t("interview", "backToSessions", lang)}>
+              <ArrowLeft aria-hidden="true" />
+            </Link>
+          </Button>
           <div>
-            <p className="text-sm font-medium">{interviewTitle(session.session_type, lang)}</p>
+            <h1 className="text-sm font-medium">{interviewTitle(session.session_type, lang)}</h1>
             {session.target_role && (
               <p className="text-xs text-muted-foreground">{session.target_role}</p>
             )}
@@ -222,20 +240,14 @@ export default function InterviewSessionPage({ params }: Props) {
         <div className="flex items-center gap-2">
           <StatusPill status={state.summary ? "completed" : session.status} />
           {isActive && !state.isStreaming && (
-            <button
-              onClick={handleEnd}
-              className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
-            >
+            <Button variant="secondary" size="sm" onClick={handleEnd}>
               {t("interview", "endSession", lang)}
-            </button>
+            </Button>
           )}
           {state.isStreaming && (
-            <button
-              onClick={handleStop}
-              className="rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-            >
+            <Button variant="ghost" size="sm" onClick={handleStop}>
               {t("interview", "stop", lang)}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -255,11 +267,7 @@ export default function InterviewSessionPage({ params }: Props) {
 
           {state.summary && <SummaryCard summary={state.summary} />}
 
-          {state.error && (
-            <p role="alert" className="text-center text-sm text-destructive">
-              {streamErrorMessage(state.error, lang)}
-            </p>
-          )}
+          {state.error && <Alert>{streamErrorMessage(state.error, lang)}</Alert>}
 
           {/* The next question arrives only through the refetch after "done" (the
               streaming bubble hides then). If that refetch fails or is paused
@@ -287,7 +295,7 @@ export default function InterviewSessionPage({ params }: Props) {
             <label htmlFor="interview-answer" className="sr-only">
               {t("interview", "answerLabel", lang)}
             </label>
-            <textarea
+            <Textarea
               id="interview-answer"
               maxLength={MAX_ANSWER_LENGTH}
               ref={textareaRef}
@@ -297,19 +305,16 @@ export default function InterviewSessionPage({ params }: Props) {
               placeholder={t("interview", "inputPlaceholder", lang)}
               rows={3}
               disabled={state.isStreaming}
-              className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              className="min-h-0 flex-1 resize-none"
             />
-            <button
+            <Button
+              className="self-end"
               onClick={handleSend}
-              disabled={!input.trim() || state.isStreaming}
-              className="self-end rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              disabled={!input.trim()}
+              loading={state.isStreaming}
             >
-              {state.isStreaming ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                t("interview", "send", lang)
-              )}
-            </button>
+              {t("interview", "send", lang)}
+            </Button>
           </div>
           <p className="mx-auto mt-1.5 max-w-2xl text-right text-xs text-muted-foreground">
             {t("interview", "enterHint", lang)}
@@ -370,42 +375,17 @@ function LoadProblemNotice({
   const offline = problem === "offline";
   // Offline resumes on its own, and retrying can't find a missing session.
   const canRetry = problem === "failed" || problem === "signedOut";
-  const tone = offline ? "text-muted-foreground" : "text-destructive";
+  const retry = canRetry ? <RetryButton retrying={retrying} onRetry={onRetry} /> : undefined;
 
   return (
-    <div
-      className={
-        variant === "page" ? "space-y-3" : "flex flex-wrap items-center justify-center gap-2"
-      }
+    <Alert
+      key={failureCount}
+      tone={offline ? "neutral" : "danger"}
+      action={retry}
+      className={variant === "inline" ? "mx-auto w-fit" : undefined}
     >
-      <p
-        key={failureCount}
-        role={offline ? "status" : "alert"}
-        className={
-          variant === "page"
-            ? `rounded-md px-3 py-2 text-sm ${offline ? "bg-muted" : "bg-destructive/10"} ${tone}`
-            : `text-sm ${tone}`
-        }
-      >
-        {t("interview", PROBLEM_MESSAGE_KEYS[variant][problem], lang)}
-      </p>
-      {canRetry && (
-        // aria-disabled rather than disabled, so the button keeps keyboard focus
-        // while the retry runs.
-        <button
-          type="button"
-          onClick={() => {
-            if (!retrying) onRetry();
-          }}
-          aria-disabled={retrying}
-          className={`rounded-md border hover:bg-accent aria-disabled:opacity-50 ${
-            variant === "page" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"
-          }`}
-        >
-          {t("common", retrying ? "retrying" : "tryAgain", lang)}
-        </button>
-      )}
-    </div>
+      {t("interview", PROBLEM_MESSAGE_KEYS[variant][problem], lang)}
+    </Alert>
   );
 }
 
@@ -475,7 +455,7 @@ function StreamingBubble({ text, language }: { text: string; language: string | 
 function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
   const { lang } = useLang();
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-4">
+    <Card className="space-y-3 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {t("interview", "answerFeedback", lang)}
       </p>
@@ -487,11 +467,11 @@ function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
       </div>
 
       <div className="space-y-1.5 text-sm">
-        <p className="text-green-700">
+        <p className={toneText.success}>
           <span className="font-medium">{t("interview", "goodLabel", lang)} </span>
           {e.positive_feedback}
         </p>
-        <p className="text-amber-700">
+        <p className={toneText.warning}>
           <span className="font-medium">{t("interview", "tipLabel", lang)} </span>
           {e.improvement_tip}
         </p>
@@ -505,20 +485,23 @@ function EvalCard({ eval: e }: { eval: InterviewEvaluation }) {
           <ul className="space-y-0.5">
             {e.grammar_issues.map((issue, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${toneFill.warning}`}
+                />
                 {issue}
               </li>
             ))}
           </ul>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value);
-  const color = pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
+  const color = toneFill[scoreTone(pct, INTERVIEW_SCORE_BANDS)];
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
@@ -539,8 +522,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
   const { lang } = useLang();
   const score = Math.round(s.overall_score);
-  const scoreColor =
-    score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
+  const scoreColor = toneText[scoreTone(score, INTERVIEW_SCORE_BANDS)];
   const readiness =
     score >= 80
       ? t("interview", "readiness80", lang)
@@ -568,25 +550,22 @@ function SummaryCard({ summary: s }: { summary: InterviewSummary }) {
           <BulletList
             title={t("interview", "strengthsLabel", lang)}
             items={s.top_strengths}
-            dot="bg-green-500"
+            dot={toneFill.success}
           />
         )}
         {s.top_improvements.length > 0 && (
           <BulletList
             title={t("interview", "improvementsLabel", lang)}
             items={s.top_improvements}
-            dot="bg-amber-500"
+            dot={toneFill.warning}
           />
         )}
       </div>
 
       <div className="flex justify-end">
-        <Link
-          href="/dashboard/interview"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          {t("interview", "backToSessions", lang)}
-        </Link>
+        <Button asChild>
+          <Link href="/dashboard/interview">{t("interview", "backToSessions", lang)}</Link>
+        </Button>
       </div>
     </div>
   );
@@ -601,7 +580,10 @@ function BulletList({ title, items, dot }: { title: string; items: string[]; dot
       <ul className="space-y-1.5">
         {items.map((item, i) => (
           <li key={i} className="flex items-start gap-2 text-sm">
-            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+            <span
+              aria-hidden="true"
+              className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`}
+            />
             {item}
           </li>
         ))}
@@ -610,42 +592,34 @@ function BulletList({ title, items, dot }: { title: string; items: string[]; dot
   );
 }
 
-function StatusPill({ status }: { status: string }) {
+function StatusPill({ status }: { status: InterviewStatus }) {
   const { lang } = useLang();
-  const styles: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    completed: "bg-blue-100 text-blue-800",
-    abandoned: "bg-muted text-muted-foreground",
-  };
   const label =
     status === "active"
       ? t("interview", "statusActive", lang)
       : status === "completed"
         ? t("interview", "statusCompleted", lang)
         : t("interview", "statusAbandoned", lang);
-
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] ?? styles["abandoned"]}`}
-    >
+    <Badge variant={SESSION_STATUS_TONE[status]}>
       {status === "active" && (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+        <span
+          aria-hidden="true"
+          className={`h-1.5 w-1.5 animate-pulse rounded-full motion-reduce:animate-none ${toneFill.success}`}
+        />
       )}
       {label}
-    </span>
+    </Badge>
   );
 }
 
 function PageSkeleton() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col">
-      <div className="h-14 animate-pulse border-b bg-muted" />
+      <Skeleton className="h-14 rounded-none border-b" />
       <div className="flex-1 space-y-4 p-6">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className={`h-16 w-2/3 animate-pulse rounded-2xl bg-muted ${i % 2 === 1 ? "ml-auto" : ""}`}
-          />
+          <Skeleton key={i} className={`h-16 w-2/3 rounded-2xl ${i % 2 === 1 ? "ml-auto" : ""}`} />
         ))}
       </div>
     </div>

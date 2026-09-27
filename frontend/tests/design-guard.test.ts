@@ -44,15 +44,14 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
     rules: ["h1"],
     reason: "A full-screen not-found state with its own layout.",
   },
+  "app/dashboard/interview/[id]/page.tsx": {
+    rules: ["h1"],
+    reason: "A full-height chat screen: its compact header stands in for PageHeader.",
+  },
 };
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
 const NOT_YET_MIGRATED: Record<string, string> = {
-  // Task 4: Apply
-  "app/dashboard/interview/page.tsx": "Apply, task 4",
-  "app/dashboard/interview/new/page.tsx": "Apply, task 4",
-  "app/dashboard/interview/[id]/page.tsx": "Apply, task 4",
-  "app/dashboard/jobs/translate/page.tsx": "Apply, task 4",
   // Task 5: Settle in
   "app/dashboard/visa/page.tsx": "Settle in, task 5",
   "app/dashboard/visa/[id]/page.tsx": "Settle in, task 5",
@@ -78,9 +77,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
  * draws the arrow as a lucide icon instead. Each area task deletes its own.
  */
 const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {
-  "interview.review": "Apply, task 4",
-  "interview.backToList": "Apply, task 4",
-  "jobs.backToJobs": "Apply, task 4",
   "culture.backToCulture": "Settle in, task 5",
   "onboarding.s1DangerZone": "Onboarding, task 6",
   "jobs.jobBoard": "Rebuilt in spec 3",
