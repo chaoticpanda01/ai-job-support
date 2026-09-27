@@ -199,12 +199,70 @@ class BillingEventType(str, enum.Enum):
 
 
 class ApplicationStatus(str, enum.Enum):
+    """
+    Where a tracked job is in the user's pipeline, declared in stage order (the
+    database enum has the same order). The UI shows planning as "Saved" and
+    offered as "Offer". rejected, withdrawn and skipped are archived: rejected
+    and withdrawn are "Closed" (declining an offer is withdrawing), skipped is
+    a saved job the user chose not to apply for.
+    """
+
     planning = "planning"
+    preparing = "preparing"
     applied = "applied"
     interviewing = "interviewing"
     offered = "offered"
+    accepted = "accepted"
     rejected = "rejected"
     withdrawn = "withdrawn"
+    skipped = "skipped"
+
+
+ARCHIVED_STATUSES: frozenset[ApplicationStatus] = frozenset(
+    {ApplicationStatus.rejected, ApplicationStatus.withdrawn, ApplicationStatus.skipped}
+)
+
+_AS = ApplicationStatus
+
+# Every move a tracked job can make. Each forward stage can also go back one
+# step, to undo a mis-click. An archived job has no moves of its own: it only
+# reopens, to the stage it left (see allowed_moves). Mirrored in
+# frontend/lib/pipeline.ts; both are pinned to
+# tests/fixtures/application_transitions.json.
+APPLICATION_TRANSITIONS: dict[ApplicationStatus, frozenset[ApplicationStatus]] = {
+    _AS.planning: frozenset({_AS.preparing, _AS.applied, _AS.skipped}),
+    _AS.preparing: frozenset({_AS.applied, _AS.withdrawn, _AS.planning}),
+    _AS.applied: frozenset({_AS.interviewing, _AS.rejected, _AS.withdrawn, _AS.preparing}),
+    _AS.interviewing: frozenset({_AS.offered, _AS.rejected, _AS.withdrawn, _AS.applied}),
+    _AS.offered: frozenset({_AS.accepted, _AS.withdrawn, _AS.interviewing}),
+    _AS.accepted: frozenset({_AS.withdrawn, _AS.offered}),
+    _AS.rejected: frozenset(),
+    _AS.withdrawn: frozenset(),
+    _AS.skipped: frozenset(),
+}
+
+
+def reopen_target(closed_from: ApplicationStatus | None, *, has_applied: bool) -> ApplicationStatus:
+    """
+    Where an archived job goes back to: the stage it left. Jobs archived before
+    closed_from existed have none, so they return to Applied if the user had
+    applied, and to Saved otherwise.
+    """
+    if closed_from is not None:
+        return closed_from
+    return _AS.applied if has_applied else _AS.planning
+
+
+def allowed_moves(
+    status: ApplicationStatus,
+    *,
+    closed_from: ApplicationStatus | None,
+    has_applied: bool,
+) -> frozenset[ApplicationStatus]:
+    """The statuses a job at `status` may move to."""
+    if status in ARCHIVED_STATUSES:
+        return frozenset({reopen_target(closed_from, has_applied=has_applied)})
+    return APPLICATION_TRANSITIONS[status]
 
 
 class UserRole(str, enum.Enum):

@@ -46,7 +46,7 @@ CREATE TYPE notification_channel AS ENUM ('email', 'push');
 CREATE TYPE notification_status  AS ENUM ('sent', 'delivered', 'bounced', 'failed');
 CREATE TYPE subscription_status  AS ENUM ('active', 'past_due', 'cancelled', 'trialing');
 CREATE TYPE billing_event_type   AS ENUM ('subscribed', 'renewed', 'upgraded', 'downgraded', 'cancelled', 'payment_failed', 'refunded');
-CREATE TYPE application_status   AS ENUM ('planning', 'applied', 'interviewing', 'offered', 'rejected', 'withdrawn');
+CREATE TYPE application_status   AS ENUM ('planning', 'preparing', 'applied', 'interviewing', 'offered', 'accepted', 'rejected', 'withdrawn', 'skipped');
 CREATE TYPE user_role            AS ENUM ('user', 'admin');
 
 -- =============================================================================
@@ -315,6 +315,7 @@ CREATE TABLE job_applications (
   status          application_status NOT NULL DEFAULT 'planning',
   applied_at      TIMESTAMPTZ,
   notes           TEXT,
+  closed_from     application_status,
   created_at      TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
 
