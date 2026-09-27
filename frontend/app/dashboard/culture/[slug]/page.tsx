@@ -2,10 +2,10 @@
 
 import { use } from "react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import { ArrowLeft } from "lucide-react";
 import { useCultureTopic } from "@/hooks/useCulture";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Markdown } from "@/components/markdown";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,9 +66,7 @@ export default function CultureTopicPage({ params }: Props) {
       />
 
       <Card className="p-6">
-        <div className="prose prose-sm max-w-none">
-          <ReactMarkdown>{topic.body}</ReactMarkdown>
-        </div>
+        <Markdown>{topic.body}</Markdown>
       </Card>
 
       <div className="flex justify-between pt-2">
