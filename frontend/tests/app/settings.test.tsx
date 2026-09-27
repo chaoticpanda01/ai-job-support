@@ -183,6 +183,7 @@ beforeEach(() => {
   toasts.list = [];
   confirm.calls = 0;
   confirm.answer = true;
+  document.body.querySelectorAll("a[href='/dashboard/jobs']").forEach((a) => a.remove());
 });
 
 describe("settings page, the 履歴書 completeness banner", () => {
@@ -566,5 +567,124 @@ describe("settings page, structure", () => {
     expect(
       within(screen.getByRole("region", { name: s("profile") })).getByLabelText(s("email")),
     ).toBeInTheDocument();
+  });
+});
+
+describe("settings page, the section menu", () => {
+  it("marks the last section once the page is scrolled to the bottom", async () => {
+    // Account is the last card, and the delete card below it ends the page
+    // before Account can scroll up into the band the observer watches. So
+    // without a bottom-of-page rule the menu stays on Career there.
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const root = document.documentElement;
+    const own = {
+      scrollHeight: Object.getOwnPropertyDescriptor(root, "scrollHeight"),
+      scrollY: Object.getOwnPropertyDescriptor(window, "scrollY"),
+    };
+    Object.defineProperty(root, "scrollHeight", { configurable: true, value: 2000 });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 2000 - window.innerHeight,
+    });
+    try {
+      await renderPage();
+      act(() => {
+        window.dispatchEvent(new Event("scroll"));
+      });
+      const nav = screen.getByRole("navigation", { name: s("sectionsNav") });
+      expect(within(nav).getByRole("link", { name: s("sectionAccount") })).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      // Put back jsdom's own properties, or remove the stand-ins if there were none.
+      if (own.scrollHeight) Object.defineProperty(root, "scrollHeight", own.scrollHeight);
+      else delete (root as unknown as Record<string, unknown>)["scrollHeight"];
+      if (own.scrollY) Object.defineProperty(window, "scrollY", own.scrollY);
+      else delete (window as unknown as Record<string, unknown>)["scrollY"];
+    }
+  });
+
+  it("lists the five sections, the first one current", async () => {
+    await renderPage();
+    const nav = screen.getByRole("navigation", { name: s("sectionsNav") });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "#profile",
+      "#visa",
+      "#extras",
+      "#career",
+      "#account",
+    ]);
+    expect(links[0]).toHaveAttribute("aria-current", "true");
+  });
+
+  it("marks the section a reader jumps to", async () => {
+    await renderPage();
+    const nav = screen.getByRole("navigation", { name: s("sectionsNav") });
+    fireEvent.click(within(nav).getByRole("link", { name: s("sectionCareer") }));
+    expect(within(nav).getByRole("link", { name: s("sectionCareer") })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+});
+
+describe("settings page, leaving with unsaved changes", () => {
+  function beforeUnloadIsBlocked(): boolean {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  /** A link elsewhere in the app, as the sidebar would render. */
+  function outsideLink(href = "/dashboard/jobs"): HTMLAnchorElement {
+    const a = document.createElement("a");
+    a.href = href;
+    a.textContent = "Jobs";
+    document.body.appendChild(a);
+    return a;
+  }
+
+  it("asks the browser to confirm closing only while there are edits", async () => {
+    await renderPage();
+    expect(beforeUnloadIsBlocked()).toBe(false);
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    expect(beforeUnloadIsBlocked()).toBe(true);
+  });
+
+  it("asks before following a link, and stays on Keep editing", async () => {
+    await renderPage();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    confirm.answer = false;
+    await act(async () => {
+      fireEvent.click(outsideLink());
+    });
+    expect(confirm.calls).toBe(1);
+    expect(session.pushes).toEqual([]);
+  });
+
+  it("follows the link on Discard", async () => {
+    await renderPage();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    await act(async () => {
+      fireEvent.click(outsideLink());
+    });
+    expect(session.pushes).toEqual(["/dashboard/jobs"]);
+  });
+
+  it("doesn't ask for the section menu's own jumps", async () => {
+    await renderPage();
+    fireEvent.change(field("phone"), { target: { value: "080" } });
+    const nav = screen.getByRole("navigation", { name: s("sectionsNav") });
+    fireEvent.click(within(nav).getByRole("link", { name: s("sectionCareer") }));
+    expect(confirm.calls).toBe(0);
   });
 });

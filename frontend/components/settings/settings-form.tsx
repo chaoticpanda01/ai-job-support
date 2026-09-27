@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useConfirm } from "@/components/confirm-dialog-provider";
 import { AccountCard } from "@/components/settings/account-card";
 import { CareerCard } from "@/components/settings/career-card";
 import { CompletenessBanner } from "@/components/settings/completeness-banner";
@@ -8,6 +9,8 @@ import { DeleteAccountCard } from "@/components/settings/delete-account-card";
 import { ExtrasCard } from "@/components/settings/extras-card";
 import { ProfileCard } from "@/components/settings/profile-card";
 import { SaveBar } from "@/components/settings/save-bar";
+import { SectionNav } from "@/components/settings/section-nav";
+import { useLeaveGuard } from "@/components/settings/use-leave-guard";
 import { VisaCard } from "@/components/settings/visa-card";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateProfile } from "@/hooks/useMe";
@@ -44,6 +47,19 @@ export function SettingsForm({ me }: { me: MeResponse }) {
 
   const changes = changedFields(saved, values);
   const count = Object.keys(changes).length;
+
+  const confirm = useConfirm();
+  const confirmLeave = useCallback(
+    () =>
+      confirm({
+        title: t("settings", "leaveTitle", lang),
+        confirmLabel: t("settings", "discard", lang),
+        cancelLabel: t("settings", "keepEditing", lang),
+        variant: "destructive",
+      }),
+    [confirm, lang],
+  );
+  useLeaveGuard(count > 0, confirmLeave);
   // The unsaved visa status counts, so the banner reacts as soon as it changes.
   const missingKeys = computeMissingRirekishoFields(values, values.visa_status);
 
@@ -82,31 +98,34 @@ export function SettingsForm({ me }: { me: MeResponse }) {
   const cardProps = { values, saved, errors, update, lang };
 
   return (
-    <div className="min-w-0 space-y-6 pb-28">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-        className="space-y-6"
-      >
-        <CompletenessBanner missingKeys={missingKeys} lang={lang} />
-        <ProfileCard {...cardProps} email={me.user.email} />
-        <VisaCard {...cardProps} />
-        <ExtrasCard key={resetKey} {...cardProps} />
-        <CareerCard {...cardProps} />
-        <AccountCard lang={lang} />
-        {count > 0 && (
-          <SaveBar
-            count={count}
-            saving={updateProfile.isPending}
-            error={saveError}
-            onDiscard={discard}
-            lang={lang}
-          />
-        )}
-      </form>
-      <DeleteAccountCard lang={lang} />
+    <div className="lg:grid lg:grid-cols-[150px_minmax(0,1fr)] lg:gap-8">
+      <SectionNav lang={lang} />
+      <div className="min-w-0 space-y-6 pb-28">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+          className="space-y-6"
+        >
+          <CompletenessBanner missingKeys={missingKeys} lang={lang} />
+          <ProfileCard {...cardProps} email={me.user.email} />
+          <VisaCard {...cardProps} />
+          <ExtrasCard key={resetKey} {...cardProps} />
+          <CareerCard {...cardProps} />
+          <AccountCard lang={lang} />
+          {count > 0 && (
+            <SaveBar
+              count={count}
+              saving={updateProfile.isPending}
+              error={saveError}
+              onDiscard={discard}
+              lang={lang}
+            />
+          )}
+        </form>
+        <DeleteAccountCard lang={lang} />
+      </div>
     </div>
   );
 }
