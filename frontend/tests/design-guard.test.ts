@@ -21,8 +21,8 @@ const RULES: Record<Rule, RegExp> = {
   // A Tailwind palette colour instead of a token: text-green-600, bg-blue-100…
   palette:
     /\b(?:text|bg|border|ring|from|to|via|fill|stroke|divide|outline|placeholder|accent|decoration)-(?:red|green|blue|yellow|amber|orange|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose|lime|gray|slate|zinc|neutral|stone)-\d{2,3}\b/,
-  // An arrow, dingbat or emoji used as an icon: ← → ✓ ✕ 🏠 🤖 💬…
-  glyph: /[\u2190-\u21FF\u2600-\u27BF\u{1F300}-\u{1FAFF}]/u,
+  // An arrow, shape, dingbat or emoji used as an icon: ← → ▲ ▼ ✓ ✕ 🏠 🤖 💬…
+  glyph: /[\u2190-\u21FF\u25A0-\u25FF\u2600-\u27BF\u{1F300}-\u{1FAFF}]/u,
   // A control built by hand instead of the form primitives. react-dropzone's
   // hidden file input is the one raw <input> allowed.
   rawControl: /<(?:input|select|textarea)\b(?!\s*\{\.\.\.getInputProps\(\)\}\s*\/>)/,
@@ -52,14 +52,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
 const NOT_YET_MIGRATED: Record<string, string> = {
-  // Task 5: Settle in
-  "app/dashboard/visa/page.tsx": "Settle in, task 5",
-  "app/dashboard/visa/[id]/page.tsx": "Settle in, task 5",
-  "components/visa/visa-checklist.tsx": "Settle in, task 5",
-  "components/visa/visa-option-card.tsx": "Settle in, task 5",
-  "components/visa/visa-roadmap-switcher.tsx": "Settle in, task 5",
-  "app/dashboard/culture/page.tsx": "Settle in, task 5",
-  "app/dashboard/culture/[slug]/page.tsx": "Settle in, task 5",
   // Task 6: Onboarding
   "app/onboarding/page.tsx": "Onboarding, task 6",
   // Task 7: the rest
@@ -77,7 +69,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
  * draws the arrow as a lucide icon instead. Each area task deletes its own.
  */
 const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {
-  "culture.backToCulture": "Settle in, task 5",
   "onboarding.s1DangerZone": "Onboarding, task 6",
   "jobs.jobBoard": "Rebuilt in spec 3",
 };
@@ -130,6 +121,7 @@ describe("the design guard", () => {
     expect(violations('<p className="text-green-600">x</p>')).toEqual(["palette"]);
     expect(violations("<span>🏠</span>")).toEqual(["glyph"]);
     expect(violations("<a>View →</a>")).toEqual(["glyph"]);
+    expect(violations('<span>{open ? "▲" : "▼"}</span>')).toEqual(["glyph"]);
     expect(violations('<input type="text" />')).toEqual(["rawControl"]);
     expect(violations("<textarea rows={3} />")).toEqual(["rawControl"]);
     expect(violations("<h1>Title</h1>")).toEqual(["h1"]);

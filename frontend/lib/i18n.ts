@@ -1570,6 +1570,8 @@ export const translations = {
       id: "Budaya Tempat Kerja Jepang",
       ja: "日本の職場文化",
     },
+    sectionsLabel: { en: "Culture sections", id: "Bagian budaya", ja: "カルチャーのセクション" },
+    tagsLabel: { en: "Filter by tag", id: "Filter menurut tag", ja: "タグで絞り込む" },
     sub: {
       en: "Learn workplace norms, etiquette, and key Japanese terms to succeed in a Japanese company.",
       id: "Pelajari norma tempat kerja, etiket, dan istilah Jepang untuk sukses di perusahaan Jepang.",
@@ -1613,7 +1615,7 @@ export const translations = {
       id: "Artikel tidak ditemukan.",
       ja: "記事が見つかりません。",
     },
-    backToCulture: { en: "← Back to Culture", id: "← Kembali ke Budaya", ja: "← 文化へ" },
+    backToCulture: { en: "Back to Culture", id: "Kembali ke Budaya", ja: "文化へ" },
   },
 
   // ---------------------------------------------------------------------------

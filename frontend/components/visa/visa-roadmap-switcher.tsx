@@ -3,6 +3,8 @@
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { VisaRoadmap } from "@/types/api";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function VisaRoadmapSwitcher({
   roadmaps,
@@ -27,12 +29,10 @@ export function VisaRoadmapSwitcher({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        onClick={onBack}
-        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-      >
-        ← {t("visa", "backToOptions", lang)}
-      </button>
+      <Button variant="secondary" size="sm" onClick={onBack}>
+        <ArrowLeft aria-hidden="true" />
+        {t("visa", "backToOptions", lang)}
+      </Button>
 
       {ordered.length > 1 && (
         <>
@@ -50,11 +50,14 @@ export function VisaRoadmapSwitcher({
                 className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs disabled:opacity-50 ${
                   roadmap.id === activeId
                     ? "border-primary bg-indigo-soft font-medium text-indigo"
-                    : "hover:bg-accent"
+                    : "hover:bg-secondary"
                 }`}
               >
                 {isSwitching && (
-                  <span className="h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-3 w-3 animate-spin motion-reduce:animate-none"
+                  />
                 )}
                 {roadmap.visa_type}
               </button>

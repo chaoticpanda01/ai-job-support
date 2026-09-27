@@ -3,8 +3,15 @@
 import { use } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { ArrowLeft } from "lucide-react";
 import { useCultureTopic } from "@/hooks/useCulture";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLang } from "@/lib/language-context";
 import { japaneseLangOf, t } from "@/lib/i18n";
 
@@ -23,7 +30,7 @@ export default function CultureTopicPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <Breadcrumbs items={[{ label: t("culture", "title", lang), href: "/dashboard/culture" }]} />
-        <p className="text-sm text-destructive">{t("culture", "notFound", lang)}</p>
+        <Alert>{t("culture", "notFound", lang)}</Alert>
       </div>
     );
   }
@@ -43,27 +50,26 @@ export default function CultureTopicPage({ params }: Props) {
         ]}
       />
 
-      <div className="space-y-3">
-        <h1 className="text-2xl font-semibold leading-tight">{topic.title}</h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground">{date}</span>
-          {topic.tags.map((tag) => (
-            <span
-              key={tag}
-              lang={japaneseLangOf(tag)}
-              className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        className="mb-0"
+        title={topic.title}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{date}</span>
+            {topic.tags.map((tag) => (
+              <Badge key={tag} lang={japaneseLangOf(tag)}>
+                {tag}
+              </Badge>
+            ))}
+          </span>
+        }
+      />
 
-      <div className="rounded-lg border bg-card p-6">
-        <div className="prose prose-sm dark:prose-invert max-w-none">
+      <Card className="p-6">
+        <div className="prose prose-sm max-w-none">
           <ReactMarkdown>{topic.body}</ReactMarkdown>
         </div>
-      </div>
+      </Card>
 
       <div className="flex justify-between pt-2">
         <BackLink />
@@ -75,31 +81,28 @@ export default function CultureTopicPage({ params }: Props) {
 function BackLink() {
   const { lang } = useLang();
   return (
-    <Link
-      href="/dashboard/culture"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      {t("culture", "backToCulture", lang)}
-    </Link>
+    <Button asChild variant="ghost">
+      <Link href="/dashboard/culture">
+        <ArrowLeft aria-hidden="true" />
+        {t("culture", "backToCulture", lang)}
+      </Link>
+    </Button>
   );
 }
 
 function ArticleSkeleton() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+      <Skeleton className="h-4 w-24" />
       <div className="space-y-2">
-        <div className="h-7 w-3/4 animate-pulse rounded bg-muted" />
-        <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+        <Skeleton className="h-7 w-3/4" />
+        <Skeleton className="h-3 w-32" />
       </div>
-      <div className="space-y-3 rounded-lg border bg-card p-6">
+      <Card className="space-y-3 p-6">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className={`h-3 animate-pulse rounded bg-muted ${i % 4 === 3 ? "w-2/3" : "w-full"}`}
-          />
+          <Skeleton key={i} className={`h-3 ${i % 4 === 3 ? "w-2/3" : "w-full"}`} />
         ))}
-      </div>
+      </Card>
     </div>
   );
 }

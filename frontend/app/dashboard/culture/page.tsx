@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BookOpen, Languages } from "lucide-react";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { useCultureTopics, useGlossary } from "@/hooks/useCulture";
 import { useLang } from "@/lib/language-context";
 import { japaneseLangOf, t } from "@/lib/i18n";
@@ -30,75 +40,50 @@ export default function CulturePage() {
   } = useGlossary();
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("culture", "title", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("culture", "sub", lang)}</p>
-      </div>
+    <>
+      <PageHeader
+        eyebrow={t("nav", "groupSettleIn", lang)}
+        title={t("culture", "title", lang)}
+        description={t("culture", "sub", lang)}
+      />
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "topics" | "glossary")}
+      >
+        <TabsList aria-label={t("culture", "sectionsLabel", lang)}>
+          <TabsTrigger value="topics">{t("culture", "topicsTab", lang)}</TabsTrigger>
+          <TabsTrigger value="glossary">{t("culture", "glossaryTab", lang)}</TabsTrigger>
+        </TabsList>
 
-      {/* Tabs */}
-      <div className="flex w-fit gap-1 rounded-lg border bg-muted p-1">
-        {(["topics", "glossary"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab === "topics" ? t("culture", "topicsTab", lang) : t("culture", "glossaryTab", lang)}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "topics" && (
-        <>
-          {/* Tag filter chips */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedTag(undefined)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                selectedTag === undefined
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t("culture", "allTags", lang)}
-            </button>
-            {COMMON_TAGS.map((tag) => (
-              <button
-                key={tag}
-                lang={japaneseLangOf(tag)}
-                onClick={() => setSelectedTag(selectedTag === tag ? undefined : tag)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  selectedTag === tag
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-
+        <TabsContent value="topics" className="space-y-6">
+          <ToggleGroup<string>
+            label={t("culture", "tagsLabel", lang)}
+            value={selectedTag ?? "all"}
+            onChange={(value) =>
+              // A second press on the selected tag clears it, as before.
+              setSelectedTag(value === "all" || value === selectedTag ? undefined : value)
+            }
+            options={[
+              { value: "all", label: t("culture", "allTags", lang) },
+              ...COMMON_TAGS.map((tag) => {
+                const tagLang = japaneseLangOf(tag);
+                return { value: tag, label: tag, ...(tagLang ? { lang: tagLang } : {}) };
+              }),
+            ]}
+          />
           {topicsLoading && <TopicsSkeleton />}
-
           {topicsError && (
-            <LoadFailure
-              messageKey="topicsLoadError"
-              isRetrying={topicsFetching}
-              onRetry={() => void refetchTopics()}
-            />
+            <Alert
+              action={
+                <RetryButton retrying={topicsFetching} onRetry={() => void refetchTopics()} />
+              }
+            >
+              {t("culture", "topicsLoadError", lang)}
+            </Alert>
           )}
-
           {topics && topics.length === 0 && (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground">{t("culture", "noTopics", lang)}</p>
-            </div>
+            <EmptyState icon={BookOpen} title={t("culture", "noTopics", lang)} />
           )}
-
           {topics && topics.length > 0 && (
             <ul className="grid gap-4 sm:grid-cols-2">
               {topics.map((topic) => (
@@ -106,71 +91,26 @@ export default function CulturePage() {
               ))}
             </ul>
           )}
-        </>
-      )}
+        </TabsContent>
 
-      {activeTab === "glossary" && (
-        <>
+        <TabsContent value="glossary" className="space-y-6">
           {glossaryLoading && <GlossarySkeleton />}
-
           {glossaryError && (
-            <LoadFailure
-              messageKey="glossaryLoadError"
-              isRetrying={glossaryFetching}
-              onRetry={() => void refetchGlossary()}
-            />
+            <Alert
+              action={
+                <RetryButton retrying={glossaryFetching} onRetry={() => void refetchGlossary()} />
+              }
+            >
+              {t("culture", "glossaryLoadError", lang)}
+            </Alert>
           )}
-
           {glossary && glossary.length === 0 && (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground">{t("culture", "noGlossary", lang)}</p>
-            </div>
+            <EmptyState icon={Languages} title={t("culture", "noGlossary", lang)} />
           )}
-
           {glossary && glossary.length > 0 && <GlossaryTable entries={glossary} />}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Load failure
-// ---------------------------------------------------------------------------
-
-/**
- * A failed load, with a way out of it. Both of this page's lists are fetched
- * from the client, so a retry is a button press -- the older list pages tell
- * the reader to refresh only because they were written before this existed.
- */
-function LoadFailure({
-  messageKey,
-  isRetrying,
-  onRetry,
-}: {
-  messageKey: "topicsLoadError" | "glossaryLoadError";
-  isRetrying: boolean;
-  onRetry: () => void;
-}) {
-  const { lang } = useLang();
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-        {t("culture", messageKey, lang)}
-      </p>
-      {/* aria-disabled rather than disabled, so the button keeps keyboard
-          focus while the retry runs. */}
-      <button
-        type="button"
-        onClick={() => {
-          if (!isRetrying) onRetry();
-        }}
-        aria-disabled={isRetrying}
-        className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent aria-disabled:opacity-50"
-      >
-        {t("common", isRetrying ? "retrying" : "tryAgain", lang)}
-      </button>
-    </div>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }
 
@@ -190,18 +130,14 @@ function TopicCard({ topic: tp }: { topic: CultureTopicSummary }) {
     <li>
       <Link
         href={`/dashboard/culture/${tp.slug}`}
-        className="block h-full rounded-lg border bg-card p-5 transition-colors hover:bg-accent"
+        className="block h-full rounded-lg border bg-card p-5 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <p className="font-medium leading-snug">{tp.title}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {tp.tags.map((tag) => (
-            <span
-              key={tag}
-              lang={japaneseLangOf(tag)}
-              className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-            >
+            <Badge key={tag} lang={japaneseLangOf(tag)}>
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">{date}</p>
@@ -229,16 +165,14 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
 
   return (
     <div className="space-y-4">
-      <label className="block">
-        <span className="sr-only">{t("culture", "searchLabel", lang)}</span>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("culture", "searchPlaceholder", lang)}
-          className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      </label>
+      <Input
+        type="search"
+        aria-label={t("culture", "searchLabel", lang)}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={t("culture", "searchPlaceholder", lang)}
+        className="max-w-sm"
+      />
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50">
@@ -286,11 +220,11 @@ function GlossaryTable({ entries }: { entries: GlossaryEntry[] }) {
 
 function TopicsSkeleton() {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       {Array.from({ length: 4 }).map((_, i) => (
-        <li key={i} className="h-36 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-36 rounded-lg" />
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -298,7 +232,7 @@ function GlossarySkeleton() {
   return (
     <div className="space-y-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-10 animate-pulse rounded bg-muted" />
+        <Skeleton key={i} className="h-10" />
       ))}
     </div>
   );

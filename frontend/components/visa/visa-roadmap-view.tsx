@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { VisaChecklistView } from "@/components/visa/visa-checklist";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
@@ -24,12 +25,12 @@ export function VisaRoadmapView({
       </div>
 
       {roadmap.ai_guidance && (
-        <div className="rounded-lg border bg-card p-5">
+        <Card className="p-5">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t("visa", "guidance", lang)}
           </p>
           <p className="text-sm leading-relaxed text-foreground">{roadmap.ai_guidance}</p>
-        </div>
+        </Card>
       )}
 
       <VisaChecklistView roadmap={roadmap} readOnly={readOnly} />

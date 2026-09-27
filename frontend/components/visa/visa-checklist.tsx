@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useUpdateProgress } from "@/hooks/useVisa";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { toneSoft, toneText } from "@/lib/tones";
 import type { VisaChecklistStep, VisaRoadmap } from "@/types/api";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -110,10 +116,12 @@ export function VisaChecklistView({
         const totalCount = phase.steps.length;
 
         return (
-          <div key={idx} className="overflow-hidden rounded-lg border bg-card">
+          <Card key={idx} className="overflow-hidden">
             <button
+              type="button"
+              aria-expanded={isOpen}
               onClick={() => setOpenPhase(isOpen ? -1 : idx)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent"
+              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <div className="flex items-center gap-3">
                 <PhaseNumber index={idx} done={totalCount > 0 && doneCount === totalCount} />
@@ -126,7 +134,10 @@ export function VisaChecklistView({
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {doneCount}/{totalCount}
                 </span>
-                <span className="text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={`h-4 w-4 text-muted-foreground transition-transform motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
+                />
               </div>
             </button>
 
@@ -142,7 +153,7 @@ export function VisaChecklistView({
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
         );
       })}
     </div>
@@ -153,10 +164,10 @@ function PhaseNumber({ index, done }: { index: number; done: boolean }) {
   return (
     <span
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        done ? "bg-green-100 text-green-700" : "bg-indigo-soft text-indigo"
+        done ? `${toneSoft.success} ${toneText.success}` : "bg-indigo-soft text-indigo"
       }`}
     >
-      {done ? "✓" : index + 1}
+      {done ? <Check aria-hidden="true" className="h-3.5 w-3.5" /> : index + 1}
     </span>
   );
 }
@@ -177,24 +188,19 @@ function StepRow({
   return (
     <li className={`px-4 py-3 text-sm ${checked ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
+        <Checkbox
           aria-labelledby={titleId}
           checked={checked}
           onChange={onToggle}
           disabled={!onToggle}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-primary disabled:cursor-not-allowed"
+          className="mt-0.5"
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p id={titleId} className={`font-medium ${checked ? "line-through" : ""}`}>
               {step.title}
             </p>
-            {!step.required && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {t("visa", "optional", lang)}
-              </span>
-            )}
+            {!step.required && <Badge>{t("visa", "optional", lang)}</Badge>}
             {step.estimated_weeks > 0 && (
               <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                 ~{step.estimated_weeks}w
@@ -206,12 +212,15 @@ function StepRow({
             <>
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{step.detail}</p>
               {(step.resources.length > 0 || step.detail.length > 120) && (
-                <button
+                <Button
+                  variant="link"
+                  size="sm"
+                  aria-expanded={expanded}
                   onClick={() => setExpanded((v) => !v)}
-                  className="mt-1 text-xs text-indigo hover:underline"
+                  className="mt-1 h-auto p-0 text-xs"
                 >
                   {expanded ? t("visa", "showLess", lang) : t("visa", "showMore", lang)}
-                </button>
+                </Button>
               )}
               {expanded && (
                 <div className="mt-2 space-y-1.5">
