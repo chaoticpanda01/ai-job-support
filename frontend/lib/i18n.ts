@@ -723,7 +723,6 @@ export const translations = {
       ja: "レジュメが正常にアップロードされました。",
     },
     // Detail
-    backToResumes: { en: "← Back to resumes", id: "← Kembali ke resume", ja: "← レジュメ一覧へ" },
     notFound: {
       en: "Resume not found.",
       id: "Resume tidak ditemukan.",
@@ -1263,11 +1262,6 @@ export const translations = {
     showLess: { en: "Show less", id: "Tampilkan lebih sedikit", ja: "折りたたむ" },
     resources: { en: "Resources", id: "Sumber daya", ja: "参考資料" },
     roadmapTitle: { en: "Visa Roadmap", id: "Peta Jalan Visa", ja: "ビザロードマップ" },
-    backToVisa: {
-      en: "← Back to Visa Guidance",
-      id: "← Kembali ke Panduan Visa",
-      ja: "← ビザガイダンスへ",
-    },
     consultNotFound: {
       en: "Consultation not found.",
       id: "Konsultasi tidak ditemukan.",
@@ -1344,6 +1338,8 @@ export const translations = {
   // ---------------------------------------------------------------------------
   documents: {
     title: { en: "Documents", id: "Dokumen", ja: "書類" },
+    filterLabel: { en: "Filter by type", id: "Filter menurut jenis", ja: "種類で絞り込む" },
+    wizJobIdLabel: { en: "Job posting ID", id: "ID lowongan", ja: "求人ID" },
     sub: {
       en: "Generate Japanese-format career documents from your resume.",
       id: "Buat dokumen karier format Jepang dari resume kamu.",
@@ -1390,7 +1386,7 @@ export const translations = {
     statusCompleted: { en: "completed", id: "selesai", ja: "完了" },
     statusFailed: { en: "failed", id: "gagal", ja: "失敗" },
     // Detail page
-    backToDocuments: { en: "← Back to documents", id: "← Kembali ke dokumen", ja: "← 書類一覧へ" },
+    backToDocuments: { en: "Back to documents", id: "Kembali ke dokumen", ja: "書類一覧へ" },
     notFound: {
       en: "Document not found.",
       id: "Dokumen tidak ditemukan.",
@@ -1524,7 +1520,7 @@ export const translations = {
     },
     wizUploaded: { en: "Uploaded", id: "Diunggah", ja: "アップロード済み" },
     wizPrimary: { en: "Primary", id: "Utama", ja: "メイン" },
-    wizNext: { en: "Next →", id: "Berikut →", ja: "次へ →" },
+    wizNext: { en: "Next", id: "Berikut", ja: "次へ" },
     wizStep2Title: {
       en: "Job context (optional)",
       id: "Konteks pekerjaan (opsional)",

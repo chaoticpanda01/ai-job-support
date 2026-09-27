@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
+import { FileText } from "lucide-react";
 import { useResumes, useDeleteResume, useSetPrimaryResume } from "@/hooks/useResumes";
 import { ResumeUploader } from "@/components/resume/ResumeUploader";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirm } from "@/components/confirm-dialog-provider";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
@@ -10,40 +19,46 @@ import { t } from "@/lib/i18n";
 import type { Resume } from "@/types/api";
 
 export default function ResumesPage() {
-  const { data, isLoading, error } = useResumes();
+  const { data, isLoading, isFetching, error, refetch } = useResumes();
   const { lang } = useLang();
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("resumes", "title", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("resumes", "sub", lang)}</p>
+    <>
+      <PageHeader
+        eyebrow={t("nav", "groupPrepare", lang)}
+        title={t("resumes", "title", lang)}
+        description={t("resumes", "sub", lang)}
+      />
+      <div className="space-y-8">
+        <ResumeUploader />
+
+        <section aria-labelledby="your-resumes" className="space-y-4">
+          <h2 id="your-resumes" className="text-base font-semibold">
+            {t("resumes", "yourResumes", lang)}
+          </h2>
+
+          {isLoading && <ResumesSkeleton />}
+
+          {error && (
+            <Alert action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}>
+              {t("resumes", "loadError", lang)}
+            </Alert>
+          )}
+
+          {data && data.items.length === 0 && !isLoading && (
+            <EmptyState icon={FileText} title={t("resumes", "noResumes", lang)} />
+          )}
+
+          {data && data.items.length > 0 && (
+            <ul className="space-y-3">
+              {data.items.map((resume) => (
+                <ResumeCard key={resume.id} resume={resume} />
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
-
-      <ResumeUploader />
-
-      <section>
-        <h2 className="mb-4 text-base font-medium">{t("resumes", "yourResumes", lang)}</h2>
-
-        {isLoading && <ResumesSkeleton />}
-
-        {error && <p className="text-sm text-destructive">{t("resumes", "loadError", lang)}</p>}
-
-        {data && data.items.length === 0 && !isLoading && (
-          <div className="rounded-lg border border-dashed p-10 text-center">
-            <p className="text-sm text-muted-foreground">{t("resumes", "noResumes", lang)}</p>
-          </div>
-        )}
-
-        {data && data.items.length > 0 && (
-          <ul className="space-y-3">
-            {data.items.map((resume) => (
-              <ResumeCard key={resume.id} resume={resume} />
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+    </>
   );
 }
 
@@ -89,50 +104,48 @@ function ResumeCard({ resume }: { resume: Resume }) {
   }
 
   return (
-    <li className="flex items-center justify-between rounded-lg border bg-card p-4">
+    <li className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex min-w-0 items-center gap-3">
         <FileIcon mime={resume.mime_type} />
         <div className="min-w-0">
           <Link
-            href={`/dashboard/resumes/${resume.id}`}
-            className="truncate text-sm font-medium hover:underline"
+            href={`/dashboard/resumes/${resume.id}` as Route}
+            className="block truncate text-sm font-medium hover:underline"
           >
             {resume.file_name}
           </Link>
-          <p className="text-xs text-muted-foreground">
-            {fileSizeKB} KB · {uploadedAt}
-            {resume.is_primary && (
-              <span className="ml-2 inline-flex items-center rounded-full bg-indigo-soft px-2 py-0.5 text-xs font-medium text-indigo">
-                {t("common", "primary", lang)}
-              </span>
-            )}
+          <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {fileSizeKB} KB · {uploadedAt}
+            </span>
+            {resume.is_primary && <Badge variant="info">{t("common", "primary", lang)}</Badge>}
           </p>
         </div>
       </div>
 
-      <div className="ml-4 flex shrink-0 gap-2">
+      <div className="-ml-3 flex flex-wrap items-center gap-1 sm:ml-0 sm:shrink-0">
         {!resume.is_primary && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleSetPrimary}
-            disabled={setPrimaryMutation.isPending}
-            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            loading={setPrimaryMutation.isPending}
           >
             {t("resumes", "setPrimary", lang)}
-          </button>
+          </Button>
         )}
-        <Link
-          href={`/dashboard/resumes/${resume.id}`}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {t("common", "view", lang)}
-        </Link>
-        <button
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/dashboard/resumes/${resume.id}` as Route}>{t("common", "view", lang)}</Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => void handleDelete()}
+          loading={deleteMutation.isPending}
+          className="text-destructive hover:text-destructive"
         >
           {t("common", "delete", lang)}
-        </button>
+        </Button>
       </div>
     </li>
   );
@@ -149,10 +162,10 @@ function FileIcon({ mime }: { mime: string }) {
 
 function ResumesSkeleton() {
   return (
-    <ul className="space-y-3">
+    <div className="space-y-3">
       {Array.from({ length: 2 }).map((_, i) => (
-        <li key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-16 rounded-lg" />
       ))}
-    </ul>
+    </div>
   );
 }

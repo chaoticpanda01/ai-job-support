@@ -184,7 +184,10 @@ describe("resume detail page, nothing analysed yet", () => {
   it("says so while the request is being queued", async () => {
     await renderPage(analysis(), {}, { isPending: true });
 
-    expect(screen.getByRole("button", { name: r("queueing") })).toBeDisabled();
+    // Busy, not disabled: it ignores clicks but keeps keyboard focus.
+    const button = screen.getByRole("button", { name: r("queueing") });
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("aria-disabled", "true");
   });
 });
 

@@ -49,12 +49,9 @@ vi.mock("@/hooks/useResumes", () => ({
     isLoading: false,
   }),
 }));
-vi.mock("@/hooks/useMe", () => ({
-  useMe: () => ({
-    data: { rirekisho_ready: true, rirekisho_missing_fields: [] },
-    isLoading: false,
-  }),
-}));
+// replaces the existing vi.mock("@/hooks/useMe", …)
+const me = vi.hoisted(() => ({ current: {} as Record<string, unknown>, refetches: 0 }));
+vi.mock("@/hooks/useMe", () => ({ useMe: () => me.current }));
 
 const Rirekisho = (await import("@/app/dashboard/documents/rirekisho/new/page")).default;
 const Shokumu = (await import("@/app/dashboard/documents/shokumu/new/page")).default;
@@ -79,6 +76,16 @@ async function submitThroughWizard(submitKey: Parameters<typeof t>[1]) {
 }
 
 beforeEach(() => {
+  me.refetches = 0;
+  me.current = {
+    data: { rirekisho_ready: true, rirekisho_missing_fields: [] },
+    isLoading: false,
+    isFetching: false,
+    refetch: () => {
+      me.refetches += 1;
+      return Promise.resolve();
+    },
+  };
   create.calls = [];
   nav.pushes = [];
   nav.job = null;
@@ -141,5 +148,57 @@ describe.each(PAGES)("the new %s page", (_name, Page, submitKey) => {
     await submitThroughWizard(submitKey);
 
     expect(create.calls[0]).toMatchObject({ resume_id: "r1", job_posting_id: JOB_ID });
+  });
+});
+
+describe("the new 履歴書 page, before the profile is ready", () => {
+  it("lists what is missing in the reader's language, and links to the profile", async () => {
+    me.current = {
+      ...me.current,
+      data: {
+        rirekisho_ready: false,
+        rirekisho_missing_fields: [{ key: "phone_number", label: "Phone number" }],
+      },
+    };
+    await act(async () => {
+      renderIn(LANG, <Rirekisho />);
+    });
+    expect(screen.getByText(t("settings", "phone", LANG))).toBeInTheDocument();
+    expect(screen.queryByText("Phone number")).not.toBeInTheDocument();
+    // The Settings page's cards are #profile, #visa, …; #rirekisho-info is gone.
+    expect(screen.getByRole("link", { name: d("goToSettings") })).toHaveAttribute(
+      "href",
+      "/dashboard/settings#profile",
+    );
+  });
+
+  it("explains a profile that can't be loaded, and retries it", async () => {
+    me.current = { ...me.current, data: undefined };
+    await act(async () => {
+      renderIn(LANG, <Rirekisho />);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(d("profileLoadError"));
+    fireEvent.click(screen.getByRole("button", { name: t("common", "tryAgain", LANG) }));
+    expect(me.refetches).toBe(1);
+  });
+});
+
+describe("the new-document wizard, by keyboard", () => {
+  it("moves focus to the next step's title, not onto the next step's Back button", async () => {
+    // Each step's first button is the same element to React, so focus used to
+    // stay put and land on Back: a second Enter went straight back a step.
+    create.current = {
+      mutateAsync: () => Promise.resolve({ id: "d" }),
+      isPending: false,
+      error: null,
+    };
+    await act(async () => {
+      renderIn(LANG, <Shokumu />);
+    });
+    fireEvent.click(screen.getByRole("radio"));
+    const next = screen.getByRole("button", { name: d("wizNext") });
+    next.focus();
+    fireEvent.click(next);
+    expect(document.activeElement).toBe(screen.getByText(d("wizStep2Title")));
   });
 });

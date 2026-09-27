@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, FileText } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { RadioCard } from "@/components/ui/radio-card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { DocumentOrientation, ResumeList } from "@/types/api";
@@ -39,6 +50,18 @@ export function DocumentWizard({
   const [resumeId, setResumeId] = useState<string>("");
   const [jobPostingId, setJobPostingId] = useState<string>(initialJobPostingId ?? "");
   const [orientation, setOrientation] = useState<DocumentOrientation>("portrait");
+  // Each step's first button is the same element to React, so after Next the
+  // keyboard focus would land on the new step's Back button, and a second
+  // Enter would go straight back. Move it to the new step's title instead.
+  const titleRef = useRef<HTMLParagraphElement>(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    titleRef.current?.focus();
+  }, [step]);
   const { lang } = useLang();
 
   const resumes = resumeList?.items ?? [];
@@ -50,63 +73,66 @@ export function DocumentWizard({
   if (step === "resume") {
     return (
       <div className="space-y-4">
-        <StepHeader current={1} total={3} title={t("documents", "wizStep1Title", lang)} />
+        <StepHeader
+          titleRef={titleRef}
+          current={1}
+          total={3}
+          title={t("documents", "wizStep1Title", lang)}
+        />
 
         {resumesLoading && <ResumesSkeleton />}
 
         {!resumesLoading && resumes.length === 0 && (
-          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            {t("documents", "wizNoResumes", lang)}{" "}
-            <Link href="/dashboard/resumes" className="underline hover:text-foreground">
-              {t("documents", "wizUploadFirst", lang)}
-            </Link>
-          </p>
+          <EmptyState
+            icon={FileText}
+            title={t("documents", "wizNoResumes", lang)}
+            action={
+              <Button asChild variant="secondary">
+                <Link href="/dashboard/resumes">{t("documents", "wizUploadFirst", lang)}</Link>
+              </Button>
+            }
+          />
         )}
 
         {!resumesLoading && resumes.length > 0 && (
-          <ul className="space-y-2">
-            {resumes.map((r) => (
-              <li key={r.id}>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-4 hover:bg-accent has-[:checked]:border-primary">
-                  <input
-                    type="radio"
+          <fieldset>
+            <legend className="sr-only">{t("documents", "wizStep1Title", lang)}</legend>
+            <ul className="space-y-2">
+              {resumes.map((r) => (
+                <li key={r.id}>
+                  <RadioCard
                     name="resume"
                     value={r.id}
                     checked={resumeId === r.id}
                     onChange={() => setResumeId(r.id)}
-                    className="accent-primary"
-                  />
-                  <div className="min-w-0">
+                  >
                     <p className="truncate text-sm font-medium">{r.file_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {Math.round(r.file_size_bytes / 1024)} KB ·{" "}
-                      {t("documents", "wizUploaded", lang)}{" "}
-                      {new Date(r.created_at).toLocaleDateString(lang, {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {Math.round(r.file_size_bytes / 1024)} KB ·{" "}
+                        {t("documents", "wizUploaded", lang)}{" "}
+                        {new Date(r.created_at).toLocaleDateString(lang, {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
                       {r.is_primary && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-indigo-soft px-2 py-0.5 text-xs font-medium text-indigo">
-                          {t("documents", "wizPrimary", lang)}
-                        </span>
+                        <Badge variant="info">{t("documents", "wizPrimary", lang)}</Badge>
                       )}
                     </p>
-                  </div>
-                </label>
-              </li>
-            ))}
-          </ul>
+                  </RadioCard>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
         )}
 
         <div className="flex justify-end">
-          <button
-            onClick={() => setStep("job")}
-            disabled={!resumeId}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          <Button onClick={() => setStep("job")} disabled={!resumeId}>
             {t("documents", "wizNext", lang)}
-          </button>
+            <ArrowRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
     );
@@ -120,66 +146,48 @@ export function DocumentWizard({
 
     return (
       <div className="space-y-4">
-        <StepHeader current={2} total={3} title={t("documents", "wizStep2Title", lang)} />
+        <StepHeader
+          titleRef={titleRef}
+          current={2}
+          total={3}
+          title={t("documents", "wizStep2Title", lang)}
+        />
 
         <p className="text-sm text-muted-foreground">{t("documents", "wizStep2Sub", lang)}</p>
 
-        <input
-          type="text"
-          value={jobPostingId}
-          onChange={(e) => setJobPostingId(e.target.value)}
-          placeholder={t("documents", "wizJobIdPlaceholder", lang)}
-          aria-invalid={jobIdInvalid}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-        {jobIdInvalid && (
-          <p className="text-xs text-destructive">{t("documents", "wizJobIdInvalid", lang)}</p>
-        )}
+        <Field
+          label={t("documents", "wizJobIdLabel", lang)}
+          optionalLabel={t("settings", "optional", lang)}
+          error={jobIdInvalid ? t("documents", "wizJobIdInvalid", lang) : undefined}
+        >
+          <Input
+            value={jobPostingId}
+            onChange={(e) => setJobPostingId(e.target.value)}
+            placeholder={t("documents", "wizJobIdPlaceholder", lang)}
+          />
+        </Field>
 
         {showOrientation && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">{t("documents", "wizOrientationLabel", lang)}</p>
-            <div className="flex gap-3">
-              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-card p-3 text-sm has-[:checked]:border-primary">
-                <input
-                  type="radio"
-                  name="orientation"
-                  value="portrait"
-                  checked={orientation === "portrait"}
-                  onChange={() => setOrientation("portrait")}
-                  className="accent-primary"
-                />
-                {t("documents", "wizOrientationPortrait", lang)}
-              </label>
-              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-card p-3 text-sm has-[:checked]:border-primary">
-                <input
-                  type="radio"
-                  name="orientation"
-                  value="landscape"
-                  checked={orientation === "landscape"}
-                  onChange={() => setOrientation("landscape")}
-                  className="accent-primary"
-                />
-                {t("documents", "wizOrientationLandscape", lang)}
-              </label>
-            </div>
-          </div>
+          <SegmentedControl<DocumentOrientation>
+            legend={t("documents", "wizOrientationLabel", lang)}
+            name="orientation"
+            value={orientation}
+            onChange={setOrientation}
+            options={[
+              { value: "portrait", label: t("documents", "wizOrientationPortrait", lang) },
+              { value: "landscape", label: t("documents", "wizOrientationLandscape", lang) },
+            ]}
+          />
         )}
 
         <div className="flex justify-between">
-          <button
-            onClick={() => setStep("resume")}
-            className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-          >
+          <Button variant="secondary" onClick={() => setStep("resume")}>
             {t("common", "back", lang)}
-          </button>
-          <button
-            onClick={() => setStep("confirm")}
-            disabled={jobIdInvalid}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button onClick={() => setStep("confirm")} disabled={jobIdInvalid}>
             {t("documents", "wizNext", lang)}
-          </button>
+            <ArrowRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
     );
@@ -190,9 +198,14 @@ export function DocumentWizard({
   // -----------------------------------------------------------------------
   return (
     <div className="space-y-4">
-      <StepHeader current={3} total={3} title={t("documents", "wizStep3Title", lang)} />
+      <StepHeader
+        titleRef={titleRef}
+        current={3}
+        total={3}
+        title={t("documents", "wizStep3Title", lang)}
+      />
 
-      <div className="space-y-2 rounded-lg border bg-card p-4 text-sm">
+      <Card className="space-y-2 p-4 text-sm">
         <Row
           label={t("documents", "wizResumeLabel", lang)}
           value={selectedResume?.file_name ?? resumeId}
@@ -211,46 +224,40 @@ export function DocumentWizard({
             }
           />
         )}
-      </div>
+      </Card>
 
       <p className="text-sm text-muted-foreground">{t("documents", "wizGenWait", lang)}</p>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <Alert>{error}</Alert>}
 
       <div className="flex justify-between">
-        <button
-          onClick={() => setStep("job")}
-          disabled={isPending}
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40"
-        >
+        <Button variant="secondary" onClick={() => setStep("job")} disabled={isPending}>
           {t("common", "back", lang)}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() =>
             onSubmit(resumeId, jobPostingId || undefined, showOrientation ? orientation : undefined)
           }
-          disabled={isPending}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          loading={isPending}
         >
-          {isPending ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              {t("documents", "wizQueuing", lang)}
-            </span>
-          ) : (
-            submitLabel
-          )}
-        </button>
+          {isPending ? t("documents", "wizQueuing", lang) : submitLabel}
+        </Button>
       </div>
     </div>
   );
 }
 
-function StepHeader({ current, total, title }: { current: number; total: number; title: string }) {
+function StepHeader({
+  titleRef,
+  current,
+  total,
+  title,
+}: {
+  titleRef: React.Ref<HTMLParagraphElement>;
+  current: number;
+  total: number;
+  title: string;
+}) {
   const { lang } = useLang();
   const stepLabel = t("documents", "wizStepOf", lang)
     .replace("{n}", String(current))
@@ -262,7 +269,9 @@ function StepHeader({ current, total, title }: { current: number; total: number;
         {current}
       </span>
       <div className="flex-1">
-        <p className="text-sm font-medium">{title}</p>
+        <p ref={titleRef} tabIndex={-1} className="text-sm font-medium focus:outline-none">
+          {title}
+        </p>
         <p className="text-xs text-muted-foreground">{stepLabel}</p>
       </div>
       <div className="flex gap-1">
@@ -288,10 +297,10 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function ResumesSkeleton() {
   return (
-    <ul className="space-y-2">
+    <div className="space-y-2">
       {Array.from({ length: 2 }).map((_, i) => (
-        <li key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-16 rounded-lg" />
       ))}
-    </ul>
+    </div>
   );
 }

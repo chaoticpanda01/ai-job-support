@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { translations } from "@/lib/i18n";
 
 /**
  * Keeps the pages on the design system. Every .tsx file under app/ and
@@ -47,14 +48,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
 const NOT_YET_MIGRATED: Record<string, string> = {
-  // Task 3: Prepare
-  "app/dashboard/resumes/page.tsx": "Prepare, task 3",
-  "app/dashboard/resumes/[id]/page.tsx": "Prepare, task 3",
-  "app/dashboard/documents/page.tsx": "Prepare, task 3",
-  "app/dashboard/documents/[id]/page.tsx": "Prepare, task 3",
-  "app/dashboard/documents/rirekisho/new/page.tsx": "Prepare, task 3",
-  "app/dashboard/documents/shokumu/new/page.tsx": "Prepare, task 3",
-  "components/documents/DocumentWizard.tsx": "Prepare, task 3",
   // Task 4: Apply
   "app/dashboard/interview/page.tsx": "Apply, task 4",
   "app/dashboard/interview/new/page.tsx": "Apply, task 4",
@@ -78,6 +71,33 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "app/dashboard/jobs/[id]/page.tsx": "Rebuilt in spec 3",
   "app/dashboard/jobs/applications/page.tsx": "Rebuilt in spec 3",
 };
+
+/**
+ * Translated strings that still carry an arrow or emoji. A glyph inside the
+ * copy dodges the file scan above, so the strings are checked too: the page
+ * draws the arrow as a lucide icon instead. Each area task deletes its own.
+ */
+const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {
+  "interview.review": "Apply, task 4",
+  "interview.backToList": "Apply, task 4",
+  "jobs.backToJobs": "Apply, task 4",
+  "culture.backToCulture": "Settle in, task 5",
+  "onboarding.s1DangerZone": "Onboarding, task 6",
+  "jobs.jobBoard": "Rebuilt in spec 3",
+};
+
+/** Every "section.key" whose text, in any language, has a glyph. */
+function glyphStrings(): string[] {
+  const found: string[] = [];
+  for (const [section, entries] of Object.entries(translations)) {
+    for (const [key, value] of Object.entries(entries as Record<string, Record<string, string>>)) {
+      if (Object.values(value).some((text) => RULES.glyph.test(text))) {
+        found.push(`${section}.${key}`);
+      }
+    }
+  }
+  return found.sort();
+}
 
 function sourceFiles(): string[] {
   const files: string[] = [];
@@ -139,6 +159,17 @@ describe("the design guard", () => {
     // regression in a file everyone thinks is done.
     expect(violations(read(file)).length).toBeGreaterThan(0);
   });
+
+  it("keeps arrows and emoji out of the translated strings", () => {
+    expect(glyphStrings().filter((key) => !(key in STRINGS_NOT_YET_MIGRATED))).toEqual([]);
+  });
+
+  it.each(Object.keys(STRINGS_NOT_YET_MIGRATED))(
+    "the string %s still needs its glyph removed",
+    (key) => {
+      expect(glyphStrings()).toContain(key);
+    },
+  );
 
   it.each(Object.entries(ALLOWED))("%s still needs its exception", (file, { rules }) => {
     const found = violations(read(file));

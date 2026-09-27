@@ -71,6 +71,48 @@ zod (onboarding), TanStack Query 5, vitest + jsdom + Testing Library.
 - **zsh**: `$var` does not word-split in zsh. Write test paths out in full
   in shell loops, or use arrays.
 
+## Amendment (made during Task 3): glyphs inside translated strings
+
+The browser check in Task 3 found arrows inside the copy itself, for
+example "← Back to documents" and "Next →". The file scan can't see these,
+because they live in `lib/i18n.ts`.
+
+The guard now also scans every translated string, with its own
+`STRINGS_NOT_YET_MIGRATED` list. Each task strips the arrow from its
+strings, and the page draws it as a lucide icon instead (`ArrowLeft` before
+the text, `ArrowRight` after it). The task then deletes the keys from the
+list.
+
+| Task | Strings |
+|---|---|
+| 3 (done) | `documents.backToDocuments`, `documents.wizNext`; deleted the unused `resumes.backToResumes` and `visa.backToVisa` |
+| 4 | `interview.review` (strip, then `ArrowRight` in the Review button). `interview.backToList` and `jobs.backToJobs` become unused once their pages use `Breadcrumbs`: check with `grep` and delete them. |
+| 5 | `culture.backToCulture` (strip; `BackLink` already gets `ArrowLeft`) |
+| 6 | `onboarding.s1DangerZone`. Settings has no "Danger zone" any more; its card is "Delete account". It becomes: en "Settings, under Delete account"; id "Pengaturan, di bagian Hapus akun"; ja "設定の「アカウントを削除」". |
+| spec 3 | `jobs.jobBoard` stays until spec 3 rebuilds Applications. Task 8 pins it as the only entry left. |
+
+Task 8's pin also asserts
+`Object.keys(STRINGS_NOT_YET_MIGRATED)` equals `["jobs.jobBoard"]`.
+
+Two more findings from Task 3's browser check:
+
+- **"Optional" tags**: `Field`'s `optionalLabel` takes
+  `t("settings", "optional", lang)` ("Optional"), as Settings does, not
+  `t("common", "optional", lang)`, which is lowercase "optional". This
+  applies to every `optionalLabel` in Tasks 4–7.
+- **Focus in multi-step flows**: after a step change, focus moves to the new
+  step's title (`tabIndex={-1}`, focused in an effect on the step). Without
+  that, React reuses the old step's first button as the new step's Back
+  button, so the keyboard focus sits on Back. `DocumentWizard` does this.
+  Task 6 does the same for onboarding's steps, focusing the new step's
+  `PageHeader` title, with a test like the new-document one.
+- **List rows on phones**: a row with a long name and two or three actions
+  squeezed its meta line into a one-word column at 375px. Rows use
+  `flex flex-col gap-3 … sm:flex-row sm:items-center sm:justify-between sm:gap-4`,
+  with the actions in `flex flex-wrap items-center gap-1 sm:shrink-0`, and
+  a truncating name link is `block truncate`. The Resumes and Documents
+  lists do this, and Task 4's Interview list should do the same.
+
 ## The recipe (every page in scope)
 
 1. **Title**:
