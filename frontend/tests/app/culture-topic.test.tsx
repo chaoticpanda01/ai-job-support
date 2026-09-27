@@ -76,6 +76,20 @@ describe("culture topic page, the article body", () => {
     expect(pre).toHaveAttribute("tabindex", "0");
   });
 
+  it("styles links, and opens other sites in a new tab", async () => {
+    await renderTopic(
+      "See [the ministry](https://www.moj.go.jp/isa/) or [your visa page](/dashboard/visa).",
+    );
+
+    const external = screen.getByRole("link", { name: "the ministry" });
+    expect(external).toHaveClass("text-indigo", "underline");
+    expect(external).toHaveAttribute("target", "_blank");
+    expect(external).toHaveAttribute("rel", "noopener noreferrer");
+    const internal = screen.getByRole("link", { name: "your visa page" });
+    expect(internal).toHaveClass("text-indigo", "underline");
+    expect(internal).not.toHaveAttribute("target");
+  });
+
   it("styles headings and lists, which the page had left bare", async () => {
     await renderTopic(BODY);
 

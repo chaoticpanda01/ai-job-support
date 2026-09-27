@@ -41,10 +41,10 @@ import type {
 // SendMessageRequest.content limit on the backend. Longer answers get a 422.
 const MAX_ANSWER_LENGTH = 4000;
 
-// The chat fills the screen below the phone top bar (h-14, gone from lg up),
-// and -my-8 cancels the dashboard main's py-8, so the window never scrolls and
-// the header stays in view. dvh follows mobile browser chrome as it shows and hides.
-const FULL_HEIGHT = "-my-8 flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh";
+// The chat fills the screen below the phone top bar (see globals.css), and
+// -my-8 cancels the dashboard main's py-8, so the window never scrolls and the
+// header stays in view.
+const FULL_HEIGHT = "h-below-top-bar -my-8 flex flex-col";
 
 interface Props {
   params: Promise<{ id: string }>;

@@ -19,6 +19,17 @@ const COMPONENTS: Components = {
   strong: ({ node: _node, ...props }) => (
     <strong className="font-semibold text-foreground" {...props} />
   ),
+  // Links to other sites open in a new tab, so the reader keeps their place.
+  a: ({ node: _node, href, ...props }) => (
+    <a
+      href={href}
+      className="rounded font-medium text-indigo underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {...(href && /^https?:\/\//.test(href)
+        ? { target: "_blank", rel: "noopener noreferrer" }
+        : {})}
+      {...props}
+    />
+  ),
   code: ({ node: _node, ...props }) => (
     <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]" {...props} />
   ),

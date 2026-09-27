@@ -67,3 +67,27 @@
       "calt" 1;
   }
 }
+
+@layer utilities {
+  /* The screen height below the phone top bar (h-14), or the whole screen from
+     lg up, where there is no top bar. dvh follows mobile browser chrome as it
+     shows and hides; browsers without it (Safari before 15.4) get vh. */
+  .h-below-top-bar {
+    height: calc(100vh - 3.5rem);
+  }
+  @supports (height: 100dvh) {
+    .h-below-top-bar {
+      height: calc(100dvh - 3.5rem);
+    }
+  }
+  @media (min-width: 1024px) {
+    .h-below-top-bar {
+      height: 100vh;
+    }
+    @supports (height: 100dvh) {
+      .h-below-top-bar {
+        height: 100dvh;
+      }
+    }
+  }
+}
