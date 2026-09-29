@@ -8,9 +8,9 @@ import { translations } from "@/lib/i18n";
 /**
  * Keeps the pages on the design system. Every .tsx file under app/ and
  * components/ (components/ui/ excepted: it is the design system) is scanned
- * for the four things the page migration removed. A file still waiting to be
- * migrated is listed in NOT_YET_MIGRATED; a permanent, reasoned exception is
- * listed in ALLOWED. Read as data, not imported, like tests/invariants.test.ts.
+ * for the four things the page migration removed. A permanent, reasoned
+ * exception is listed in ALLOWED; every other page must pass. Read as data,
+ * not imported, like tests/invariants.test.ts.
  */
 
 const FRONTEND = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,16 +51,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
     reason: "A full-height chat screen: its compact header stands in for PageHeader.",
   },
 };
-
-/** Files the migration hasn't reached. Each area task deletes its own. */
-const NOT_YET_MIGRATED: Record<string, string> = {};
-
-/**
- * Translated strings that still carry an arrow or emoji. A glyph inside the
- * copy dodges the file scan above, so the strings are checked too: the page
- * draws the arrow as a lucide icon instead. Each area task deletes its own.
- */
-const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {};
 
 /** Every "section.key" whose text, in any language, has a glyph. */
 function glyphStrings(): string[] {
@@ -166,36 +156,13 @@ describe("the design guard", () => {
     ).toEqual([]);
   });
 
-  it.each(FILES.filter((file) => !(file in NOT_YET_MIGRATED)))(
-    "%s is on the design system",
-    (file) => {
-      const allowed = ALLOWED[file]?.rules ?? [];
-      expect(violations(read(file)).filter((rule) => !allowed.includes(rule))).toEqual([]);
-    },
-  );
-
-  it.each(Object.keys(NOT_YET_MIGRATED))("%s still needs migrating", (file) => {
-    // Once a file is clean its entry must go, so the list can't hide a
-    // regression in a file everyone thinks is done.
-    expect(violations(read(file)).length).toBeGreaterThan(0);
+  it.each(FILES)("%s is on the design system", (file) => {
+    const allowed = ALLOWED[file]?.rules ?? [];
+    expect(violations(read(file)).filter((rule) => !allowed.includes(rule))).toEqual([]);
   });
 
   it("keeps arrows and emoji out of the translated strings", () => {
-    expect(glyphStrings().filter((key) => !(key in STRINGS_NOT_YET_MIGRATED))).toEqual([]);
-  });
-
-  it.each(Object.keys(STRINGS_NOT_YET_MIGRATED))(
-    "the string %s still needs its glyph removed",
-    (key) => {
-      expect(glyphStrings()).toContain(key);
-    },
-  );
-
-  it("has migrated everything except the pages spec 3 rebuilds", () => {
-    // The end state of the page migration. Spec 3 (the job pipeline) rebuilds
-    // these on the design system and removes the last entries.
-    expect(Object.keys(NOT_YET_MIGRATED)).toEqual([]);
-    expect(Object.keys(STRINGS_NOT_YET_MIGRATED)).toEqual([]);
+    expect(glyphStrings()).toEqual([]);
   });
 
   it.each(Object.entries(ALLOWED))("%s still needs its exception", (file, { rules }) => {

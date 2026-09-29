@@ -820,7 +820,6 @@ export const translations = {
       id: "Terjemahkan lowongan kerja Jepang dan cocokkan dengan resume kamu.",
       ja: "日本語の求人を翻訳し、レジュメとマッチングします。",
     },
-    tracker: { en: "Tracker", id: "Pelacak", ja: "管理" },
     translateBtn: { en: "+ Translate posting", id: "+ Terjemahkan lowongan", ja: "+ 求人を翻訳" },
     searchPlaceholder: {
       en: "Search job titles or summaries…",
@@ -841,8 +840,6 @@ export const translations = {
       id: "Tidak ada lowongan kerja.",
       ja: "求人が見つかりません。",
     },
-    translateLink: { en: "Translate a posting", id: "Terjemahkan lowongan", ja: "求人を翻訳する" },
-    toGetStarted: { en: "to get started.", id: "untuk memulai.", ja: "して始めましょう。" },
     jobId: { en: "Job ID", id: "ID Lowongan", ja: "求人ID" },
     jobIdHint: {
       en: 'Paste this into the "Job posting ID" field when generating a document to tailor it to this role.',
@@ -851,11 +848,6 @@ export const translations = {
     },
     copy: { en: "Copy", id: "Salin", ja: "コピー" },
     copied: { en: "Copied!", id: "Disalin!", ja: "コピーしました！" },
-    generateForThisJob: {
-      en: "Generate for this job",
-      id: "Buat untuk lowongan ini",
-      ja: "この求人向けに生成",
-    },
     generateRirekishoForJob: {
       en: "Generate 履歴書",
       id: "Buat 履歴書",
@@ -865,21 +857,6 @@ export const translations = {
       en: "Generate 職務経歴書",
       id: "Buat 職務経歴書",
       ja: "職務経歴書を生成",
-    },
-    addToTracker: {
-      en: "Add to tracker",
-      id: "Tambahkan ke pelacak",
-      ja: "トラッカーに追加",
-    },
-    addingToTracker: {
-      en: "Adding...",
-      id: "Menambahkan...",
-      ja: "追加中...",
-    },
-    trackingLabel: {
-      en: "Tracking:",
-      id: "Dilacak:",
-      ja: "追跡中：",
     },
     loadError: {
       en: "Failed to load job postings. Please refresh.",
@@ -988,23 +965,11 @@ export const translations = {
     gaps: { en: "Gaps", id: "Kekurangan", ja: "ギャップ" },
     actions: { en: "Actions", id: "Tindakan", ja: "アクション" },
     // Applications tracker
-    appTitle: { en: "Application Tracker", id: "Pelacak Lamaran", ja: "応募管理" },
-    appSub: {
-      en: "Track your job applications through the hiring pipeline.",
-      id: "Pantau lamaran kerja kamu melalui jalur rekrutmen.",
-      ja: "採用プロセスを通じて応募状況を管理します。",
-    },
     appLoadError: {
       en: "Failed to load applications. Please refresh.",
       id: "Gagal memuat lamaran. Coba muat ulang.",
       ja: "応募の読み込みに失敗しました。更新してください。",
     },
-    colPlanning: { en: "Planning", id: "Berencana", ja: "準備中" },
-    colApplied: { en: "Applied", id: "Melamar", ja: "応募済み" },
-    colInterviewing: { en: "Interviewing", id: "Wawancara", ja: "面接中" },
-    colOffered: { en: "Offered", id: "Ditawari", ja: "内定" },
-    colRejected: { en: "Rejected", id: "Ditolak", ja: "不採用" },
-    colWithdrawn: { en: "Withdrawn", id: "Ditarik", ja: "辞退" },
     appliedOn: { en: "Applied", id: "Melamar", ja: "応募" },
     confirmRemove: {
       en: "Remove this application from the tracker?",
