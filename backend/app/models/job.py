@@ -216,9 +216,11 @@ class JobApplication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """
     Tracks a user's application pipeline per job.
 
-    Status transitions:
-        planning → applied → interviewing → offered | rejected
-        any state → withdrawn
+    Status transitions are APPLICATION_TRANSITIONS in app.models.enums:
+        planning → preparing → applied → interviewing → offered → accepted,
+        each forward stage can step back one, and rejected, withdrawn or
+        skipped archive a job. closed_from records the stage an archived
+        job left, so reopening returns it there.
     """
 
     __tablename__ = "job_applications"
@@ -243,6 +245,10 @@ class JobApplication(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
+    # The stage an archived job (rejected, withdrawn, skipped) left, so
+    # reopening returns it there. NULL for any other status, and for jobs
+    # archived before this column existed.
+    closed_from: Mapped[ApplicationStatus | None] = mapped_column(sa_application_status)
 
     # --- Relationships ---
     user: Mapped["User"] = relationship("User", back_populates="job_applications")

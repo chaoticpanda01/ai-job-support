@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LANGS } from "../helpers";
-import { translations } from "@/lib/i18n";
+import { t, translations } from "@/lib/i18n";
+import { ACTIVITY_LABEL_KEY } from "@/lib/activity";
+import { computeJourney } from "@/lib/journey";
 
 type StringTable = Record<string, Record<string, Record<string, string>>>;
 const table = translations as unknown as StringTable;
@@ -70,5 +72,57 @@ describe("translations", () => {
       if (removed.includes(key)) found.push(`${section}.${key}`);
     }
     expect(found).toEqual([]);
+  });
+});
+
+describe("strings looked up by a key built at runtime", () => {
+  // t() falls back to printing the key itself, and the completeness test
+  // above only compares languages, so a typo in a built key would ship as
+  // "shokumuTitel" on screen. These are the keys Home builds.
+  const STEP_IDS = computeJourney({
+    me: undefined,
+    resumes: undefined,
+    primaryAnalysis: undefined,
+    documents: undefined,
+    applications: undefined,
+    interviewSessions: undefined,
+    visaConsultations: undefined,
+  }).stages.flatMap((stage) => stage.steps.map((step) => step.id));
+
+  const built = [
+    ...STEP_IDS.flatMap((id) =>
+      ["", "Title", "Why", "Cta"].map((part) => ["journey", `${id}${part}`] as const),
+    ),
+    ...Object.values(ACTIVITY_LABEL_KEY).map((key) => ["home", key] as const),
+  ];
+
+  it("covers every journey step", () => {
+    expect(STEP_IDS).toHaveLength(8);
+  });
+
+  it.each(LANGS)("has every one of them in %s", (lang) => {
+    const missing = built.filter(([section, key]) => t(section, key, lang) === key);
+    expect(missing).toEqual([]);
+  });
+});
+
+describe("Japanese resume terms", () => {
+  // Two different things: the CV a user uploads (レジュメ) and the JIS-format
+  // form the app generates (履歴書). Using 履歴書 for both made the documents
+  // page ask users to "select a 履歴書" in order to make a 履歴書.
+  // chat.greeting offers help with writing a Japanese 履歴書, the form.
+  const ALLOWED = new Set(["chat.greeting"]);
+
+  it("calls an uploaded resume レジュメ, never 履歴書", () => {
+    const mixedUp: string[] = [];
+    for (const [section, key, value] of everyString()) {
+      const en = value["en"] ?? "";
+      const mentionsForm = en.includes("履歴書") || /rirekisho/i.test(en);
+      const id = `${section}.${key}`;
+      if (/resume/i.test(en) && !mentionsForm && (value["ja"] ?? "").includes("履歴書")) {
+        if (!ALLOWED.has(id)) mixedUp.push(id);
+      }
+    }
+    expect(mixedUp).toEqual([]);
   });
 });

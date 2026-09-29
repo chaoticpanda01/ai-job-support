@@ -10,7 +10,7 @@ POST   /jobs/{id}/match              — score a resume against this posting
 Application tracker (Kanban):
 POST   /jobs/applications            — create or move an application to planning
 GET    /jobs/applications            — list all applications, grouped by status
-PATCH  /jobs/applications/{id}       — update status / notes
+PATCH  /jobs/applications/{id}       — move along the pipeline / update notes
 DELETE /jobs/applications/{id}       — remove application from tracker
 """
 
@@ -299,6 +299,7 @@ def _application_response(app: JobApplication) -> JobApplicationResponse:
         status=app.status.value,
         applied_at=app.applied_at,
         notes=app.notes,
+        closed_from=app.closed_from.value if app.closed_from else None,
         created_at=app.created_at,
         updated_at=app.updated_at,
         job_title=posting.translated_title or posting.original_title if posting else None,
@@ -366,7 +367,7 @@ async def list_applications(
 ) -> list[JobApplicationResponse]:
     """
     List all tracked applications for the authenticated user.
-    Optional ?status= filter (planning|applied|interviewing|offered|rejected|withdrawn).
+    Optional ?status= filter, any ApplicationStatus value.
     Results are ordered by updated_at desc within each status.
     """
     from sqlalchemy import select
@@ -404,13 +405,22 @@ async def update_application(
     current_user: AuthUser,
     db: DbSession,
 ) -> JobApplicationResponse:
-    """Update the status and/or notes of a tracked application."""
+    """
+    Update the status and/or notes of a tracked application.
+
+    A status change must be one of the moves in APPLICATION_TRANSITIONS
+    (app.models.enums), or a 422 names the refused move. Sending the current
+    status again changes nothing, so a repeated click is harmless. Archiving
+    records the stage the job left in closed_from; reopening returns it there
+    and clears it. applied_at is stamped the first time a job is applied, and
+    cleared if that is undone by stepping back to Preparing.
+    """
     from datetime import datetime
 
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
-    from app.models.enums import ApplicationStatus
+    from app.models.enums import ARCHIVED_STATUSES, ApplicationStatus, allowed_moves
     from app.models.job import JobApplication
 
     app = await db.scalar(
@@ -420,21 +430,36 @@ async def update_application(
             JobApplication.user_id == current_user.user_id,
         )
         .options(selectinload(JobApplication.job_posting))
+        # Two moves at once are handled one after the other, so the second reads the
+        # first's result and is checked against it, instead of both passing on the
+        # same starting status.
+        .with_for_update(of=JobApplication)
     )
     if app is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
     kwargs: dict[str, Any] = {}
-    if body.status is not None:
-        try:
-            new_status = ApplicationStatus(body.status)
-        except ValueError as exc:
+    new_status = body.status
+    if new_status is not None and new_status != app.status:
+        moves = allowed_moves(
+            app.status, closed_from=app.closed_from, has_applied=app.applied_at is not None
+        )
+        if new_status not in moves:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid status '{body.status}'.",
-            ) from exc
+                detail=(
+                    f"Can't move an application from '{app.status.value}' to '{new_status.value}'."
+                ),
+            )
         kwargs["status"] = new_status
-        if new_status == ApplicationStatus.applied and app.applied_at is None:
+        # Archiving records the stage the job left. Any other move clears it, so
+        # a value left by a request that raced this one can't outlive the move.
+        kwargs["closed_from"] = app.status if new_status in ARCHIVED_STATUSES else None
+        if app.status == ApplicationStatus.applied and new_status == ApplicationStatus.preparing:
+            # Back is how a mis-clicked "applied" is undone, so it forgets the date
+            # too. Otherwise Home and the board would go on saying the user applied.
+            kwargs["applied_at"] = None
+        elif new_status == ApplicationStatus.applied and app.applied_at is None:
             kwargs["applied_at"] = datetime.now(tz=UTC)
 
     if body.notes is not None:

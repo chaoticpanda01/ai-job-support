@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/language-context";
 import { t, type Language } from "@/lib/i18n";
 
@@ -27,20 +28,16 @@ export function ErrorFallback({
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <div role="alert" className="space-y-2">
-        <h1 className="text-2xl font-semibold">{t("common", "errorPageTitle", lang)}</h1>
+        <h1 className="font-display text-2xl font-bold">{t("common", "errorPageTitle", lang)}</h1>
         <p className="text-sm text-muted-foreground">{t("common", "errorPageBody", lang)}</p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button type="button" onClick={reset}>
           {t("common", "tryAgain", lang)}
-        </button>
-        <Link href="/" className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
-          {t("common", "goHome", lang)}
-        </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/">{t("common", "goHome", lang)}</Link>
+        </Button>
       </div>
       {error.digest && (
         <p className="text-xs text-muted-foreground">

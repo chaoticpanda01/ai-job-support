@@ -20,6 +20,8 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-noto-sans)", "var(--font-noto-sans-jp)", "sans-serif"],
         jp: ["var(--font-noto-sans-jp)", "sans-serif"],
+        // Page titles only (PageHeader). Japanese glyphs fall back to Noto Sans JP.
+        display: ["var(--font-display)", "var(--font-noto-sans-jp)", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -38,14 +40,17 @@ const config: Config = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          soft: "hsl(var(--destructive-soft))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+          soft: "hsl(var(--success-soft))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+          soft: "hsl(var(--warning-soft))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -63,6 +68,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // A mark, never a button or error colour: see the rules in globals.css.
+        seal: {
+          DEFAULT: "hsl(var(--seal))",
+          soft: "hsl(var(--seal-soft))",
+        },
+        // Extends Tailwind's indigo scale (indigo-50…900 still exist) with the
+        // app's own indigo as DEFAULT, for text-indigo / bg-indigo.
+        indigo: {
+          DEFAULT: "hsl(var(--indigo))",
+          soft: "hsl(var(--indigo-soft))",
+        },
+        track: "hsl(var(--track))",
       },
       borderRadius: {
         lg: "var(--radius)",

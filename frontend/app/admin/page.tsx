@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import * as Tabs from "@radix-ui/react-tabs";
+import { ArrowLeft, Home, Plus } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TagInput } from "@/components/ui/tag-input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
@@ -98,7 +110,7 @@ export default function AdminPage() {
         tabIndex={-1}
         className="flex min-h-screen items-center justify-center focus:outline-none"
       >
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <Loading />
       </main>
     );
   }
@@ -110,13 +122,17 @@ export default function AdminPage() {
         tabIndex={-1}
         className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 focus:outline-none"
       >
-        <h1 className="text-xl font-semibold">Admin access required</h1>
-        <p className="text-sm text-muted-foreground">
-          Your account doesn&apos;t have permission to view this page.
-        </p>
-        <Link href="/dashboard/resumes" className="text-sm text-primary hover:underline">
-          ← Back to app
-        </Link>
+        <PageHeader
+          className="mb-0"
+          title="Admin access required"
+          description="Your account doesn't have permission to view this page."
+        />
+        <Button asChild variant="secondary">
+          <Link href="/dashboard">
+            <ArrowLeft aria-hidden="true" />
+            Back to app
+          </Link>
+        </Button>
       </main>
     );
   }
@@ -126,54 +142,51 @@ export default function AdminPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              <span aria-hidden="true">🏠</span> Home
-            </Link>
-            <Link
-              href="/dashboard/resumes"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              ← Back to app
-            </Link>
-            <span className="font-semibold">Admin Panel</span>
+          <div className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/">
+                <Home aria-hidden="true" />
+                Home
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard">
+                <ArrowLeft aria-hidden="true" />
+                Back to app
+              </Link>
+            </Button>
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-            Admin
-          </span>
+          <Badge variant="info">Admin</Badge>
         </div>
       </header>
 
       <main id="main-content" tabIndex={-1} className="container py-8 focus:outline-none">
+        <PageHeader title="Admin panel" description="Users, culture topics and the glossary." />
         {/* Radix Tabs supplies the tablist/tab/tabpanel roles, aria-selected, and
             arrow-key navigation. Inactive panels render empty, so each tab's
             queries still only run while it is open. */}
-        <Tabs.Root value={tab} onValueChange={(value) => setTab(value as Tab)}>
-          <Tabs.List aria-label="Admin sections" className="mb-6 flex gap-2 border-b">
-            {(["stats", "users", "culture", "glossary"] as Tab[]).map((t) => (
-              <Tabs.Trigger
-                key={t}
-                value={t}
-                className="-mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium capitalize text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground"
-              >
-                {t}
-              </Tabs.Trigger>
+        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <TabsList aria-label="Admin sections">
+            {(["stats", "users", "culture", "glossary"] as Tab[]).map((section) => (
+              <TabsTrigger key={section} value={section} className="capitalize">
+                {section}
+              </TabsTrigger>
             ))}
-          </Tabs.List>
+          </TabsList>
 
-          <Tabs.Content value="stats">
+          <TabsContent value="stats">
             <StatsTab />
-          </Tabs.Content>
-          <Tabs.Content value="users">
+          </TabsContent>
+          <TabsContent value="users">
             <UsersTab />
-          </Tabs.Content>
-          <Tabs.Content value="culture">
+          </TabsContent>
+          <TabsContent value="culture">
             <CultureTab />
-          </Tabs.Content>
-          <Tabs.Content value="glossary">
+          </TabsContent>
+          <TabsContent value="glossary">
             <GlossaryTab />
-          </Tabs.Content>
-        </Tabs.Root>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
@@ -184,11 +197,19 @@ export default function AdminPage() {
 // ---------------------------------------------------------------------------
 
 function StatsTab() {
-  const { data, isLoading, error } = useStats();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useStats();
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error)
-    return <p className="text-sm text-destructive">Failed to load stats. Are you an admin?</p>;
+    return (
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
+        Failed to load stats. Are you an admin?
+      </LoadFailed>
+    );
   if (!data) return null;
 
   const cards = [
@@ -203,10 +224,10 @@ function StatsTab() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((c) => (
-        <div key={c.label} className="rounded-xl border bg-card p-6 shadow-sm">
+        <Card key={c.label} className="p-6">
           <p className="text-sm text-muted-foreground">{c.label}</p>
           <p className="mt-1 text-3xl font-bold">{c.value}</p>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -217,7 +238,7 @@ function StatsTab() {
 // ---------------------------------------------------------------------------
 
 function UsersTab() {
-  const { data, isLoading, error } = useUsers();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useUsers();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -230,11 +251,20 @@ function UsersTab() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (error) return <p className="text-sm text-destructive">Failed to load users.</p>;
+  if (isLoading) return <Loading />;
+  if (error)
+    return (
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
+        Failed to load users.
+      </LoadFailed>
+    );
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <Card className="overflow-hidden">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <span className="text-sm font-medium">Users ({data?.total ?? 0})</span>
       </div>
@@ -256,47 +286,34 @@ function UsersTab() {
                 <td className="px-4 py-2">{user.email}</td>
                 <td className="px-4 py-2 text-muted-foreground">{user.full_name ?? "—"}</td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      user.role === "admin"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {user.role}
-                  </span>
+                  <Badge variant={user.role === "admin" ? "info" : "neutral"}>{user.role}</Badge>
                 </td>
                 <td className="px-4 py-2 capitalize">{user.subscription_tier}</td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      user.is_active
-                        ? "bg-success/10 text-success"
-                        : "bg-destructive/10 text-destructive"
-                    }`}
-                  >
+                  <Badge variant={user.is_active ? "success" : "danger"}>
                     {user.is_active ? "Active" : "Inactive"}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="px-4 py-2">
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() =>
                       promoteUser.mutate({
                         id: user.id,
                         role: user.role === "admin" ? "user" : "admin",
                       })
                     }
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
                     {user.role === "admin" ? "Demote" : "Make admin"}
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -305,19 +322,25 @@ function UsersTab() {
 // ---------------------------------------------------------------------------
 
 function CultureTab() {
-  const { data, isLoading, error } = useTopics();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useTopics();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirmDialog = useConfirm();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ slug: "", title: "", body: "", tags: "", published: true });
+  const [form, setForm] = useState({
+    slug: "",
+    title: "",
+    body: "",
+    tags: [] as string[],
+    published: true,
+  });
 
   const createTopic = useMutation({
     mutationFn: (body: object) => apiClient.post("/admin/culture/topics", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "topics"] });
       setShowForm(false);
-      setForm({ slug: "", title: "", body: "", tags: "", published: true });
+      setForm({ slug: "", title: "", body: "", tags: [], published: true });
       toast({ variant: "success", description: "Topic created." });
     },
     onError: () => {
@@ -357,89 +380,74 @@ function CultureTab() {
     if (ok) deleteTopic.mutate(slug);
   }
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (error) return <p className="text-sm text-destructive">Failed to load topics.</p>;
+  if (isLoading) return <Loading />;
+  if (error)
+    return (
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
+        Failed to load topics.
+      </LoadFailed>
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          {showForm ? "Cancel" : "+ New topic"}
-        </button>
+        <Button onClick={() => setShowForm(!showForm)}>
+          {showForm ? (
+            "Cancel"
+          ) : (
+            <>
+              <Plus aria-hidden="true" />
+              New topic
+            </>
+          )}
+        </Button>
       </div>
 
       {showForm && (
-        <div className="space-y-3 rounded-xl border bg-card p-6 shadow-sm">
+        <Card className="space-y-3 p-6">
           <h3 className="font-medium">New culture topic</h3>
           {(["slug", "title"] as const).map((field) => (
-            <div key={field}>
-              <label
-                htmlFor={`topic-${field}`}
-                className="text-xs font-medium capitalize text-muted-foreground"
-              >
-                {field}
-              </label>
-              <input
-                id={`topic-${field}`}
+            <Field key={field} label={field === "slug" ? "Slug" : "Title"}>
+              <Input
                 value={form[field]}
                 onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
               />
-            </div>
+            </Field>
           ))}
-          <div>
-            <label htmlFor="topic-tags" className="text-xs font-medium text-muted-foreground">
-              Tags (comma-separated)
-            </label>
-            <input
-              id="topic-tags"
+          <Field label="Tags">
+            <TagInput
               value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              onChange={(tags) => setForm({ ...form, tags })}
+              placeholder="Add a tag…"
+              removeLabel="Remove {tag}"
             />
-          </div>
-          <div>
-            <label htmlFor="topic-body" className="text-xs font-medium text-muted-foreground">
-              Body (Markdown)
-            </label>
-            <textarea
-              id="topic-body"
+          </Field>
+          <Field label="Body (Markdown)">
+            <Textarea
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               rows={6}
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
+              className="font-mono"
             />
-          </div>
+          </Field>
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={form.published}
               onChange={(e) => setForm({ ...form, published: e.target.checked })}
             />
             Publish immediately
           </label>
-          <button
-            onClick={() =>
-              createTopic.mutate({
-                ...form,
-                tags: form.tags
-                  .split(",")
-                  .map((t) => t.trim())
-                  .filter(Boolean),
-              })
-            }
-            disabled={createTopic.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button onClick={() => createTopic.mutate(form)} loading={createTopic.isPending}>
             {createTopic.isPending ? "Creating…" : "Create topic"}
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <Card className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
@@ -458,44 +466,39 @@ function CultureTab() {
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap gap-1">
                     {topic.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {tag}
-                      </span>
+                      <Badge key={tag}>{tag}</Badge>
                     ))}
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      topic.published
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
+                  <Badge variant={topic.published ? "success" : "neutral"}>
                     {topic.published ? "Published" : "Draft"}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="flex gap-3 px-4 py-2">
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() =>
                       togglePublish.mutate({ slug: topic.slug, published: !topic.published })
                     }
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
                     {topic.published ? "Unpublish" : "Publish"}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTopic(topic.slug, topic.title)}
-                    className="text-xs text-destructive underline hover:opacity-80"
+                  </Button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => void handleDeleteTopic(topic.slug, topic.title)}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -505,7 +508,7 @@ function CultureTab() {
 // ---------------------------------------------------------------------------
 
 function GlossaryTab() {
-  const { data, isLoading, error } = useGlossary();
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useGlossary();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirmDialog = useConfirm();
@@ -548,54 +551,55 @@ function GlossaryTab() {
     if (ok) deleteEntry.mutate(id);
   }
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (error) return <p className="text-sm text-destructive">Failed to load glossary.</p>;
+  if (isLoading) return <Loading />;
+  if (error)
+    return (
+      <LoadFailed
+        failureCount={errorUpdateCount}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      >
+        Failed to load glossary.
+      </LoadFailed>
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          {showForm ? "Cancel" : "+ New entry"}
-        </button>
+        <Button onClick={() => setShowForm(!showForm)}>
+          {showForm ? (
+            "Cancel"
+          ) : (
+            <>
+              <Plus aria-hidden="true" />
+              New entry
+            </>
+          )}
+        </Button>
       </div>
 
       {showForm && (
-        <div className="space-y-3 rounded-xl border bg-card p-6 shadow-sm">
+        <Card className="space-y-3 p-6">
           <h3 className="font-medium">New glossary entry</h3>
           {[
             { key: "term_ja", label: "Japanese term" },
             { key: "reading_romaji", label: "Romaji reading" },
             { key: "definition_id", label: "Definition (Indonesian)" },
           ].map(({ key, label }) => (
-            <div key={key}>
-              <label
-                htmlFor={`glossary-${key}`}
-                className="text-xs font-medium text-muted-foreground"
-              >
-                {label}
-              </label>
-              <input
-                id={`glossary-${key}`}
+            <Field key={key} label={label}>
+              <Input
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
               />
-            </div>
+            </Field>
           ))}
-          <button
-            onClick={() => createEntry.mutate(form)}
-            disabled={createEntry.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button onClick={() => createEntry.mutate(form)} loading={createEntry.isPending}>
             {createEntry.isPending ? "Adding…" : "Add entry"}
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <Card className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
@@ -616,18 +620,61 @@ function GlossaryTab() {
                   {entry.definition_id}
                 </td>
                 <td className="px-4 py-2">
-                  <button
-                    onClick={() => handleDeleteEntry(entry.id, entry.term_ja)}
-                    className="text-xs text-destructive underline hover:opacity-80"
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => void handleDeleteEntry(entry.id, entry.term_ja)}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared
+// ---------------------------------------------------------------------------
+
+function Loading() {
+  return (
+    <div className="space-y-3">
+      {/* Skeleton is hidden from assistive tech, so say it in words too. */}
+      <span className="sr-only">Loading…</span>
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 rounded-lg" />
+    </div>
+  );
+}
+
+/** English, like the rest of this page, so not the translated RetryButton. */
+function LoadFailed({
+  failureCount,
+  retrying,
+  onRetry,
+  children,
+}: {
+  failureCount: number;
+  retrying: boolean;
+  onRetry: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Alert
+      announceKey={failureCount}
+      action={
+        <Button variant="secondary" size="sm" loading={retrying} onClick={onRetry}>
+          Try again
+        </Button>
+      }
+    >
+      {children}
+    </Alert>
   );
 }

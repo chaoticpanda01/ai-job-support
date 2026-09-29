@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.models.enums import ApplicationStatus
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -158,6 +160,8 @@ class JobApplicationResponse(_Base):
     status: str
     applied_at: datetime | None
     notes: str | None
+    # The stage an archived job left; reopening returns it there.
+    closed_from: str | None = None
     created_at: datetime
     updated_at: datetime
     # Denormalised posting fields for display in the Kanban board
@@ -171,5 +175,6 @@ class CreateApplicationRequest(_Base):
 
 
 class UpdateApplicationRequest(_Base):
-    status: str | None = None
+    # Typed, so an unknown status is a 422 before the route runs.
+    status: ApplicationStatus | None = None
     notes: str | None = None

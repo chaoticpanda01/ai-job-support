@@ -3,7 +3,15 @@
 import { use, useEffect } from "react";
 import Link from "next/link";
 import { useDocumentStatus, useDocumentDetail } from "@/hooks/useDocuments";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { isMissingResourceError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t, type translations } from "@/lib/i18n";
@@ -79,18 +87,14 @@ export default function DocumentDetailPage({ params }: Props) {
       <div className="space-y-4">
         {breadcrumbs}
         {isMissingResourceError(loadError) ? (
-          <p className="text-sm text-destructive">{t("documents", "notFound", lang)}</p>
+          <Alert>{t("documents", "notFound", lang)}</Alert>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              key={errorCount}
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {t("documents", "statusLoadError", lang)}
-            </p>
-            <RetryButton isChecking={isChecking} onRetry={recheck} />
-          </div>
+          <Alert
+            announceKey={errorCount}
+            action={<RetryButton retrying={isChecking} onRetry={recheck} />}
+          >
+            {t("documents", "statusLoadError", lang)}
+          </Alert>
         )}
       </div>
     );
@@ -108,24 +112,20 @@ export default function DocumentDetailPage({ params }: Props) {
       {/* The document below is real, just possibly out of date: say so rather
           than replacing it with an error. */}
       {pollError && (
-        <div className="flex flex-wrap items-center gap-2">
-          <p
-            key={errorCount}
-            role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {t("documents", "statusPollError", lang)}
-          </p>
-          <RetryButton isChecking={isChecking} onRetry={recheck} />
-        </div>
+        <Alert
+          announceKey={errorCount}
+          action={<RetryButton retrying={isChecking} onRetry={recheck} />}
+        >
+          {t("documents", "statusPollError", lang)}
+        </Alert>
       )}
 
-      <div className="space-y-6 rounded-lg border bg-card p-6">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold">{t("documents", "statusHeading", lang)}</h1>
-          <StatusBadge status={statusData.status} />
-        </div>
-
+      <PageHeader
+        className="mb-0"
+        title={t("documents", "statusHeading", lang)}
+        actions={<DocumentStatusBadge status={statusData.status} />}
+      />
+      <Card className="p-6">
         <StatusBody
           status={statusData.status}
           errorCode={statusData.error_code}
@@ -136,7 +136,7 @@ export default function DocumentDetailPage({ params }: Props) {
           retryingDownload={fetchingDetail}
           onRetryDownload={() => void refetchDetail()}
         />
-      </div>
+      </Card>
     </div>
   );
 }
@@ -169,7 +169,10 @@ function StatusBody({
   if (status === "pending" || status === "processing") {
     return (
       <div className="flex flex-col items-center gap-4 py-6 text-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Loader2
+          aria-hidden="true"
+          className="h-10 w-10 animate-spin text-muted-foreground motion-reduce:animate-none"
+        />
         <div>
           <p className="text-sm font-medium">
             {status === "pending"
@@ -185,33 +188,25 @@ function StatusBody({
   if (status === "failed") {
     return (
       <div className="space-y-4">
-        <div role="alert" className="rounded-md bg-destructive/10 px-4 py-3">
-          <p className="text-sm font-medium text-destructive">
-            {t("documents", "genFailed", lang)}
-          </p>
-          {/* The reason, in the reader's language. The backend's own message is
-              English and written for logs, so it is never shown here. */}
-          <p className="mt-1 text-xs text-destructive/80">
-            {t("documents", failureMessageKey(errorCode), lang)}
-          </p>
-        </div>
+        {/* The reason, in the reader's language. The backend's own message is
+            English and written for logs, so it is never shown here. */}
+        <Alert title={t("documents", "genFailed", lang)}>
+          {t("documents", failureMessageKey(errorCode), lang)}
+        </Alert>
         <p className="text-sm text-muted-foreground">{t("documents", "genFailHint", lang)}</p>
         <div className="flex flex-wrap gap-2">
           {/* The one failure the user fixes somewhere else. */}
           {errorCode === "profile_incomplete" && (
-            <Link
-              href="/dashboard/settings"
-              className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              {t("documents", "goToSettings", lang)}
-            </Link>
+            <Button asChild>
+              <Link href="/dashboard/settings">{t("documents", "goToSettings", lang)}</Link>
+            </Button>
           )}
-          <Link
-            href="/dashboard/documents"
-            className="inline-flex items-center rounded-md border px-3 py-2 text-sm hover:bg-accent"
-          >
-            {t("documents", "backToDocuments", lang)}
-          </Link>
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/documents">
+              <ArrowLeft aria-hidden="true" />
+              {t("documents", "backToDocuments", lang)}
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -220,10 +215,10 @@ function StatusBody({
   // completed
   return (
     <div className="space-y-4">
-      <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+      <Alert tone="success">
         {t("documents", "genSuccess", lang)}
         {completedAt && (
-          <span className="ml-1 text-green-700">
+          <span className="ml-1">
             {t("documents", "on", lang)}{" "}
             {new Date(completedAt).toLocaleString(lang, {
               day: "numeric",
@@ -234,32 +229,26 @@ function StatusBody({
             })}
           </span>
         )}
-      </div>
+      </Alert>
 
       {downloadUrl ? (
-        <a
-          href={downloadUrl}
-          download
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          {t("documents", "downloadPdf", lang)}
-        </a>
+        <Button asChild className="w-full">
+          <a href={downloadUrl} download>
+            {t("documents", "downloadPdf", lang)}
+          </a>
+        </Button>
       ) : downloadError ? (
         // The document was generated; only the link failed. Saying so beats a
         // spinner that never resolves.
-        <div className="flex flex-wrap items-center gap-2">
-          <p
-            key={downloadErrorCount}
-            role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {t("documents", "linkError", lang)}
-          </p>
-          <RetryButton isChecking={retryingDownload} onRetry={onRetryDownload} />
-        </div>
+        <Alert
+          announceKey={downloadErrorCount}
+          action={<RetryButton retrying={retryingDownload} onRetry={onRetryDownload} />}
+        >
+          {t("documents", "linkError", lang)}
+        </Alert>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           {t("documents", "preparingLink", lang)}
         </div>
       )}
@@ -273,55 +262,11 @@ function StatusBody({
 // Shared pieces
 // ---------------------------------------------------------------------------
 
-function RetryButton({ isChecking, onRetry }: { isChecking: boolean; onRetry: () => void }) {
-  const { lang } = useLang();
-  // aria-disabled rather than disabled, so the button keeps keyboard focus
-  // while the check runs.
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        if (!isChecking) onRetry();
-      }}
-      aria-disabled={isChecking}
-      className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent aria-disabled:opacity-50"
-    >
-      {t("common", isChecking ? "retrying" : "tryAgain", lang)}
-    </button>
-  );
-}
-
-function StatusBadge({ status }: { status: DocumentStatus }) {
-  const { lang } = useLang();
-  const styles: Record<DocumentStatus, string> = {
-    pending: "bg-yellow-100 text-yellow-800",
-    processing: "bg-blue-100 text-blue-800",
-    completed: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-  };
-  const labels: Record<DocumentStatus, string> = {
-    pending: t("documents", "statusPending", lang),
-    processing: t("documents", "statusProcessing", lang),
-    completed: t("documents", "statusCompleted", lang),
-    failed: t("documents", "statusFailed", lang),
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${styles[status]}`}
-    >
-      {status === "processing" && (
-        <span className="h-2 w-2 animate-spin rounded-full border border-blue-800 border-t-transparent" />
-      )}
-      {labels[status]}
-    </span>
-  );
-}
-
 function PageSkeleton() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-      <div className="h-48 animate-pulse rounded-lg bg-muted" />
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-48 rounded-lg" />
     </div>
   );
 }

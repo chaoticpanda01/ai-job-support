@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiClientError } from "@/lib/api-client";
+import { ApiClientError, apiClient } from "@/lib/api-client";
 
 /**
  * The options object the hook hands useQuery, captured so its policy
@@ -25,6 +25,7 @@ interface CapturedOptions {
 
 let captured: CapturedOptions | null = null;
 let queryResult: Record<string, unknown> = {};
+const invalidated: unknown[][] = [];
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (options: CapturedOptions) => {
@@ -32,10 +33,15 @@ vi.mock("@tanstack/react-query", () => ({
     return queryResult;
   },
   useMutation: () => ({}),
-  useQueryClient: () => ({ invalidateQueries: () => {} }),
+  useQueryClient: () => ({
+    invalidateQueries: ({ queryKey }: { queryKey: unknown[] }) => {
+      invalidated.push(queryKey);
+      return Promise.resolve();
+    },
+  }),
 }));
 
-const { useDocumentStatus } = await import("@/hooks/useDocuments");
+const { useDocumentStatus, useDocuments } = await import("@/hooks/useDocuments");
 
 function optionsFor(): CapturedOptions {
   queryResult = {
@@ -89,6 +95,35 @@ describe("useDocumentStatus polling", () => {
   });
 });
 
+describe("useDocumentStatus refreshing the lists", () => {
+  // The lists were last fetched when the job was created, still pending.
+  // Home and the sidebar count a document only once it's completed, so
+  // they'd go on showing it as missing unless the finished poll refreshes them.
+  async function poll(status: string): Promise<unknown[][]> {
+    invalidated.length = 0;
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ id: "d1", status });
+    optionsFor();
+    await (captured as unknown as { queryFn: () => Promise<unknown> }).queryFn();
+    get.mockRestore();
+    return [...invalidated];
+  }
+
+  it.each(["completed", "failed"])(
+    "refreshes every documents list once it's %s",
+    async (status) => {
+      expect(await poll(status)).toEqual([
+        ["documents", "all"],
+        ["documents", "rirekisho"],
+        ["documents", "shokumukeirekisho"],
+      ]);
+    },
+  );
+
+  it.each(["pending", "processing"])("leaves the lists alone while it's %s", async (status) => {
+    expect(await poll(status)).toEqual([]);
+  });
+});
+
 describe("useDocumentStatus error reporting", () => {
   it("calls a first-load failure a load error", () => {
     const error = new ApiClientError(500, "boom");
@@ -120,5 +155,40 @@ describe("useDocumentStatus error reporting", () => {
 
     expect(result.pollError).toBe(error);
     expect(result.loadError).toBeNull();
+  });
+});
+
+describe("useDocuments", () => {
+  /** The URL the last useDocuments call's query fetches. */
+  async function fetchedUrl(): Promise<string> {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ items: [], total: 0 });
+    await (captured as unknown as { queryFn: () => Promise<unknown> }).queryFn();
+    const url = get.mock.calls[0]?.[0] as string;
+    get.mockRestore();
+    return url;
+  }
+
+  it("lists one page by default, as the documents page shows", async () => {
+    useDocuments();
+    expect(await fetchedUrl()).toBe("/documents");
+    useDocuments("rirekisho");
+    expect(await fetchedUrl()).toBe("/documents?type=rirekisho");
+  });
+
+  it("keeps a larger page in its own cache entry, apart from the documents page's", () => {
+    const keyOf = () => (captured as unknown as { queryKey: unknown[] }).queryKey;
+    useDocuments();
+    const pageKey = keyOf();
+    useDocuments(undefined, 100);
+    const journeyKey = keyOf();
+    expect(pageKey).toEqual(["documents", "all"]);
+    expect(journeyKey).toEqual(["documents", "all", { limit: 100 }]);
+  });
+
+  it("asks for a larger page when told to", async () => {
+    useDocuments(undefined, 100);
+    expect(await fetchedUrl()).toBe("/documents?limit=100");
+    useDocuments("rirekisho", 100);
+    expect(await fetchedUrl()).toBe("/documents?type=rirekisho&limit=100");
   });
 });

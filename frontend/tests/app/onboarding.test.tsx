@@ -158,6 +158,14 @@ describe("onboarding, where a returning user lands", () => {
     expect(screen.getByText(stepLine(expected))).toBeInTheDocument();
   });
 
+  it("doesn't pull focus to the title when it resumes a returning user", async () => {
+    // Jumping to the saved step is not the reader moving on, so the page
+    // loads as any other would, without focus landing on its heading.
+    await renderPage(me({ onboarding_step: 2 }, { full_name: "Budi Santoso" }));
+    expect(screen.getByText(stepLine(4))).toBeInTheDocument();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("holds a user with no name at step 2 however far they got", async () => {
     // Step 2 is the only place full_name is captured. Letting them jump to
     // step 5 would complete onboarding with it still unset, and the redirect
@@ -176,7 +184,7 @@ describe("onboarding, where a returning user lands", () => {
   it("sends a finished user to the dashboard", async () => {
     await renderPage(me({ onboarding_step: 5, onboarding_completed: true }));
 
-    expect(routerObject.replaces).toEqual(["/dashboard/resumes"]);
+    expect(routerObject.replaces).toEqual(["/dashboard"]);
   });
 
   it("leaves an unfinished user alone", async () => {
@@ -193,6 +201,16 @@ describe("onboarding, where a returning user lands", () => {
 });
 
 describe("onboarding, step 1 consent", () => {
+  it("says where consent is withdrawn in one well-punctuated sentence", async () => {
+    // It was built as text + " " + place + ".", which put a space after the
+    // Japanese bracket and an English full stop at the end.
+    await renderPage();
+    const sentence = screen.getByText(/取り消せます/);
+    expect(sentence.textContent).toBe(
+      "アカウントを削除することで、いつでも同意を取り消せます（設定の「アカウント削除」から）。",
+    );
+  });
+
   it("will not continue until the box is ticked", async () => {
     await renderPage();
 
@@ -260,7 +278,7 @@ describe("onboarding, the steps that save", () => {
 
     expect(updateProfile.saves[0]).toMatchObject({
       full_name: "Budi Santoso",
-      preferred_language: "id",
+      preferred_language: "ja",
       onboarding_step: 1,
     });
     expect(screen.getByText(stepLine(3))).toBeInTheDocument();
@@ -332,8 +350,9 @@ describe("onboarding, the steps that save", () => {
     fireEvent.change(screen.getByLabelText(new RegExp(o("s4Industries"))), {
       target: { value: " IT , Finance ,, " },
     });
+    // The comma commits the tag: the form is submitted directly, with no blur.
     fireEvent.change(screen.getByLabelText(new RegExp(o("s4Roles"))), {
-      target: { value: "Backend Engineer" },
+      target: { value: "Backend Engineer," },
     });
     await submit(container);
 
@@ -354,6 +373,30 @@ describe("onboarding, the steps that save", () => {
     expect(screen.getByText("Enter at least one industry")).toBeInTheDocument();
   });
 
+  it("focuses the first empty tag field when Continue is refused", async () => {
+    // Without the field's ref, react-hook-form had nothing to focus: focus
+    // stayed on Continue and a screen reader heard nothing about the error.
+    const { container } = await toStep4();
+    await submit(container);
+    expect(document.activeElement).toBe(screen.getByLabelText(new RegExp(o("s4Industries"))));
+  });
+
+  it("keeps a half-typed tag once the box loses focus", async () => {
+    // Clicking or tabbing to Continue blurs the box before the submit.
+    const { container } = await toStep4();
+    const industries = screen.getByLabelText(new RegExp(o("s4Industries")));
+    fireEvent.change(industries, { target: { value: "IT" } });
+    fireEvent.blur(industries);
+    const roles = screen.getByLabelText(new RegExp(o("s4Roles")));
+    fireEvent.change(roles, { target: { value: "Backend Engineer" } });
+    fireEvent.blur(roles);
+    await submit(container);
+    expect(updateProfile.saves[2]).toMatchObject({
+      target_industry: ["IT"],
+      target_role: ["Backend Engineer"],
+    });
+  });
+
   it("explains a save that fails and stays on the step", async () => {
     // Set before rendering, not swapped in afterwards: the step's submit
     // handler closes over the mutation object from its last render, so a
@@ -372,6 +415,53 @@ describe("onboarding, the steps that save", () => {
     // 503 has no message of its own; it falls through to the shared 5xx one.
     expect(screen.getByRole("alert")).toHaveTextContent(common("errorServer"));
     expect(screen.getByText(stepLine(2))).toBeInTheDocument();
+  });
+
+  it("asks for the app language, starting on the current one", async () => {
+    await toStep2();
+    expect(screen.getByRole("group", { name: o("s2AppLang") })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "日本語" })).toBeChecked();
+    // The old setting, a select of languages named in English, is gone.
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("switches the app at once, and saves the language it was switched to", async () => {
+    const { container } = await toStep2();
+    fireEvent.click(screen.getByRole("radio", { name: "English" }));
+    expect(
+      screen.getByRole("heading", { level: 1, name: t("onboarding", "s2Title", "en") }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(new RegExp(t("onboarding", "s2Name", "en"))), {
+      target: { value: "Budi Santoso" },
+    });
+    await submit(container);
+    expect(updateProfile.saves[0]).toMatchObject({ preferred_language: "en" });
+  });
+
+  it("adds a role as a tag on Enter", async () => {
+    await toStep4();
+    const roles = screen.getByLabelText(new RegExp(o("s4Roles")));
+    fireEvent.change(roles, { target: { value: "SRE" } });
+    fireEvent.keyDown(roles, { key: "Enter" });
+    expect(
+      screen.getByRole("button", {
+        name: t("settings", "removeTag", LANG).replace("{tag}", "SRE"),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("moves focus to the new step's title, not onto its Back button", async () => {
+    // Each step's first control is the same element to React, so focus used
+    // to stay on it after Continue: a keyboard user landed on step 3's Back.
+    const view = await toStep2();
+    fireEvent.change(screen.getByLabelText(new RegExp(o("s2Name"))), {
+      target: { value: "Budi Santoso" },
+    });
+    (screen.getByRole("button", { name: common("continue") }) as HTMLElement).focus();
+    await submit(view.container);
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { level: 1, name: o("s3Title") }),
+    );
   });
 });
 
@@ -439,7 +529,7 @@ describe("onboarding, step 5 personal details", () => {
     await submit(container);
 
     expect(updateProfile.saves[0]).toMatchObject({ onboarding_step: 5 });
-    expect(routerObject.pushes).toEqual(["/dashboard/resumes"]);
+    expect(routerObject.pushes).toEqual(["/dashboard"]);
   });
 
   it("stays put when the last save fails", async () => {

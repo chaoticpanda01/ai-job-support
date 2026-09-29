@@ -1,0 +1,11 @@
+{
+  "planning": ["applied", "preparing", "skipped"],
+  "preparing": ["applied", "planning", "withdrawn"],
+  "applied": ["interviewing", "preparing", "rejected", "withdrawn"],
+  "interviewing": ["applied", "offered", "rejected", "withdrawn"],
+  "offered": ["accepted", "interviewing", "withdrawn"],
+  "accepted": ["offered", "withdrawn"],
+  "rejected": [],
+  "withdrawn": [],
+  "skipped": []
+}

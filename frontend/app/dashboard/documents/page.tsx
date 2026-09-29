@@ -1,103 +1,114 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
+import { ArrowRight, Files, Plus } from "lucide-react";
 import { useState } from "react";
 import { useDocuments, useDeleteDocument } from "@/hooks/useDocuments";
 import { useConfirm } from "@/components/confirm-dialog-provider";
+import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { Document, DocumentStatus, DocumentType } from "@/types/api";
+import type { Document, DocumentType } from "@/types/api";
 
 export default function DocumentsPage() {
   const [filter, setFilter] = useState<DocumentType | "all">("all");
-  const { data, isLoading, error } = useDocuments(filter === "all" ? undefined : filter);
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useDocuments(
+    filter === "all" ? undefined : filter,
+  );
   const { lang } = useLang();
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("documents", "title", lang)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("documents", "sub", lang)}</p>
-        </div>
+    <>
+      <PageHeader
+        eyebrow={t("nav", "groupPrepare", lang)}
+        title={t("documents", "title", lang)}
+        description={t("documents", "sub", lang)}
+        actions={
+          <>
+            <Button asChild>
+              <Link href="/dashboard/documents/rirekisho/new" lang="ja">
+                <Plus aria-hidden="true" />
+                履歴書
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/dashboard/documents/shokumu/new" lang="ja">
+                <Plus aria-hidden="true" />
+                職務経歴書
+              </Link>
+            </Button>
+          </>
+        }
+      />
+      <div className="space-y-6">
+        <ToggleGroup<DocumentType | "all">
+          label={t("documents", "filterLabel", lang)}
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: t("documents", "all", lang) },
+            { value: "rirekisho", label: "履歴書", lang: "ja" },
+            { value: "shokumukeirekisho", label: "職務経歴書", lang: "ja" },
+          ]}
+        />
 
-        <div className="flex shrink-0 gap-2">
-          <Link
-            href="/dashboard/documents/rirekisho/new"
-            lang="ja"
-            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+        {isLoading && <DocumentsSkeleton />}
+
+        {error && (
+          <Alert
+            announceKey={errorUpdateCount}
+            action={<RetryButton retrying={isFetching} onRetry={() => void refetch()} />}
           >
-            + 履歴書
-          </Link>
-          <Link
-            href="/dashboard/documents/shokumu/new"
-            lang="ja"
-            className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
-          >
-            + 職務経歴書
-          </Link>
-        </div>
+            {t("documents", "loadError", lang)}
+          </Alert>
+        )}
+
+        {data && data.items.length === 0 && !isLoading && (
+          <EmptyState
+            icon={Files}
+            title={t("documents", "noDocuments", lang)}
+            description={
+              <>
+                {t("documents", "generateA", lang)}{" "}
+                <Link
+                  href="/dashboard/documents/rirekisho/new"
+                  lang="ja"
+                  className="text-indigo underline underline-offset-2 hover:no-underline"
+                >
+                  履歴書
+                </Link>{" "}
+                {t("documents", "orLabel", lang)}{" "}
+                <Link
+                  href="/dashboard/documents/shokumu/new"
+                  lang="ja"
+                  className="text-indigo underline underline-offset-2 hover:no-underline"
+                >
+                  職務経歴書
+                </Link>{" "}
+                {t("documents", "toGetStarted", lang)}
+              </>
+            }
+          />
+        )}
+
+        {data && data.items.length > 0 && (
+          <ul className="space-y-3">
+            {data.items.map((doc) => (
+              <DocumentCard key={doc.id} doc={doc} />
+            ))}
+          </ul>
+        )}
       </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-1 border-b">
-        {(["all", "rirekisho", "shokumukeirekisho"] as const).map((tp) => (
-          <button
-            key={tp}
-            onClick={() => setFilter(tp)}
-            className={`px-3 py-2 text-sm transition-colors ${
-              filter === tp
-                ? "border-b-2 border-primary font-medium text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tp === "all" ? (
-              t("documents", "all", lang)
-            ) : (
-              <span lang="ja">{tp === "rirekisho" ? "履歴書" : "職務経歴書"}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {isLoading && <DocumentsSkeleton />}
-
-      {error && <p className="text-sm text-destructive">{t("documents", "loadError", lang)}</p>}
-
-      {data && data.items.length === 0 && !isLoading && (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">{t("documents", "noDocuments", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("documents", "generateA", lang)}{" "}
-            <Link
-              href="/dashboard/documents/rirekisho/new"
-              lang="ja"
-              className="underline hover:text-foreground"
-            >
-              履歴書
-            </Link>{" "}
-            {t("documents", "orLabel", lang)}{" "}
-            <Link
-              href="/dashboard/documents/shokumu/new"
-              lang="ja"
-              className="underline hover:text-foreground"
-            >
-              職務経歴書
-            </Link>{" "}
-            {t("documents", "toGetStarted", lang)}
-          </p>
-        </div>
-      )}
-
-      {data && data.items.length > 0 && (
-        <ul className="space-y-3">
-          {data.items.map((doc) => (
-            <DocumentCard key={doc.id} doc={doc} />
-          ))}
-        </ul>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -138,7 +149,7 @@ function DocumentCard({ doc }: { doc: Document }) {
   }
 
   return (
-    <li className="flex items-center justify-between rounded-lg border bg-card p-4">
+    <li className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
           PDF
@@ -153,60 +164,36 @@ function DocumentCard({ doc }: { doc: Document }) {
         </div>
       </div>
 
-      <div className="ml-4 flex shrink-0 items-center gap-3">
-        <StatusBadge status={doc.status} />
-        <Link
-          href={`/dashboard/documents/${doc.id}`}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {t("common", "view", lang)} →
-        </Link>
+      <div className="flex flex-wrap items-center gap-1 sm:shrink-0">
+        <DocumentStatusBadge status={doc.status} />
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/dashboard/documents/${doc.id}` as Route}>
+            {t("common", "view", lang)}
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </Button>
         {canDelete && (
-          <button
-            onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleDelete()}
+            loading={deleteMutation.isPending}
+            className="text-destructive hover:text-destructive"
           >
             {t("common", "delete", lang)}
-          </button>
+          </Button>
         )}
       </div>
     </li>
   );
 }
 
-function StatusBadge({ status }: { status: DocumentStatus }) {
-  const { lang } = useLang();
-  const styles: Record<DocumentStatus, string> = {
-    pending: "bg-warning/10 text-warning",
-    processing: "bg-primary/10 text-primary",
-    completed: "bg-success/10 text-success",
-    failed: "bg-destructive/10 text-destructive",
-  };
-  const labels: Record<DocumentStatus, string> = {
-    pending: t("documents", "statusPending", lang),
-    processing: t("documents", "statusProcessing", lang),
-    completed: t("documents", "statusCompleted", lang),
-    failed: t("documents", "statusFailed", lang),
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}
-    >
-      {status === "processing" && (
-        <span className="h-2 w-2 animate-spin rounded-full border border-primary border-t-transparent" />
-      )}
-      {labels[status]}
-    </span>
-  );
-}
-
 function DocumentsSkeleton() {
   return (
-    <ul className="space-y-3">
+    <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <li key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+        <Skeleton key={i} className="h-16 rounded-lg" />
       ))}
-    </ul>
+    </div>
   );
 }

@@ -3,6 +3,11 @@
 import { use } from "react";
 import { useVisaConsultation } from "@/hooks/useVisa";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { VisaChecklist, VisaChecklistStep } from "@/types/api";
@@ -19,11 +24,11 @@ export default function VisaConsultationPage({ params }: Props) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-        <div className="h-16 animate-pulse rounded-lg bg-muted" />
-        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-16 rounded-lg" />
+        <Skeleton className="h-24 rounded-lg" />
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
+          <Skeleton key={i} className="h-14 rounded-lg" />
         ))}
       </div>
     );
@@ -33,7 +38,7 @@ export default function VisaConsultationPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <Breadcrumbs items={[{ label: t("visa", "title", lang), href: "/dashboard/visa" }]} />
-        <p className="text-sm text-destructive">{t("visa", "consultNotFound", lang)}</p>
+        <Alert>{t("visa", "consultNotFound", lang)}</Alert>
       </div>
     );
   }
@@ -47,20 +52,16 @@ export default function VisaConsultationPage({ params }: Props) {
         ]}
       />
 
-      <div>
-        <h1 className="text-2xl font-semibold">{t("visa", "roadmapTitle", lang)}</h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("visa", "generated", lang)}{" "}
-          {new Date(consultation.created_at).toLocaleDateString(lang, {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
-      </div>
+      <PageHeader
+        className="mb-0"
+        title={t("visa", "roadmapTitle", lang)}
+        description={`${t("visa", "generated", lang)} ${new Date(
+          consultation.created_at,
+        ).toLocaleDateString(lang, { day: "numeric", month: "long", year: "numeric" })}`}
+      />
 
       {/* Visa type banner */}
-      <div className="rounded-lg border bg-primary/5 px-5 py-4">
+      <div className="rounded-lg border bg-indigo-soft px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t("visa", "recommendedVisa", lang)}
         </p>
@@ -69,12 +70,12 @@ export default function VisaConsultationPage({ params }: Props) {
 
       {/* Guidance */}
       {consultation.ai_guidance && (
-        <div className="rounded-lg border bg-card p-5">
+        <Card className="p-5">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t("visa", "guidance", lang)}
           </p>
           <p className="text-sm leading-relaxed">{consultation.ai_guidance}</p>
-        </div>
+        </Card>
       )}
 
       {/* Checklist phases (read-only) */}
@@ -91,9 +92,9 @@ function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
     <div className="space-y-3">
       <p className="text-sm font-medium">{t("visa", "roadmapPhases", lang)}</p>
       {checklist.phases.map((phase, idx) => (
-        <div key={idx} className="overflow-hidden rounded-lg border bg-card">
+        <Card key={idx} className="overflow-hidden">
           <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-soft text-xs font-bold text-indigo">
               {idx + 1}
             </span>
             <div>
@@ -106,7 +107,7 @@ function ReadOnlyChecklist({ checklist }: { checklist: VisaChecklist }) {
               <StepRow key={step.id} step={step} />
             ))}
           </ul>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -120,11 +121,7 @@ function StepRow({ step }: { step: VisaChecklistStep }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium">{step.title}</p>
-            {!step.required && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                {t("visa", "optional", lang)}
-              </span>
-            )}
+            {!step.required && <Badge>{t("visa", "optional", lang)}</Badge>}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p>
           {step.resources.length > 0 && (

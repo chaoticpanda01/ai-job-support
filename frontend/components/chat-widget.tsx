@@ -8,6 +8,9 @@ import { ApiClientError } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t, type translations } from "@/lib/i18n";
+import { Bot, MessageCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 // Backend limit for ChatRequest.message and for each history item's content,
 // counted in characters (code points). Longer values get a 422.
@@ -160,22 +163,18 @@ export function ChatWidget() {
     }
   }
 
+  // Rises above a bar pinned to the bottom of the screen (useBottomBarOffset).
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-[calc(1.5rem+var(--bottom-bar-offset,0px))] right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat window */}
       {open && (
         <SignedOut>
           <div className="flex h-[500px] w-80 flex-col items-center justify-center gap-4 rounded-2xl border bg-background p-6 text-center shadow-xl sm:w-96">
-            <span aria-hidden="true" className="text-3xl">
-              🤖
-            </span>
+            <Bot aria-hidden="true" className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("chat", "signedOutPrompt", lang)}</p>
-            <Link
-              href={SIGN_IN_ROUTE}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {t("nav", "signIn", lang)}
-            </Link>
+            <Button asChild>
+              <Link href={SIGN_IN_ROUTE}>{t("nav", "signIn", lang)}</Link>
+            </Button>
           </div>
         </SignedOut>
       )}
@@ -185,9 +184,7 @@ export function ChatWidget() {
             {/* Header */}
             <div className="flex items-center justify-between bg-primary px-4 py-3">
               <div className="flex items-center gap-2">
-                <span aria-hidden="true" className="text-lg">
-                  🤖
-                </span>
+                <Bot aria-hidden="true" className="h-5 w-5 text-primary-foreground" />
                 <div>
                   <p className="text-sm font-semibold text-primary-foreground">
                     {t("chat", "title", lang)}
@@ -198,11 +195,12 @@ export function ChatWidget() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("chat", "closeChat", lang)}
-                className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground"
+                className="rounded-md p-1 text-primary-foreground/70 hover:text-primary-foreground focus-visible:outline-primary-foreground"
               >
-                ✕
+                <X aria-hidden="true" className="h-4 w-4" />
               </button>
             </div>
 
@@ -253,7 +251,7 @@ export function ChatWidget() {
                 </p>
               )}
               <div className="flex gap-2">
-                <textarea
+                <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
@@ -262,15 +260,16 @@ export function ChatWidget() {
                   placeholder={t("chat", placeholderKey, lang)}
                   rows={1}
                   disabled={rateLimited}
-                  className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                  className="min-h-0 flex-1 resize-none rounded-lg"
                 />
-                <button
+                <Button
+                  size="sm"
+                  className="self-end"
                   onClick={sendMessage}
                   disabled={loading || !input.trim() || rateLimited}
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {t("chat", "send", lang)}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -280,11 +279,15 @@ export function ChatWidget() {
       {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-2xl shadow-lg transition-opacity hover:opacity-90"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg transition-opacity hover:opacity-90"
         aria-label={t("chat", toggleLabelKey, lang)}
         aria-expanded={open}
       >
-        {open ? "✕" : "💬"}
+        {open ? (
+          <X aria-hidden="true" className="h-6 w-6 text-primary-foreground" />
+        ) : (
+          <MessageCircle aria-hidden="true" className="h-6 w-6 text-primary-foreground" />
+        )}
       </button>
     </div>
   );

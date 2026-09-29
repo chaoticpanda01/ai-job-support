@@ -134,6 +134,13 @@ describe("the error code contracts match the backend", () => {
     expect(tsMembers.sort()).toEqual(pyMembers.sort());
   });
 
+  it("ApplicationStatus matches, in stage order", () => {
+    const tsMembers = tsUnionMembers(apiTypes, "ApplicationStatus");
+    const pyMembers = pythonEnumMembers(enums, "ApplicationStatus");
+    expect(tsMembers.length).toBeGreaterThan(0);
+    expect(tsMembers).toEqual(pyMembers);
+  });
+
   it("every interview stream failure sends a code", () => {
     const route = readFileSync(join(BACKEND, "app/api/v1/interview.py"), "utf8");
     // _sse_error("...") with a bare string means a failure the client cannot
@@ -154,12 +161,12 @@ describe("the error code contracts match the backend", () => {
 describe("the rirekisho required fields match the backend", () => {
   // The Settings banner deliberately re-implements a subset of
   // rirekisho_missing_fields() so it can update as the reader types, instead
-  // of a request per keystroke. The page says in so many words that the two
-  // are kept in sync by hand, which is what this guards: a field added to
-  // the backend's list and not here means the banner says "ready" for a
-  // profile that generation will reject.
+  // of a request per keystroke. lib/rirekisho-completeness.ts says in so many
+  // words that the two are kept in sync by hand, which is what this guards: a
+  // field added to the backend's list and not here means the banner says
+  // "ready" for a profile that generation will reject.
   const py = readFileSync(join(BACKEND, "app/services/rirekisho_completeness.py"), "utf8");
-  const page = readFileSync(join(FRONTEND, "app/dashboard/settings/page.tsx"), "utf8");
+  const page = readFileSync(join(FRONTEND, "lib/rirekisho-completeness.ts"), "utf8");
   const requiredKeys = [
     ...tsConstArray(page, "BASE_REQUIRED_KEYS"),
     ...tsConstArray(page, "VISA_HELD_REQUIRED_KEYS"),
@@ -213,7 +220,7 @@ describe("the rirekisho required fields match the backend", () => {
     // a page test unless a fixture happens to leave that one field empty.
     const body = declarationBody(
       page,
-      "function isFieldMissing(key: string, form: ProfileUpdateRequest): boolean {",
+      "function isFieldMissing(key: string, form: CompletenessFields): boolean {",
     );
     const handled = [...body.matchAll(/^    case "(\w+)":$/gm)].map((m) => m[1] as string);
     expect(handled.length).toBeGreaterThan(0);

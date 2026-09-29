@@ -145,6 +145,7 @@ def _mock_application(*, user_id: uuid.UUID | None = None, job_posting: Any = No
     application.job_posting_id = uuid.uuid4()
     application.status = ApplicationStatus.planning
     application.applied_at = None
+    application.closed_from = None
     application.notes = None
     application.created_at = datetime.now(tz=UTC)
     application.updated_at = datetime.now(tz=UTC)
@@ -776,6 +777,195 @@ async def test_update_application_notes_only() -> None:
             )
 
     assert resp.status_code == 200
+
+
+async def _patch_body(application: MagicMock, body: dict[str, Any]) -> tuple[Any, AsyncMock]:
+    """PATCH as the application's owner; returns the response and the update mock."""
+    user = make_user()
+    application.user_id = user.id
+    update = AsyncMock(return_value=application)
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(scalar_results=[application, application]),
+        patch("app.repositories.job.JobApplicationRepository.update", new=update),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/jobs/applications/{application.id}",
+                headers=_auth_headers(),
+                json=body,
+            )
+    return resp, update
+
+
+async def _patch_status(application: MagicMock, status: str) -> tuple[Any, AsyncMock]:
+    return await _patch_body(application, {"status": status})
+
+
+@pytest.mark.asyncio
+async def test_update_application_refuses_a_move_off_the_table() -> None:
+    application = _mock_application()  # planning
+
+    resp, update = await _patch_status(application, "offered")
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Can't move an application from 'planning' to 'offered'."
+    update.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_application_to_its_own_status_changes_nothing() -> None:
+    application = _mock_application()  # planning
+
+    resp, update = await _patch_status(application, "planning")
+
+    assert resp.status_code == 200
+    update.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_application_records_where_a_closed_job_came_from() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.interviewing
+    application.applied_at = datetime.now(tz=UTC)
+
+    resp, update = await _patch_status(application, "rejected")
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(
+        application,
+        status=ApplicationStatus.rejected,
+        closed_from=ApplicationStatus.interviewing,
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_application_reopens_where_it_left_and_clears_closed_from() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.rejected
+    application.closed_from = ApplicationStatus.interviewing
+    application.applied_at = datetime.now(tz=UTC)
+
+    resp, update = await _patch_status(application, "interviewing")
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(
+        application, status=ApplicationStatus.interviewing, closed_from=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_application_will_not_reopen_somewhere_else() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.rejected
+    application.closed_from = ApplicationStatus.interviewing
+
+    resp, _ = await _patch_status(application, "offered")
+
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_application_reopens_an_old_closed_job_at_applied() -> None:
+    # Closed before closed_from existed, after applying.
+    application = _mock_application()
+    application.status = ApplicationStatus.withdrawn
+    application.applied_at = datetime.now(tz=UTC)
+
+    resp, update = await _patch_status(application, "applied")
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(application, status=ApplicationStatus.applied, closed_from=None)
+
+
+@pytest.mark.asyncio
+async def test_update_application_sets_applied_at_the_first_time_only() -> None:
+    application = _mock_application()  # planning, never applied
+
+    resp, update = await _patch_status(application, "applied")
+
+    assert resp.status_code == 200
+    kwargs = update.await_args.kwargs
+    assert kwargs["status"] == ApplicationStatus.applied
+    assert isinstance(kwargs["applied_at"], datetime)
+
+
+@pytest.mark.asyncio
+async def test_update_application_undoing_applied_forgets_that_it_was_applied() -> None:
+    # "Mark as applied" is the likeliest mis-click, and Back is how it is undone.
+    # Left stamped, Home and the board would keep saying the user had applied.
+    application = _mock_application()
+    application.status = ApplicationStatus.applied
+    application.applied_at = datetime.now(tz=UTC)
+
+    resp, update = await _patch_status(application, "preparing")
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(
+        application, status=ApplicationStatus.preparing, closed_from=None, applied_at=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_application_stepping_back_to_applied_keeps_the_date() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.interviewing
+    applied_at = datetime.now(tz=UTC)
+    application.applied_at = applied_at
+
+    resp, update = await _patch_status(application, "applied")
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(application, status=ApplicationStatus.applied, closed_from=None)
+
+
+@pytest.mark.asyncio
+async def test_update_application_withdrawing_after_applying_keeps_the_date() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.applied
+    application.applied_at = datetime.now(tz=UTC)
+
+    resp, update = await _patch_status(application, "withdrawn")
+
+    assert resp.status_code == 200
+    assert "applied_at" not in update.await_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_update_application_clears_a_stale_closed_from_on_any_move() -> None:
+    # Two tabs can leave closed_from behind on a job that is no longer closed.
+    application = _mock_application()
+    application.status = ApplicationStatus.planning
+    application.closed_from = ApplicationStatus.interviewing
+
+    resp, update = await _patch_status(application, "preparing")
+
+    assert resp.status_code == 200
+    assert update.await_args.kwargs["closed_from"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_application_ignores_fields_it_does_not_own() -> None:
+    application = _mock_application()
+
+    resp, update = await _patch_body(
+        application,
+        {"notes": "x", "closed_from": "applied", "applied_at": "2026-01-01T00:00:00Z"},
+    )
+
+    assert resp.status_code == 200
+    update.assert_awaited_once_with(application, notes="x")
+
+
+@pytest.mark.asyncio
+async def test_update_application_returns_closed_from() -> None:
+    application = _mock_application()
+    application.status = ApplicationStatus.skipped
+    application.closed_from = ApplicationStatus.planning
+
+    resp, _ = await _patch_status(application, "skipped")  # a no-op, returns the row
+
+    assert resp.json()["closed_from"] == "planning"
 
 
 # ---------------------------------------------------------------------------

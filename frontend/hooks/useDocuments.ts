@@ -19,13 +19,27 @@ const POLL_RETRY_ATTEMPTS = 2;
 // List
 // ---------------------------------------------------------------------------
 
-export function useDocuments(type?: DocumentType) {
-  const params = type ? `?type=${type}` : "";
+/** One page, newest first. `limit` asks for a larger page (the backend allows up to 100). */
+export function useDocuments(type?: DocumentType, limit?: number) {
+  const params = new URLSearchParams();
+  if (type) params.set("type", type);
+  if (limit !== undefined) params.set("limit", String(limit));
+  const query = params.toString() ? `?${params}` : "";
   return useQuery<DocumentList>({
-    queryKey: ["documents", type ?? "all"],
-    queryFn: () => apiClient.get<DocumentList>(`/documents${params}`),
+    queryKey: ["documents", type ?? "all", ...(limit !== undefined ? [{ limit }] : [])],
+    queryFn: () => apiClient.get<DocumentList>(`/documents${query}`),
   });
 }
+
+/**
+ * Every documents list's key prefix: all types (with or without a limit) and
+ * each type on its own. Not the per-document keys, which start with an id.
+ */
+const LIST_QUERY_KEYS = [
+  ["documents", "all"],
+  ["documents", "rirekisho"],
+  ["documents", "shokumukeirekisho"],
+] as const;
 
 // ---------------------------------------------------------------------------
 // Status poll — refetches every 3 s until completed or failed
@@ -41,9 +55,22 @@ export function useDocuments(type?: DocumentType) {
  * document, warn that it may be out of date).
  */
 export function useDocumentStatus(id: string) {
+  const queryClient = useQueryClient();
   const query = useQuery<DocumentStatusResponse>({
     queryKey: ["documents", id, "status"],
-    queryFn: () => apiClient.get<DocumentStatusResponse>(`/documents/${id}`),
+    queryFn: async () => {
+      const result = await apiClient.get<DocumentStatusResponse>(`/documents/${id}`);
+      // The lists were last fetched when the job was created, still pending;
+      // Home and the sidebar count a document only once it's completed. A
+      // finished generation is the moment they change, and nothing else
+      // refreshes them.
+      if (result.status === "completed" || result.status === "failed") {
+        for (const queryKey of LIST_QUERY_KEYS) {
+          void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        }
+      }
+      return result;
+    },
     enabled: Boolean(id),
     refetchInterval: (query) => {
       // The query has given up -- whether or not a document loaded first.

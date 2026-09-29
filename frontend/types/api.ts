@@ -313,11 +313,14 @@ export interface MatchRequest {
 
 export type ApplicationStatus =
   | "planning"
+  | "preparing"
   | "applied"
   | "interviewing"
   | "offered"
+  | "accepted"
   | "rejected"
-  | "withdrawn";
+  | "withdrawn"
+  | "skipped";
 
 export interface JobApplication {
   id: string;
@@ -326,6 +329,8 @@ export interface JobApplication {
   status: ApplicationStatus;
   applied_at: string | null;
   notes: string | null;
+  /** The stage an archived job (rejected, withdrawn, skipped) left; reopening returns it there. */
+  closed_from: ApplicationStatus | null;
   created_at: string;
   updated_at: string;
   job_title: string | null;

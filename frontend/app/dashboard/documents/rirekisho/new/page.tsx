@@ -3,12 +3,25 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { Route } from "next";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
 import { useMe } from "@/hooks/useMe";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DocumentWizard } from "@/components/documents/DocumentWizard";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
+import {
+  REQUIRED_FIELD_LABEL_KEYS,
+  VISA_HELD_REQUIRED_KEYS,
+  missingFieldLabel,
+} from "@/lib/rirekisho-completeness";
 import { t } from "@/lib/i18n";
 import type { DocumentOrientation } from "@/types/api";
 
@@ -25,7 +38,13 @@ function NewRirekishoPageInner() {
   const searchParams = useSearchParams();
   const initialJobPostingId = searchParams.get("job") ?? undefined;
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
-  const { data: me, isLoading: meLoading } = useMe();
+  const {
+    data: me,
+    isLoading: meLoading,
+    isFetching: meFetching,
+    errorUpdateCount: meErrorCount,
+    refetch: refetchMe,
+  } = useMe();
   const createMutation = useCreateDocument("rirekisho");
   const { lang } = useLang();
 
@@ -65,50 +84,57 @@ function NewRirekishoPageInner() {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <div>
-        <Link
-          href="/dashboard/documents"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("documents", "backToDocuments", lang)}
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold">{t("documents", "generateRirekisho", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("documents", "rirekishoSub", lang)}</p>
-      </div>
+      <Breadcrumbs
+        items={[
+          { label: t("documents", "title", lang), href: "/dashboard/documents" },
+          { label: t("documents", "generateRirekisho", lang) },
+        ]}
+      />
+      <PageHeader
+        className="mb-0"
+        title={t("documents", "generateRirekisho", lang)}
+        description={t("documents", "rirekishoSub", lang)}
+      />
 
       {meStatus === "loading" && (
-        <div className="space-y-4 rounded-lg border border-dashed p-6">
-          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-full animate-pulse rounded bg-muted" />
-          <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
-          <div className="h-9 w-32 animate-pulse rounded-md bg-muted" />
-        </div>
+        <Card className="space-y-4 p-6">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-5/6" />
+          <Skeleton className="h-9 w-32" />
+        </Card>
       )}
 
       {meStatus === "error" && (
-        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-destructive">
+        <Alert
+          announceKey={meErrorCount}
+          action={<RetryButton retrying={meFetching} onRetry={() => void refetchMe()} />}
+        >
           {t("documents", "profileLoadError", lang)}
-        </p>
+        </Alert>
       )}
 
       {meStatus === "incomplete" && me && (
-        <div className="space-y-4 rounded-lg border border-dashed p-6">
+        <Card className="space-y-4 p-6">
           <p className="text-sm font-medium">{t("documents", "profileIncompleteTitle", lang)}</p>
           <p className="text-sm text-muted-foreground">
             {t("documents", "profileIncompleteHint", lang)}
           </p>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             {me.rirekisho_missing_fields.map((f) => (
-              <li key={f.key}>{f.label}</li>
+              <li key={f.key}>
+                {/* The backend's own (English) label only for a field this
+                    page has no name for yet. */}
+                {f.key in REQUIRED_FIELD_LABEL_KEYS ? missingFieldLabel(f.key, lang) : f.label}
+              </li>
             ))}
           </ul>
-          <Link
-            href="/dashboard/settings#rirekisho-info"
-            className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            {t("documents", "goToSettings", lang)}
-          </Link>
-        </div>
+          <Button asChild>
+            <Link href={settingsHref(me.rirekisho_missing_fields.map((f) => f.key))}>
+              {t("documents", "goToSettings", lang)}
+            </Link>
+          </Button>
+        </Card>
       )}
 
       {meStatus === "ready" && (
@@ -125,4 +151,12 @@ function NewRirekishoPageInner() {
       )}
     </div>
   );
+}
+
+/** The Settings card to open: Visa when only visa details are missing. */
+function settingsHref(missingKeys: string[]): Route {
+  const visaOnly =
+    missingKeys.length > 0 &&
+    missingKeys.every((key) => (VISA_HELD_REQUIRED_KEYS as readonly string[]).includes(key));
+  return visaOnly ? "/dashboard/settings#visa" : "/dashboard/settings#profile";
 }

@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { RadioCard } from "@/components/ui/radio-card";
+import { Select } from "@/components/ui/select";
 import { streamErrorMessage, useInterview } from "@/hooks/useInterview";
 import {
   INTERVIEW_LANGUAGES,
@@ -15,15 +22,26 @@ import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewLanguage, InterviewType } from "@/types/api";
 
+// useSearchParams needs a Suspense boundary, as on the new-document pages.
 export default function NewInterviewPage() {
+  return (
+    <Suspense>
+      <NewInterviewForm />
+    </Suspense>
+  );
+}
+
+function NewInterviewForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { sessionId, state, createSession } = useInterview();
   const { lang } = useLang();
 
   const [sessionType, setSessionType] = useState<InterviewType>("general");
   const [language, setLanguage] = useState<InterviewLanguage>("ja");
-  const [targetRole, setTargetRole] = useState("");
-  const [targetCompany, setTargetCompany] = useState("");
+  // A job's stage panel links here with the role and company filled in.
+  const [targetRole, setTargetRole] = useState(() => searchParams.get("role") ?? "");
+  const [targetCompany, setTargetCompany] = useState(() => searchParams.get("company") ?? "");
 
   // Leave only after the stream ends with no error: the backend sends done after
   // saving the question. The session id arrives in the response headers, before
@@ -46,111 +64,91 @@ export default function NewInterviewPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <div>
-        <Link
-          href="/dashboard/interview"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("interview", "backToList", lang)}
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold">{t("interview", "newTitle", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("interview", "newSub", lang)}</p>
-      </div>
+      <Breadcrumbs
+        items={[
+          { label: t("interview", "title", lang), href: "/dashboard/interview" },
+          { label: t("interview", "newTitle", lang) },
+        ]}
+      />
+      <PageHeader
+        className="mb-0"
+        title={t("interview", "newTitle", lang)}
+        description={t("interview", "newSub", lang)}
+      />
 
       <div className="space-y-6">
-        {/* Session type */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">{t("interview", "interviewType", lang)}</p>
+        <fieldset className="space-y-2">
+          <legend className="mb-2 text-sm font-medium">
+            {t("interview", "interviewType", lang)}
+          </legend>
           <ul className="space-y-2">
             {INTERVIEW_TYPES.map((type) => (
               <li key={type}>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-card p-4 hover:bg-accent has-[:checked]:border-primary">
-                  <input
-                    type="radio"
-                    name="session_type"
-                    value={type}
-                    checked={sessionType === type}
-                    onChange={() => setSessionType(type)}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{interviewTypeLabel(type, lang)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {interviewTypeDescription(type, lang)}
-                    </p>
-                  </div>
-                </label>
+                <RadioCard
+                  name="session_type"
+                  value={type}
+                  checked={sessionType === type}
+                  onChange={() => setSessionType(type)}
+                >
+                  <p className="text-sm font-medium">{interviewTypeLabel(type, lang)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {interviewTypeDescription(type, lang)}
+                  </p>
+                </RadioCard>
               </li>
             ))}
           </ul>
-        </div>
+        </fieldset>
 
-        {/* Language */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="language">
-            {t("interview", "interviewLang", lang)}
-          </label>
-          <select
-            id="language"
+        <Field label={t("interview", "interviewLang", lang)}>
+          <Select
             value={language}
             onChange={(e) => setLanguage(e.target.value as InterviewLanguage)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {INTERVIEW_LANGUAGES.map((code) => (
               <option key={code} value={code}>
                 {interviewLanguageOption(code, lang)}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        {/* Optional context */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium">
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-medium">
             {t("interview", "context", lang)}{" "}
             <span className="font-normal text-muted-foreground">
               ({t("interview", "contextHint", lang)})
             </span>
-          </p>
-          <input
-            type="text"
-            value={targetRole}
-            onChange={(e) => setTargetRole(e.target.value)}
-            placeholder={t("interview", "rolePlaceholder", lang)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="text"
-            value={targetCompany}
-            onChange={(e) => setTargetCompany(e.target.value)}
-            placeholder={t("interview", "companyPlaceholder", lang)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        {state.error && (
-          <p
-            role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          </legend>
+          <Field
+            label={t("interview", "roleLabel", lang)}
+            optionalLabel={t("settings", "optional", lang)}
           >
-            {streamErrorMessage(state.error, lang)}
-          </p>
-        )}
+            <Input
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              placeholder={t("interview", "rolePlaceholder", lang)}
+            />
+          </Field>
+          <Field
+            label={t("interview", "companyLabel", lang)}
+            optionalLabel={t("settings", "optional", lang)}
+          >
+            <Input
+              value={targetCompany}
+              onChange={(e) => setTargetCompany(e.target.value)}
+              placeholder={t("interview", "companyPlaceholder", lang)}
+            />
+          </Field>
+        </fieldset>
 
-        <button
-          onClick={handleStart}
-          disabled={state.isStreaming || ready}
-          className="w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {state.isStreaming || ready ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              {t("interview", "starting", lang)}
-            </span>
-          ) : (
-            t("interview", "startBtn", lang)
-          )}
-        </button>
+        {state.error && <Alert>{streamErrorMessage(state.error, lang)}</Alert>}
+
+        <Button className="w-full" onClick={handleStart} loading={state.isStreaming || ready}>
+          {state.isStreaming || ready
+            ? t("interview", "starting", lang)
+            : t("interview", "startBtn", lang)}
+        </Button>
       </div>
     </div>
   );

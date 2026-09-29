@@ -2,18 +2,32 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useJob, useMatchJob, useCachedJobMatch } from "@/hooks/useJobs";
+import { Copy } from "lucide-react";
+import { useCachedJobMatch, useJob, useMatchJob } from "@/hooks/useJobs";
 import { useResumes } from "@/hooks/useResumes";
-import { useApplications, useCreateApplication } from "@/hooks/useApplications";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { StagePanel } from "@/components/jobs/stage-panel";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import { jobTitle } from "@/lib/pipeline";
+import { JOB_SCORE_BANDS, scoreTone, toneFill, toneText, type Tone } from "@/lib/tones";
+import { cn } from "@/lib/utils";
 import type { JobMatch, JobPostingDetail } from "@/types/api";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+const LINK_CLS =
+  "rounded font-medium text-indigo underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default function JobDetailPage({ params }: Props) {
   const { id } = use(params);
@@ -25,149 +39,143 @@ export default function JobDetailPage({ params }: Props) {
     return (
       <div className="space-y-4">
         <Breadcrumbs items={[{ label: t("jobs", "title", lang), href: "/dashboard/jobs" }]} />
-        <p className="text-sm text-destructive">{t("jobs", "jobNotFound", lang)}</p>
+        <Alert>{t("jobs", "jobNotFound", lang)}</Alert>
       </div>
     );
   }
 
+  // Only the untranslated original title is in the job's own language.
+  const titleLang = !job.translated_title && job.original_title ? job.original_language : undefined;
+  const title = jobTitle(job) ?? t("jobs", "untitled", lang);
+  const sd = job.structured_data;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { label: t("jobs", "title", lang), href: "/dashboard/jobs" },
-          {
-            label: job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang),
-            // Only the untranslated original title is in the job's own language.
-            lang: !job.translated_title && job.original_title ? job.original_language : undefined,
-          },
+          { label: title, lang: titleLang },
         ]}
       />
+      <PageHeader
+        className="mb-0"
+        title={title}
+        titleLang={titleLang}
+        description={sd ? [sd.company_name, sd.location].filter(Boolean).join(" · ") : undefined}
+      />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="space-y-6 lg:col-span-2">
-          <JobHeader job={job} />
-          <StructuredInfo job={job} />
+      {/* The stage panel comes first in the document, so it is first for the
+          keyboard and a screen reader as well as on phones. From lg up the grid
+          puts it and the cards below it in the right column, and the posting
+          spans that column's rows, with the last row taking up any extra height
+          so the cards stay together. */}
+      <div className="grid items-start gap-6 lg:grid-cols-3 lg:grid-rows-[repeat(4,auto)_1fr]">
+        <div className="min-w-0 lg:col-start-3">
+          <StagePanel job={job} />
+        </div>
+
+        <div className="min-w-0 space-y-6 lg:col-span-2 lg:col-start-1 lg:row-span-5 lg:row-start-1">
+          {job.source_url && (
+            <p className="text-xs text-muted-foreground">
+              {t("jobs", "source", lang)}{" "}
+              <span className="break-all font-mono">{job.source_url}</span>
+            </p>
+          )}
+          <DetailsCard job={job} />
           <TranslatedDescription job={job} />
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <JobIdCard jobId={id} />
-          <ScoreCard score={job.foreigner_friendliness_score} />
-          <MatchSection jobId={id} />
-        </div>
+        <ScoreCard score={job.foreigner_friendliness_score} />
+        <MatchSection jobId={id} />
+        <JobIdCard jobId={id} />
       </div>
     </div>
   );
 }
 
-function JobHeader({ job }: { job: JobPostingDetail }) {
-  const { lang } = useLang();
-  return (
-    <div className="space-y-1">
-      <h1
-        lang={!job.translated_title && job.original_title ? job.original_language : undefined}
-        className="text-2xl font-semibold"
-      >
-        {job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang)}
-      </h1>
-      {job.structured_data && (
-        <p className="text-sm text-muted-foreground">
-          {job.structured_data.company_name}
-          {job.structured_data.location && ` · ${job.structured_data.location}`}
-        </p>
-      )}
-      {job.source_url && (
-        <p className="text-xs text-muted-foreground">
-          {t("jobs", "source", lang)} <span className="font-mono">{job.source_url}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function StructuredInfo({ job }: { job: JobPostingDetail }) {
+function DetailsCard({ job }: { job: JobPostingDetail }) {
   const { lang } = useLang();
   const sd = job.structured_data;
   if (!sd) return null;
 
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <h2 className="mb-3 text-sm font-medium">{t("jobs", "jobDetails", lang)}</h2>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <InfoRow label={t("jobs", "company", lang)} value={sd.company_name} />
-        <InfoRow label={t("jobs", "location", lang)} value={sd.location} />
-        <InfoRow label={t("jobs", "employmentType", lang)} value={sd.employment_type} />
-        <InfoRow label={t("jobs", "salary", lang)} value={sd.salary_range} />
-        <InfoRow
-          label={t("jobs", "japaneseRequired", lang)}
-          value={
-            sd.required_japanese === "none" ? t("jobs", "notRequired", lang) : sd.required_japanese
-          }
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{t("jobs", "jobDetails", lang)}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <dl className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+          <InfoRow label={t("jobs", "company", lang)} value={sd.company_name} />
+          <InfoRow label={t("jobs", "location", lang)} value={sd.location} />
+          <InfoRow label={t("jobs", "employmentType", lang)} value={sd.employment_type} />
+          <InfoRow label={t("jobs", "salary", lang)} value={sd.salary_range} />
+          <InfoRow
+            label={t("jobs", "japaneseRequired", lang)}
+            value={
+              sd.required_japanese === "none"
+                ? t("jobs", "notRequired", lang)
+                : sd.required_japanese
+            }
+          />
+          <InfoRow
+            label={t("jobs", "experience", lang)}
+            value={
+              sd.required_experience_years === 0
+                ? t("jobs", "freshGrads", lang)
+                : `${sd.required_experience_years}${t("jobs", "yearsPlus", lang)}`
+            }
+          />
+          <InfoRow
+            label={t("jobs", "visaSponsorship", lang)}
+            value={
+              sd.visa_sponsorship === true
+                ? t("common", "yes", lang)
+                : sd.visa_sponsorship === false
+                  ? t("common", "no", lang)
+                  : t("common", "notMentioned", lang)
+            }
+          />
+        </dl>
+        <Bullets
+          title={t("jobs", "keyRequirements", lang)}
+          items={sd.key_requirements}
+          tone="info"
         />
-        <InfoRow
-          label={t("jobs", "experience", lang)}
-          value={
-            sd.required_experience_years === 0
-              ? t("jobs", "freshGrads", lang)
-              : `${sd.required_experience_years}${t("jobs", "yearsPlus", lang)}`
-          }
-        />
-        <InfoRow
-          label={t("jobs", "visaSponsorship", lang)}
-          value={
-            sd.visa_sponsorship === true
-              ? t("common", "yes", lang)
-              : sd.visa_sponsorship === false
-                ? t("common", "no", lang)
-                : t("common", "notMentioned", lang)
-          }
-        />
-      </dl>
-
-      {sd.key_requirements.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t("jobs", "keyRequirements", lang)}
-          </p>
-          <ul className="space-y-1">
-            {sd.key_requirements.map((req, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                {req}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {sd.benefits.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t("jobs", "benefits", lang)}
-          </p>
-          <ul className="space-y-1">
-            {sd.benefits.map((b, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
-                {b}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+        <Bullets title={t("jobs", "benefits", lang)} items={sd.benefits} tone="success" />
+      </CardContent>
+    </Card>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <>
+    <div className="space-y-0.5">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="font-medium">{value}</dd>
-    </>
+    </div>
+  );
+}
+
+function Bullets({ title, items, tone }: { title: string; items: string[]; tone: Tone }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <ul className="space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm">
+            <span
+              aria-hidden="true"
+              className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", toneFill[tone])}
+            />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -178,124 +186,41 @@ function TranslatedDescription({ job }: { job: JobPostingDetail }) {
   if (!job.translated_description && !job.translation_summary) return null;
 
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-4">
-      <h2 className="text-sm font-medium">{t("jobs", "translatedDesc", lang)}</h2>
-
-      {job.translation_summary && (
-        <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{t("jobs", "summaryLabel", lang)} </span>
-          {job.translation_summary}
-        </div>
-      )}
-
-      {job.translated_description && (
-        <>
-          <div
-            className={`overflow-hidden whitespace-pre-wrap text-sm leading-relaxed transition-all ${
-              expanded ? "" : "max-h-48"
-            }`}
-          >
-            {job.translated_description}
-          </div>
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="text-xs text-primary hover:underline"
-          >
-            {expanded ? t("jobs", "showLess", lang) : t("jobs", "showFull", lang)}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-function JobIdCard({ jobId }: { jobId: string }) {
-  const { lang } = useLang();
-  const [copied, setCopied] = useState(false);
-  const { data: applications, isLoading: applicationsLoading } = useApplications();
-  const createApplication = useCreateApplication();
-
-  const existingApplication = applications?.find((a) => a.job_posting_id === jobId);
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(jobId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  function handleAddToTracker() {
-    createApplication.mutate({ job_posting_id: jobId });
-  }
-
-  return (
-    <div className="space-y-3 rounded-lg border bg-card p-4">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("jobs", "jobId", lang)}
-        </p>
-        <div className="mt-1 flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 text-xs">
-            {jobId}
-          </code>
-          <button
-            onClick={handleCopy}
-            className="shrink-0 rounded-md border px-2 py-1 text-xs hover:bg-accent"
-          >
-            {copied ? t("jobs", "copied", lang) : t("jobs", "copy", lang)}
-          </button>
-        </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">{t("jobs", "jobIdHint", lang)}</p>
-      </div>
-
-      <div className="flex flex-col gap-2 border-t pt-3">
-        <Link
-          href={`/dashboard/documents/rirekisho/new?job=${jobId}`}
-          className="rounded-md bg-primary px-3 py-2 text-center text-xs font-medium text-primary-foreground hover:opacity-90"
-        >
-          {t("jobs", "generateRirekishoForJob", lang)}
-        </Link>
-        <Link
-          href={`/dashboard/documents/shokumu/new?job=${jobId}`}
-          className="rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-accent"
-        >
-          {t("jobs", "generateShokumuForJob", lang)}
-        </Link>
-
-        {applicationsLoading ? (
-          <div className="h-9 w-full animate-pulse rounded-md bg-muted" />
-        ) : existingApplication ? (
-          <span className="rounded-md border bg-muted px-3 py-2 text-center text-xs font-medium">
-            {t("jobs", "trackingLabel", lang)}{" "}
-            {t(
-              "jobs",
-              `col${existingApplication.status.charAt(0).toUpperCase()}${existingApplication.status.slice(1)}` as never,
-              lang,
-            )}
-          </span>
-        ) : (
-          <button
-            onClick={handleAddToTracker}
-            disabled={createApplication.isPending}
-            className="rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-accent disabled:opacity-40"
-          >
-            {createApplication.isPending ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                {t("jobs", "addingToTracker", lang)}
-              </span>
-            ) : (
-              t("jobs", "addToTracker", lang)
-            )}
-          </button>
-        )}
-
-        {createApplication.error && (
-          <p role="alert" className="text-xs text-destructive">
-            {apiErrorMessage(createApplication.error, lang)}
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{t("jobs", "translatedDesc", lang)}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {job.translation_summary && (
+          <p className="rounded-md bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+            <span className="font-medium text-foreground">{t("jobs", "summaryLabel", lang)} </span>
+            {job.translation_summary}
           </p>
         )}
-      </div>
-    </div>
+        {job.translated_description && (
+          <>
+            <div
+              id="job-description"
+              className={cn(
+                "overflow-hidden whitespace-pre-wrap break-words text-sm leading-relaxed",
+                !expanded && "max-h-48",
+              )}
+            >
+              {job.translated_description}
+            </div>
+            <Button
+              variant="link"
+              size="sm"
+              aria-expanded={expanded}
+              aria-controls="job-description"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? t("jobs", "showLess", lang) : t("jobs", "showFull", lang)}
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -304,8 +229,7 @@ function ScoreCard({ score }: { score: number | null }) {
   if (score === null) return null;
 
   const rounded = Math.round(score);
-  const color =
-    rounded >= 70 ? "text-green-600" : rounded >= 50 ? "text-yellow-600" : "text-red-600";
+  const color = toneText[scoreTone(rounded, JOB_SCORE_BANDS)];
   const label =
     rounded >= 80
       ? t("jobs", "veryAccessible", lang)
@@ -316,20 +240,20 @@ function ScoreCard({ score }: { score: number | null }) {
           : t("jobs", "veryDifficult", lang);
 
   return (
-    <div className="rounded-lg border bg-card p-4 text-center">
+    <Card className="min-w-0 p-5 text-center lg:col-start-3">
       <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t("jobs", "foreignerFriendly", lang)}
       </p>
-      <p className={`text-5xl font-bold tabular-nums ${color}`}>{rounded}</p>
-      <p className={`mt-1 text-sm font-medium ${color}`}>{label}</p>
+      <p className={cn("text-5xl font-bold tabular-nums", color)}>{rounded}</p>
+      <p className={cn("mt-1 text-sm font-medium", color)}>{label}</p>
       <p className="mt-2 text-xs text-muted-foreground">{t("jobs", "outOf100", lang)}</p>
-    </div>
+    </Card>
   );
 }
 
 function MatchSection({ jobId }: { jobId: string }) {
   const { data: resumeList, isLoading: resumesLoading } = useResumes();
-  const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const [selectedResumeId, setSelectedResumeId] = useState("");
   const matchMutation = useMatchJob(jobId);
   const cachedMatch = useCachedJobMatch(jobId, selectedResumeId);
   const { lang } = useLang();
@@ -337,88 +261,84 @@ function MatchSection({ jobId }: { jobId: string }) {
   const resumes = resumeList?.items ?? [];
 
   return (
-    <div className="space-y-4 rounded-lg border bg-card p-4">
-      <h2 className="text-sm font-medium">{t("jobs", "matchScore", lang)}</h2>
+    // The stage panel's "check your match" links land here.
+    <Card id="match" className="min-w-0 scroll-mt-20 lg:col-start-3">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{t("jobs", "matchScore", lang)}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {resumesLoading && <Skeleton className="h-10 w-full" />}
 
-      {resumesLoading && <div className="h-8 animate-pulse rounded bg-muted" />}
+        {!resumesLoading && resumes.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            <Link href="/dashboard/resumes" className={LINK_CLS}>
+              {t("jobs", "uploadResumeTo", lang)}
+            </Link>{" "}
+            {t("jobs", "toScoreJob", lang)}
+          </p>
+        )}
 
-      {!resumesLoading && resumes.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          <Link href="/dashboard/resumes" className="underline hover:text-foreground">
-            {t("jobs", "uploadResumeTo", lang)}
-          </Link>{" "}
-          {t("jobs", "toScoreJob", lang)}
-        </p>
-      )}
+        {!resumesLoading && resumes.length > 0 && (
+          <>
+            <Field label={t("jobs", "matchResumeLabel", lang)}>
+              <Select
+                value={selectedResumeId}
+                onChange={(e) => setSelectedResumeId(e.target.value)}
+              >
+                <option value="">{t("jobs", "selectResume", lang)}</option>
+                {resumes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.file_name}
+                    {r.is_primary ? ` (${t("common", "primary", lang)})` : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-      {!resumesLoading && resumes.length > 0 && (
-        <>
-          <label className="block">
-            <span className="sr-only">{t("jobs", "matchResumeLabel", lang)}</span>
-            <select
-              value={selectedResumeId}
-              onChange={(e) => setSelectedResumeId(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            <Button
+              className="w-full"
+              disabled={!selectedResumeId}
+              loading={matchMutation.isPending}
+              onClick={() => matchMutation.mutate({ resume_id: selectedResumeId })}
             >
-              <option value="">{t("jobs", "selectResume", lang)}</option>
-              {resumes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.file_name}
-                  {r.is_primary ? ` (${t("common", "primary", lang)})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+              {matchMutation.isPending ? t("jobs", "scoring", lang) : t("jobs", "scoreBtn", lang)}
+            </Button>
 
-          <button
-            onClick={() => {
-              if (selectedResumeId) {
-                matchMutation.mutate({ resume_id: selectedResumeId });
-              }
-            }}
-            disabled={!selectedResumeId || matchMutation.isPending}
-            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
-            {matchMutation.isPending ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                {t("jobs", "scoring", lang)}
-              </span>
-            ) : (
-              t("jobs", "scoreBtn", lang)
+            {matchMutation.error && (
+              <Alert>
+                {/* 422 here is a precondition, not a bad request: either the
+                    posting has no translation yet or the resume can't be read. */}
+                {apiErrorMessage(matchMutation.error, lang, {
+                  422: t("jobs", "matchNotPossible", lang),
+                })}
+              </Alert>
             )}
-          </button>
+          </>
+        )}
 
-          {matchMutation.error && (
-            <p role="alert" className="text-xs text-destructive">
-              {/* 422 here is a precondition, not a bad request: either the
-                  posting has no translation yet or the resume can't be read. */}
-              {apiErrorMessage(matchMutation.error, lang, {
-                422: t("jobs", "matchNotPossible", lang),
-              })}
-            </p>
-          )}
-        </>
-      )}
-
-      {cachedMatch && <MatchResult match={cachedMatch} />}
-    </div>
+        {cachedMatch && <MatchResult match={cachedMatch} />}
+      </CardContent>
+    </Card>
   );
 }
 
 function MatchResult({ match }: { match: JobMatch }) {
   const { lang } = useLang();
   const score = Math.round(match.match_score);
-  const scoreColor =
-    score >= 70 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
-
   const bd = match.match_breakdown;
   const rec = match.recommendations;
 
   return (
     <div className="space-y-4 border-t pt-4">
       <div className="text-center">
-        <p className={`text-4xl font-bold tabular-nums ${scoreColor}`}>{score}</p>
+        <p
+          className={cn(
+            "text-4xl font-bold tabular-nums",
+            toneText[scoreTone(score, JOB_SCORE_BANDS)],
+          )}
+        >
+          {score}
+        </p>
         <p className="text-xs text-muted-foreground">{t("jobs", "overallMatch", lang)}</p>
       </div>
 
@@ -433,23 +353,9 @@ function MatchResult({ match }: { match: JobMatch }) {
 
       {rec && (
         <div className="space-y-3">
-          {rec.strengths.length > 0 && (
-            <BulletList
-              title={t("jobs", "strengths", lang)}
-              items={rec.strengths}
-              color="bg-green-500"
-            />
-          )}
-          {rec.gaps.length > 0 && (
-            <BulletList title={t("jobs", "gaps", lang)} items={rec.gaps} color="bg-red-500" />
-          )}
-          {rec.actions.length > 0 && (
-            <BulletList
-              title={t("jobs", "actions", lang)}
-              items={rec.actions}
-              color="bg-blue-500"
-            />
-          )}
+          <Bullets title={t("jobs", "strengths", lang)} items={rec.strengths} tone="success" />
+          <Bullets title={t("jobs", "gaps", lang)} items={rec.gaps} tone="danger" />
+          <Bullets title={t("jobs", "actions", lang)} items={rec.actions} tone="info" />
         </div>
       )}
     </div>
@@ -458,8 +364,6 @@ function MatchResult({ match }: { match: JobMatch }) {
 
 function SubScore({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value);
-  const barColor = pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
-
   return (
     <div className="space-y-0.5">
       <div className="flex justify-between text-xs">
@@ -468,7 +372,7 @@ function SubScore({ label, value }: { label: string; value: number }) {
       </div>
       <div className="h-1.5 w-full rounded-full bg-muted">
         <div
-          className={`h-1.5 rounded-full ${barColor} transition-all`}
+          className={cn("h-1.5 rounded-full", toneFill[scoreTone(pct, JOB_SCORE_BANDS)])}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -476,35 +380,48 @@ function SubScore({ label, value }: { label: string; value: number }) {
   );
 }
 
-function BulletList({ title, items, color }: { title: string; items: string[]; color: string }) {
+function JobIdCard({ jobId }: { jobId: string }) {
+  const { lang } = useLang();
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(jobId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
-    <div>
-      <p className="mb-1 text-xs font-medium">{title}</p>
-      <ul className="space-y-1">
-        {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-            <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Card className="min-w-0 space-y-2 p-5 lg:col-start-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {t("jobs", "jobId", lang)}
+      </p>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-md bg-secondary px-2 py-1 text-xs">
+          {jobId}
+        </code>
+        <Button variant="secondary" size="sm" onClick={() => void handleCopy()}>
+          <Copy aria-hidden="true" />
+          {copied ? t("jobs", "copied", lang) : t("jobs", "copy", lang)}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("jobs", "jobIdHint", lang)}</p>
+    </Card>
   );
 }
 
 function PageSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-      <div className="grid gap-8 lg:grid-cols-3">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-2/3" />
+      <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <div className="h-10 animate-pulse rounded bg-muted" />
-          <div className="h-48 animate-pulse rounded-lg bg-muted" />
-          <div className="h-64 animate-pulse rounded-lg bg-muted" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
         <div className="space-y-4">
-          <div className="h-32 animate-pulse rounded-lg bg-muted" />
-          <div className="h-48 animate-pulse rounded-lg bg-muted" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-48 w-full" />
         </div>
       </div>
     </div>

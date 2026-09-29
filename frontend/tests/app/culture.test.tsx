@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { renderIn } from "../helpers";
 import { t } from "@/lib/i18n";
 
@@ -85,7 +85,34 @@ describe("culture page", () => {
 
   it("reports a glossary failure through the same component", () => {
     renderCulture(EMPTY, FAILED);
-    fireEvent.click(screen.getByRole("button", { name: t("culture", "glossaryTab", "ja") }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: t("culture", "glossaryTab", "ja") }), {
+      button: 0,
+    });
     expect(screen.getByRole("alert")).toHaveTextContent(t("culture", "glossaryLoadError", "ja"));
+  });
+});
+
+describe("culture page, tabs and tag filter", () => {
+  it("switches between topics and the glossary with real tabs", async () => {
+    renderCulture(LOADED, EMPTY);
+    expect(
+      screen.getByRole("tablist", { name: t("culture", "sectionsLabel", "ja") }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: t("culture", "topicsTab", "ja") })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("filters topics by tag from a pressed-button group, and clears on a second press", async () => {
+    renderCulture(LOADED, EMPTY);
+    const group = screen.getByRole("group", { name: t("culture", "tagsLabel", "ja") });
+    const keigo = within(group).getByRole("button", { name: "keigo" });
+    fireEvent.click(keigo);
+    expect(keigo).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(keigo);
+    expect(
+      within(group).getByRole("button", { name: t("culture", "allTags", "ja") }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -2,10 +2,11 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useResumes } from "@/hooks/useResumes";
 import { useCreateDocument } from "@/hooks/useDocuments";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DocumentWizard } from "@/components/documents/DocumentWizard";
+import { PageHeader } from "@/components/ui/page-header";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
@@ -42,16 +43,17 @@ function NewShokumuPageInner() {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <div>
-        <Link
-          href="/dashboard/documents"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("documents", "backToDocuments", lang)}
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold">{t("documents", "generateShokumu", lang)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("documents", "shokumuSub", lang)}</p>
-      </div>
+      <Breadcrumbs
+        items={[
+          { label: t("documents", "title", lang), href: "/dashboard/documents" },
+          { label: t("documents", "generateShokumu", lang) },
+        ]}
+      />
+      <PageHeader
+        className="mb-0"
+        title={t("documents", "generateShokumu", lang)}
+        description={t("documents", "shokumuSub", lang)}
+      />
 
       <DocumentWizard
         resumeList={resumeList}

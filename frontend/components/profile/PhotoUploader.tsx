@@ -72,7 +72,7 @@ export function PhotoUploader() {
           className={[
             "flex-1 cursor-pointer rounded-md border-2 border-dashed p-4 text-center text-sm transition-colors",
             isDragActive
-              ? "border-primary bg-primary/5"
+              ? "border-primary bg-indigo-soft"
               : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/40",
             uploadPhoto.isPending ? "pointer-events-none opacity-60" : "",
           ].join(" ")}

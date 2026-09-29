@@ -2,7 +2,16 @@
 
 import { use } from "react";
 import { useAnalyzeResume, useResume, useResumeAnalysis } from "@/hooks/useResumes";
+import { Loader2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RESUME_SCORE_BANDS, scoreTone, toneFill, toneText } from "@/lib/tones";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -73,7 +82,7 @@ export default function ResumeDetailPage({ params }: Props) {
         <Breadcrumbs
           items={[{ label: t("resumes", "yourResumes", lang), href: "/dashboard/resumes" }]}
         />
-        <p className="text-sm text-destructive">{t("resumes", "notFound", lang)}</p>
+        <Alert>{t("resumes", "notFound", lang)}</Alert>
       </div>
     );
   }
@@ -118,109 +127,80 @@ export default function ResumeDetailPage({ params }: Props) {
         ]}
       />
 
-      {/* Resume meta */}
-      <div className="rounded-lg border bg-card p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">{resume.file_name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeader
+        className="mb-0"
+        title={resume.file_name}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>
               {fileSizeKB} KB · {t("resumes", "uploaded", lang)} {uploadedAt}
-              {resume.is_primary && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {t("common", "primary", lang)}
-                </span>
-              )}
-            </p>
-          </div>
-          {resume.download_url && (
-            <a
-              href={resume.download_url}
-              download
-              className="shrink-0 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              {t("common", "download", lang)}
-            </a>
-          )}
-        </div>
-      </div>
+            </span>
+            {resume.is_primary && <Badge variant="info">{t("common", "primary", lang)}</Badge>}
+          </span>
+        }
+        actions={
+          resume.download_url ? (
+            <Button asChild variant="secondary">
+              <a href={resume.download_url} download>
+                {t("common", "download", lang)}
+              </a>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Analysis */}
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-medium">{t("resumes", "aiAnalysis", lang)}</h2>
           {canAnalyse && (
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzeMutation.isPending}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
+            <Button onClick={handleAnalyze} loading={analyzeMutation.isPending}>
               {analyzeMutation.isPending
                 ? t("resumes", "queueing", lang)
                 : failed
                   ? t("common", "tryAgain", lang)
                   : t("resumes", "analyseBtn", lang)}
-            </button>
+            </Button>
           )}
         </div>
 
         <LiveAnnouncer message={analysisAnnouncement} />
 
         {analysisLoading && (
-          <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-            <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <Card className="flex flex-col items-center gap-3 p-6 text-sm text-muted-foreground">
+            <Loader2
+              aria-hidden="true"
+              className="h-5 w-5 animate-spin motion-reduce:animate-none"
+            />
             {t("resumes", "analysing", lang)}
-          </div>
+          </Card>
         )}
 
         {analysis && <AnalysisCard analysis={analysis} />}
 
-        {analysisError && (
-          <p
-            role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {t("resumes", "analysisLoadError", lang)}
-          </p>
-        )}
+        {analysisError && <Alert>{t("resumes", "analysisLoadError", lang)}</Alert>}
 
         {statusError && !analysis && (
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              key={statusErrorCount}
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {t("resumes", "analysisStatusError", lang)}
-            </p>
-            {/* aria-disabled rather than disabled, so the button keeps keyboard
-                focus while the check runs. */}
-            <button
-              type="button"
-              onClick={() => {
-                if (!checkingStatus) refetchStatus();
-              }}
-              aria-disabled={checkingStatus}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent aria-disabled:opacity-50"
-            >
-              {t("common", checkingStatus ? "retrying" : "tryAgain", lang)}
-            </button>
-          </div>
+          <Alert
+            announceKey={statusErrorCount}
+            action={<RetryButton retrying={checkingStatus} onRetry={() => refetchStatus()} />}
+          >
+            {t("resumes", "analysisStatusError", lang)}
+          </Alert>
         )}
 
         {failed && (
-          <p
-            role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {t("resumes", failureMessageKey(analysisStatus.error_code), lang)}
-          </p>
+          <Alert>{t("resumes", failureMessageKey(analysisStatus.error_code), lang)}</Alert>
         )}
 
         {!analysis && !analysisLoading && busy && (
-          <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-            <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <Card className="flex flex-col items-center gap-3 p-6 text-sm text-muted-foreground">
+            <Loader2
+              aria-hidden="true"
+              className="h-5 w-5 animate-spin motion-reduce:animate-none"
+            />
             {t("resumes", "analysing", lang)}
-          </div>
+          </Card>
         )}
       </section>
     </div>
@@ -231,11 +211,10 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
   const { lang } = useLang();
   const r = analysis.result;
   const score = r.japan_market_score;
-  const scoreColor =
-    score >= 81 ? "text-green-600" : score >= 61 ? "text-yellow-600" : "text-red-600";
+  const scoreColor = toneText[scoreTone(score, RESUME_SCORE_BANDS)];
 
   return (
-    <div className="animate-fade-in space-y-6 rounded-lg border bg-card p-6">
+    <Card className="animate-fade-in space-y-6 p-6">
       {/* Score */}
       <div className="flex items-center gap-4">
         <div className={`text-5xl font-bold tabular-nums ${scoreColor}`}>{score}</div>
@@ -289,7 +268,7 @@ function AnalysisCard({ analysis }: { analysis: ResumeAnalysis }) {
         })}{" "}
         · {analysis.ai_model} · {analysis.input_tokens + analysis.output_tokens} tokens
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -303,7 +282,7 @@ function AnalysisSection({
   variant: "positive" | "negative" | "neutral";
 }) {
   const dot =
-    variant === "positive" ? "bg-green-500" : variant === "negative" ? "bg-red-500" : "bg-blue-500";
+    toneFill[variant === "positive" ? "success" : variant === "negative" ? "danger" : "info"];
 
   return (
     <div>
@@ -311,7 +290,10 @@ function AnalysisSection({
       <ul className="space-y-1.5">
         {items.map((item, i) => (
           <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+            <span
+              aria-hidden="true"
+              className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`}
+            />
             {item}
           </li>
         ))}
@@ -323,9 +305,9 @@ function AnalysisSection({
 function PageSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-      <div className="h-24 animate-pulse rounded-lg bg-muted" />
-      <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-10 w-2/3" />
+      <Skeleton className="h-64 rounded-lg" />
     </div>
   );
 }

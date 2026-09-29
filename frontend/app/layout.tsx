@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Sans_JP } from "next/font/google";
+import { Noto_Sans, Noto_Sans_JP, Shippori_Mincho } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import { ChatWidget } from "@/components/chat-widget";
@@ -20,6 +20,31 @@ const notoSansJP = Noto_Sans_JP({
   display: "swap",
 });
 
+// Page titles only (font-display). next/font self-hosts every unicode-range
+// file from Google's CSS, so kanji render in Mincho too; `subsets` only
+// chooses what is preloaded.
+const shipporiMincho = Shippori_Mincho({
+  weight: ["600", "700"],
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+// Clerk draws its sign-in card and account menu with its own theme. These
+// match them to the tokens in globals.css (hex, because Clerk can't read CSS
+// variables for colour maths).
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#1C1B19",
+    colorBackground: "#FFFFFF",
+    colorText: "#1C1B19",
+    colorTextSecondary: "#6B675F",
+    colorDanger: "#B42318",
+    borderRadius: "0.5rem",
+    fontFamily: "var(--font-noto-sans), var(--font-noto-sans-jp), sans-serif",
+  },
+};
+
 export const metadata: Metadata = {
   title: {
     default: "Japan Job Support",
@@ -36,8 +61,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const lang = await getSavedLanguage();
 
   return (
-    <ClerkProvider>
-      <html lang={lang} className={`${notoSans.variable} ${notoSansJP.variable}`}>
+    // afterSignOutUrl lives here, not on each <UserButton>, where Clerk 6 deprecates it.
+    <ClerkProvider appearance={clerkAppearance} afterSignOutUrl="/sign-in">
+      <html
+        lang={lang}
+        // With smooth scrolling on <html>, Next.js 15.5 warns on every route
+        // change, and from Next 16 only keeps route changes instant if told.
+        data-scroll-behavior="smooth"
+        className={`${notoSans.variable} ${notoSansJP.variable} ${shipporiMincho.variable} motion-safe:scroll-smooth`}
+      >
         <body className="min-h-screen bg-background font-sans antialiased">
           <Providers initialLang={lang}>
             <SkipLink />

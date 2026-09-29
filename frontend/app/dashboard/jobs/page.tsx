@@ -1,118 +1,155 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useJobs, useDeleteJob } from "@/hooks/useJobs";
+import type { Route } from "next";
+import { Briefcase, Trash2 } from "lucide-react";
 import { useConfirm } from "@/components/confirm-dialog-provider";
+import { StageBadge } from "@/components/jobs/stage-badge";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApplications, useCreateApplication } from "@/hooks/useApplications";
+import { useDeleteJob, useJobs } from "@/hooks/useJobs";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
-import type { JobPosting } from "@/types/api";
+import { jobTitle } from "@/lib/pipeline";
+import { JOB_SCORE_BANDS, scoreTone, toneText } from "@/lib/tones";
+import { cn } from "@/lib/utils";
+import type { JobApplication, JobPosting } from "@/types/api";
+
+const MIN_SCORES = [60, 70, 80];
 
 export default function JobsPage() {
-  const [q, setQ] = useState("");
-  const [minScore, setMinScore] = useState<number | undefined>(undefined);
-  const [search, setSearch] = useState("");
   const { lang } = useLang();
+  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [minScore, setMinScore] = useState<number | undefined>(undefined);
+  const jobs = useJobs({ q: search || undefined, min_score: minScore });
+  const applications = useApplications();
+  const filtered = search !== "" || minScore !== undefined;
 
-  const { data, isLoading, error } = useJobs({
-    q: search || undefined,
-    min_score: minScore,
-  });
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setSearch(q);
+  function clearFilters() {
+    setQ("");
+    setSearch("");
+    setMinScore(undefined);
   }
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("jobs", "title", lang)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("jobs", "sub", lang)}</p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Link
-            href="/dashboard/jobs/applications"
-            className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
-          >
-            {t("jobs", "tracker", lang)}
-          </Link>
-          <Link
-            href="/dashboard/jobs/translate"
-            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            {t("jobs", "translateBtn", lang)}
-          </Link>
-        </div>
-      </div>
+  // Each job's application, or undefined while the pipeline is unknown: a row
+  // then shows neither its stage nor Save, rather than offering a duplicate.
+  const byJob = applications.data
+    ? new Map(applications.data.map((a) => [a.job_posting_id, a]))
+    : undefined;
 
-      {/* Filters */}
-      <form onSubmit={handleSearch} className="flex gap-2">
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        className="mb-0"
+        title={t("jobs", "title", lang)}
+        description={t("jobs", "sub", lang)}
+        actions={
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/dashboard/jobs/applications">{t("jobs", "pipelineLink", lang)}</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/jobs/translate">{t("jobs", "translateBtn", lang)}</Link>
+            </Button>
+          </>
+        }
+      />
+
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSearch(q.trim());
+        }}
+        className="flex flex-col gap-2 sm:flex-row"
+      >
         <label htmlFor="job-search" className="sr-only">
           {t("jobs", "searchLabel", lang)}
         </label>
-        <input
+        <Input
           id="job-search"
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("jobs", "searchPlaceholder", lang)}
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          className="sm:flex-1"
         />
         <label htmlFor="job-min-score" className="sr-only">
           {t("jobs", "minScoreLabel", lang)}
         </label>
-        <select
+        <Select
           id="job-min-score"
           value={minScore ?? ""}
           onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : undefined)}
-          className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="sm:w-40"
         >
           <option value="">{t("jobs", "allScores", lang)}</option>
-          <option value="60">Score ≥ 60</option>
-          <option value="70">Score ≥ 70</option>
-          <option value="80">Score ≥ 80</option>
-        </select>
-        <button type="submit" className="rounded-md border px-4 py-2 text-sm hover:bg-accent">
-          {t("common", "search", lang)}
-        </button>
-        {(search || minScore !== undefined) && (
-          <button
-            type="button"
-            onClick={() => {
-              setQ("");
-              setSearch("");
-              setMinScore(undefined);
-            }}
-            className="rounded-md border px-4 py-2 text-sm text-muted-foreground hover:bg-accent"
-          >
-            {t("common", "clear", lang)}
-          </button>
-        )}
+          {MIN_SCORES.map((n) => (
+            <option key={n} value={n}>{`${n}+`}</option>
+          ))}
+        </Select>
+        <div className="flex gap-2">
+          <Button type="submit" variant="secondary">
+            {t("common", "search", lang)}
+          </Button>
+          {filtered && (
+            <Button type="button" variant="ghost" onClick={clearFilters}>
+              {t("common", "clear", lang)}
+            </Button>
+          )}
+        </div>
       </form>
 
-      {isLoading && <JobsSkeleton />}
+      {jobs.isLoading && <JobsSkeleton />}
 
-      {error && <p className="text-sm text-destructive">{t("jobs", "loadError", lang)}</p>}
-
-      {data && data.items.length === 0 && !isLoading && (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">{t("jobs", "noPostings", lang)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <Link href="/dashboard/jobs/translate" className="underline hover:text-foreground">
-              {t("jobs", "translateLink", lang)}
-            </Link>{" "}
-            {t("jobs", "toGetStarted", lang)}
-          </p>
-        </div>
+      {jobs.error && !jobs.data && (
+        <Alert
+          action={<RetryButton retrying={jobs.isFetching} onRetry={() => void jobs.refetch()} />}
+        >
+          {t("jobs", "loadError", lang)}
+        </Alert>
       )}
 
-      {data && data.items.length > 0 && (
+      {jobs.data && jobs.data.items.length === 0 && (
+        <EmptyState
+          icon={Briefcase}
+          title={t("jobs", "noPostings", lang)}
+          description={t("jobs", filtered ? "noMatchesHint" : "noPostingsHint", lang)}
+          action={
+            filtered ? (
+              <Button variant="secondary" onClick={clearFilters}>
+                {t("common", "clear", lang)}
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/dashboard/jobs/translate">{t("jobs", "translateBtn", lang)}</Link>
+              </Button>
+            )
+          }
+        />
+      )}
+
+      {jobs.data && jobs.data.items.length > 0 && (
         <ul className="space-y-3">
-          {data.items.map((job) => (
-            <JobCard key={job.id} job={job} />
+          {jobs.data.items.map((job) => (
+            <JobRow
+              key={job.id}
+              job={job}
+              application={byJob?.get(job.id)}
+              pipelineKnown={byJob !== undefined}
+            />
           ))}
         </ul>
       )}
@@ -120,21 +157,25 @@ export default function JobsPage() {
   );
 }
 
-function JobCard({ job }: { job: JobPosting }) {
-  const deleteMutation = useDeleteJob();
+function JobRow({
+  job,
+  application,
+  pipelineKnown,
+}: {
+  job: JobPosting;
+  application: JobApplication | undefined;
+  pipelineKnown: boolean;
+}) {
   const { lang } = useLang();
   const confirmDialog = useConfirm();
   const { toast } = useToast();
+  const remove = useDeleteJob();
+  const save = useCreateApplication();
+  const titleRef = useRef<HTMLAnchorElement>(null);
   const sd = job.structured_data;
-  const score = job.foreigner_friendliness_score;
-  const scoreColor =
-    score === null
-      ? "text-muted-foreground"
-      : score >= 70
-        ? "text-success"
-        : score >= 50
-          ? "text-warning"
-          : "text-destructive";
+  const title = jobTitle(job) ?? t("jobs", "untitled", lang);
+  const score =
+    job.foreigner_friendliness_score === null ? null : Math.round(job.foreigner_friendliness_score);
 
   async function handleDelete() {
     const ok = await confirmDialog({
@@ -144,34 +185,29 @@ function JobCard({ job }: { job: JobPosting }) {
       cancelLabel: t("common", "cancel", lang),
     });
     if (!ok) return;
-
-    deleteMutation.mutate(job.id, {
-      onSuccess: () => {
-        toast({ variant: "success", description: t("common", "deleted", lang) });
-      },
-      onError: () => {
-        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
-      },
+    remove.mutate(job.id, {
+      onSuccess: () => toast({ variant: "success", description: t("common", "deleted", lang) }),
+      onError: () =>
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) }),
     });
   }
 
   return (
-    <li className="rounded-lg border bg-card p-4">
-      <div className="flex items-start justify-between gap-4">
+    <li>
+      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <Link
-            href={`/dashboard/jobs/${job.id}`}
+            ref={titleRef}
+            href={`/dashboard/jobs/${job.id}` as Route}
             // Only the untranslated original title is in the job's own language.
             lang={!job.translated_title && job.original_title ? job.original_language : undefined}
-            className="block truncate text-sm font-medium hover:underline"
+            className="block rounded font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {job.translated_title ?? job.original_title ?? t("jobs", "untitled", lang)}
+            {title}
           </Link>
           {sd && (
             <p className="text-xs text-muted-foreground">
-              {sd.company_name}
-              {sd.location && ` · ${sd.location}`}
-              {sd.employment_type && ` · ${sd.employment_type}`}
+              {[sd.company_name, sd.location, sd.employment_type].filter(Boolean).join(" · ")}
             </p>
           )}
           {job.translation_summary && (
@@ -179,60 +215,73 @@ function JobCard({ job }: { job: JobPosting }) {
           )}
           <div className="flex flex-wrap gap-2 pt-1">
             {sd?.required_japanese && sd.required_japanese !== "none" && (
-              <Tag>{sd.required_japanese}</Tag>
+              <Badge>{sd.required_japanese}</Badge>
             )}
             {sd?.visa_sponsorship === true && (
-              <Tag variant="positive">{t("jobs", "visaSponsorship", lang)}</Tag>
+              <Badge variant="success">{t("jobs", "visaSponsorship", lang)}</Badge>
             )}
-            {sd?.salary_range && <Tag>{sd.salary_range}</Tag>}
+            {sd?.salary_range && <Badge>{sd.salary_range}</Badge>}
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-4 sm:flex-col sm:items-end">
           {score !== null && (
-            <div className="text-right">
-              <span className={`text-xl font-bold tabular-nums ${scoreColor}`}>
-                {Math.round(score)}
-              </span>
+            <div className="sm:text-right">
+              <p
+                className={cn(
+                  "text-xl font-bold tabular-nums",
+                  toneText[scoreTone(score, JOB_SCORE_BANDS)],
+                )}
+              >
+                {score}
+              </p>
               <p className="text-xs text-muted-foreground">{t("jobs", "friendliness", lang)}</p>
             </div>
           )}
-          <div className="flex gap-2">
-            <Link
-              href={`/dashboard/jobs/${job.id}`}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              {t("common", "view", lang)} →
-            </Link>
-            <button
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-              className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
-            >
-              {t("common", "delete", lang)}
-            </button>
+          <div className="flex items-center gap-2">
+            {application ? (
+              <StageBadge status={application.status} />
+            ) : (
+              pipelineKnown && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={save.isPending}
+                  aria-label={t("jobs", "saveJobLabel", lang).replace("{title}", title)}
+                  onClick={() =>
+                    save.mutate(
+                      { job_posting_id: job.id },
+                      {
+                        // The button is replaced by the stage badge, so focus moves to the job.
+                        onSuccess: () => titleRef.current?.focus(),
+                        onError: () =>
+                          toast({
+                            variant: "destructive",
+                            description: t("common", "updateFailed", lang),
+                          }),
+                      },
+                    )
+                  }
+                >
+                  {t("jobs", "save", lang)}
+                </Button>
+              )
+            )}
+            {job.is_mine && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("jobs", "deleteJobLabel", lang).replace("{title}", title)}
+                loading={remove.isPending}
+                onClick={() => void handleDelete()}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            )}
           </div>
         </div>
-      </div>
+      </Card>
     </li>
-  );
-}
-
-function Tag({
-  children,
-  variant = "neutral",
-}: {
-  children: React.ReactNode;
-  variant?: "neutral" | "positive";
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-        variant === "positive" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
-      }`}
-    >
-      {children}
-    </span>
   );
 }
 
@@ -240,7 +289,9 @@ function JobsSkeleton() {
   return (
     <ul className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <li key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
+        <li key={i}>
+          <Skeleton className="h-28 w-full" />
+        </li>
       ))}
     </ul>
   );
