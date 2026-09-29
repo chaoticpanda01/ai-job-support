@@ -214,7 +214,7 @@ Response:
 }
 ```
 
-### 4.4 Job Posting Translation & Application Tracker
+### 4.4 Job Posting Translation & Job Pipeline
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -223,12 +223,12 @@ Response:
 | GET | `/jobs/{id}` | Get full translated job posting detail |
 | DELETE | `/jobs/{id}` | Soft-delete a posting (submitter only) |
 | POST | `/jobs/{id}/match` | Score a resume against this posting via Gemini. Upserts — calling again refreshes the score. |
-| POST | `/jobs/applications` | Add a job to the application tracker at `planning` status. Idempotent — returns the existing row if one is already tracked for this job. |
-| GET | `/jobs/applications` | List the current user's tracked applications (Kanban board). Supports `?status=` filter. |
-| PATCH | `/jobs/applications/{id}` | Update an application's `status` and/or `notes` |
-| DELETE | `/jobs/applications/{id}` | Remove a job from the application tracker |
+| POST | `/jobs/applications` | Save a job to the pipeline at `planning` status (shown as "Saved"). Idempotent — returns the existing row if one is already tracked for this job. |
+| GET | `/jobs/applications` | List the current user's tracked applications (the Pipeline board), newest change first. Supports a `?status=` filter with any of the nine status values; anything else is a 422. |
+| PATCH | `/jobs/applications/{id}` | Move an application along the pipeline and/or update its `notes`. A status change must be one of the allowed moves in [4.4.1](#441-application-pipeline); any other is a 422. |
+| DELETE | `/jobs/applications/{id}` | Remove a job from the pipeline |
 
-There is no "saved jobs" feature — every posting a user has translated is listed via `GET /jobs`; tracking interest/progress happens through the application tracker above.
+There is no separate saved-jobs feature: every posting a user has translated is listed via `GET /jobs`, and "Save" in the UI creates an application at `planning` through `POST /jobs/applications`. (The `saved_jobs` table exists in the schema, but nothing uses it.)
 
 ⚠️ **Route order matters**: `/jobs/applications` and `/jobs/applications/{id}` must be registered *before* `/jobs/{job_id}` in `jobs.py`. FastAPI/Starlette matches routes by registration order, not specificity — `/{job_id}` is a single dynamic path segment that will otherwise swallow literal `/applications` requests first (`job_id="applications"` fails UUID parsing → 422). This was a real, previously-shipped bug; see `HANDOFF.md` Section 0/8.
 
@@ -271,10 +271,71 @@ Response (`MatchScoreResponse`):
 **PATCH /jobs/applications/{id}** — Request (both fields optional):
 ```json
 {
-  "status": "applied",   // planning | applied | interviewing | offered | rejected | withdrawn
+  "status": "interviewing",   // see 4.4.1 for the nine values and which moves are allowed
   "notes": "Phone screen scheduled for next week"
 }
 ```
+`closed_from` and `applied_at` are set by the server; sending them is ignored.
+
+**Application response** (`JobApplicationResponse`, returned by POST, PATCH and each item of GET):
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "job_posting_id": "uuid",
+  "status": "rejected",
+  "applied_at": "2026-09-10T09:00:00Z",   // null until the job is applied for
+  "notes": "Phone screen scheduled for next week",
+  "closed_from": "interviewing",          // the stage a closed or skipped job left; null otherwise
+  "created_at": "2026-09-01T12:00:00Z",
+  "updated_at": "2026-09-20T08:30:00Z",
+  "job_title": "Backend Engineer",        // null when the posting isn't visible to the caller
+  "job_company": "Rakuten"
+}
+```
+
+#### 4.4.1 Application pipeline
+
+Each saved job travels one flow. Nine statuses are stored (`application_status`, declared in stage order); the UI shows them as stages:
+
+| Stored | Shown as | Kind |
+|--------|----------|------|
+| `planning` | Saved | forward |
+| `preparing` | Preparing | forward |
+| `applied` | Applied | forward |
+| `interviewing` | Interviewing | forward |
+| `offered` | Offer | forward |
+| `accepted` | Accepted | forward (last) |
+| `rejected` | Closed · Not selected | archived |
+| `withdrawn` | Closed · Withdrew (declining an offer is withdrawing) | archived |
+| `skipped` | Skipped | archived |
+
+The board has one column per forward stage. Archived jobs are listed under it and can be reopened.
+
+**Allowed moves.** Anything else is a 422 with the detail `Can't move an application from '<from>' to '<to>'.` Every forward stage can also step back one, to undo a mis-click.
+
+| From | May move to |
+|------|-------------|
+| `planning` | `preparing`, `applied`, `skipped` |
+| `preparing` | `applied`, `withdrawn`, back to `planning` |
+| `applied` | `interviewing`, `rejected`, `withdrawn`, back to `preparing` |
+| `interviewing` | `offered`, `rejected`, `withdrawn`, back to `applied` |
+| `offered` | `accepted`, `withdrawn`, back to `interviewing` |
+| `accepted` | `withdrawn`, back to `offered` |
+| `rejected`, `withdrawn`, `skipped` | only the stage it left (reopen) |
+
+**Rules the PATCH route enforces**
+- Sending the job's current status is a no-op (200, nothing changes), so a repeated click is harmless. An unknown status value is a 422 from request validation.
+- Closing or skipping a job records the status it left in `closed_from`; any other move sets `closed_from` to null. Reopening is a normal PATCH to that stage. A row closed before `closed_from` existed has none, so it reopens at `applied` if `applied_at` is set and at `planning` if not.
+- `applied_at` is stamped the first time a job reaches `applied` and kept from then on, including when it is closed after applying. The one exception is stepping back from `applied` to `preparing`, which clears it: that is how a mis-clicked "Mark as applied" is undone, and left stamped it would go on counting as applied.
+- The application's row is locked (`SELECT … FOR UPDATE`) while it is moved, so two moves at once are handled one after the other and the second is checked against the first's result.
+- PATCH and DELETE only reach the caller's own rows.
+
+**One table, two copies.** The rules live in `backend/app/models/enums.py` (`APPLICATION_TRANSITIONS`, `allowed_moves`, `reopen_target`). The frontend mirrors them in `frontend/lib/pipeline.ts` to decide which buttons to show. Both are checked against `backend/tests/fixtures/application_transitions.json`, and `frontend/tests/invariants.test.ts` checks the TypeScript status type against the Python enum, so changing one side alone fails a test.
+
+**Stored in** `job_applications`: the three newer values (`preparing`, `accepted`, `skipped`) and the `closed_from` column came from migration `0011`. Postgres cannot drop enum values, so its downgrade moves rows back but leaves the values in the type. A frontend that sends a new status to a backend older than `0011` gets errors, so deploy the backend first.
+
+**What each stage points to (frontend).** Saved links to the match score on the job page. Preparing links to the tailored 履歴書 and 職務経歴書 for this job (marking one already made) and to the match gaps. Interviewing links to a new interview session pre-filled with the job's title and company. Offer and Accepted link to the visa guide, and Accepted also to the culture articles.
 
 ### 4.5 Interview Practice
 
@@ -774,7 +835,7 @@ frontend/
 │   │   ├── jobs/page.tsx
 │   │   ├── jobs/translate/page.tsx
 │   │   ├── jobs/[id]/page.tsx
-│   │   ├── jobs/applications/page.tsx # Kanban tracker
+│   │   ├── jobs/applications/page.tsx # Pipeline board (stages, archive, notes)
 │   │   ├── interview/page.tsx
 │   │   ├── interview/new/page.tsx
 │   │   ├── interview/[id]/page.tsx    # Live SSE interview
@@ -804,7 +865,9 @@ frontend/
 │   │   └── SessionSetup.tsx
 │   ├── jobs/
 │   │   ├── JobTranslator.tsx
-│   │   └── MatchScoreCard.tsx
+│   │   ├── MatchScoreCard.tsx
+│   │   ├── stage-badge.tsx            # A job's pipeline stage as a badge
+│   │   └── stage-panel.tsx            # Where a job is, its next action and its moves
 │   ├── language-switcher.tsx
 │   ├── chat-widget.tsx                # Floating chatbot
 │   └── shared/
@@ -822,6 +885,7 @@ frontend/
 │   ├── api-client.ts                  # Typed fetch wrapper (all calls go via Next.js proxy)
 │   ├── providers.tsx
 │   ├── i18n.ts                        # EN/ID/JP strings
+│   ├── pipeline.ts                    # Pipeline stages, allowed moves, next actions (mirrors the backend)
 │   └── language-context.tsx
 ├── types/api.ts
 └── middleware.ts                      # Clerk auth — protects /dashboard/* and /onboarding

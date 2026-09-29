@@ -149,7 +149,7 @@ class MatchRequest(_Base):
 
 
 # ---------------------------------------------------------------------------
-# Application tracker
+# Job pipeline (applications)
 # ---------------------------------------------------------------------------
 
 
@@ -164,7 +164,7 @@ class JobApplicationResponse(_Base):
     closed_from: str | None = None
     created_at: datetime
     updated_at: datetime
-    # Denormalised posting fields for display in the Kanban board
+    # Denormalised posting fields for display on the pipeline board
     job_title: str | None = None
     job_company: str | None = None
 

@@ -7,7 +7,7 @@ GET    /jobs/{id}                    — get posting detail (full translated des
 DELETE /jobs/{id}                    — soft-delete (submitter only)
 POST   /jobs/{id}/match              — score a resume against this posting
 
-Application tracker (Kanban):
+Job pipeline (applications):
 POST   /jobs/applications            — create or move an application to planning
 GET    /jobs/applications            — list all applications, grouped by status
 PATCH  /jobs/applications/{id}       — move along the pipeline / update notes
@@ -267,7 +267,7 @@ async def list_jobs(
 
 
 # ---------------------------------------------------------------------------
-# Application tracker
+# Job pipeline (applications)
 #
 # Deliberately declared before the /{job_id} routes below: Starlette matches
 # routes in registration order, not by specificity, so a literal path like
@@ -318,7 +318,7 @@ async def create_application(
     db: DbSession,
 ) -> JobApplicationResponse:
     """
-    Add a job to the application tracker at 'planning' status.
+    Save a job to the pipeline at 'planning' status (shown as "Saved").
     If an application for this job already exists, returns the existing one.
     """
     from sqlalchemy import select
@@ -488,7 +488,7 @@ async def delete_application(
     current_user: AuthUser,
     db: DbSession,
 ) -> dict[str, Any]:
-    """Remove a job from the application tracker."""
+    """Remove a job from the pipeline."""
     from sqlalchemy import select
 
     from app.models.job import JobApplication

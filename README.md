@@ -236,7 +236,7 @@ npm run format
 | 履歴書 Generation | JIS-standard Japanese resume (async, downloadable PDF) |
 | 職務経歴書 Generation | Achievement-oriented career narrative document (async PDF) |
 | Job Translation | Japanese job postings translated to Indonesian with match scoring |
-| Application Tracker | Kanban pipeline: planning → applied → interviewing → offered/rejected |
+| Job Pipeline | Each saved job moves Saved → Preparing → Applied → Interviewing → Offer → Accepted, with Closed and Skipped branches that can be reopened. Each stage links to the matching tool: tailored 履歴書 / 職務経歴書, interview practice pre-filled from the job, the visa guide |
 | Interview Practice | Real-time mock interviews with SSE streaming + per-answer evaluation |
 | Visa Guidance | Personalised visa checklist and roadmap |
 | Culture Content | Browseable articles and glossary for Indonesian professionals |

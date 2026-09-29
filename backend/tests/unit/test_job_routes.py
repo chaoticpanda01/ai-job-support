@@ -1,6 +1,6 @@
 """
 Unit tests for job posting endpoints (translate, list, get, delete, match,
-application tracker CRUD).
+job pipeline CRUD).
 
 All external I/O (DB, Gemini, S3) is mocked so these run without a live
 database or API key.
