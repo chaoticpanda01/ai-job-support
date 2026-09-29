@@ -8,12 +8,7 @@ import type { JobMatch, JobPostingDetail, JobStructuredData } from "@/types/api"
 
 const jobQuery = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const resumesQuery = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-const applicationsQuery = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const matchMutation = vi.hoisted(() => ({
-  current: {} as Record<string, unknown>,
-  calls: [] as unknown[],
-}));
-const createApplication = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
   calls: [] as unknown[],
 }));
@@ -25,9 +20,12 @@ vi.mock("@/hooks/useJobs", () => ({
   useCachedJobMatch: () => cachedMatch.current,
 }));
 vi.mock("@/hooks/useResumes", () => ({ useResumes: () => resumesQuery.current }));
-vi.mock("@/hooks/useApplications", () => ({
-  useApplications: () => applicationsQuery.current,
-  useCreateApplication: () => createApplication.current,
+
+// The panel has its own tests (tests/components/stage-panel.test.tsx).
+vi.mock("@/components/jobs/stage-panel", () => ({
+  StagePanel: ({ job }: { job: { id: string } }) => (
+    <section aria-label="stage panel" data-job-id={job.id} />
+  ),
 }));
 
 const JobDetailPage = (await import("@/app/dashboard/jobs/[id]/page")).default;
@@ -135,16 +133,9 @@ const loadedJob = (over: Partial<JobPostingDetail> = {}) => ({
 
 beforeEach(() => {
   resumesQuery.current = { data: RESUMES, isLoading: false };
-  applicationsQuery.current = { data: [], isLoading: false };
   matchMutation.calls = [];
   matchMutation.current = {
     mutate: (vars: unknown) => matchMutation.calls.push(vars),
-    isPending: false,
-    error: null,
-  };
-  createApplication.calls = [];
-  createApplication.current = {
-    mutate: (vars: unknown) => createApplication.calls.push(vars),
     isPending: false,
     error: null,
   };
@@ -329,18 +320,14 @@ describe("job detail page, the friendliness score", () => {
 });
 
 describe("job detail page, the job id card", () => {
-  it("offers the id and both document links", async () => {
+  it("offers the id to copy, and no longer the document links", async () => {
     await renderPage(loadedJob());
 
     expect(screen.getByText(JOB_ID)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: j("generateRirekishoForJob") })).toHaveAttribute(
-      "href",
-      `/dashboard/documents/rirekisho/new?job=${JOB_ID}`,
-    );
-    expect(screen.getByRole("link", { name: j("generateShokumuForJob") })).toHaveAttribute(
-      "href",
-      `/dashboard/documents/shokumu/new?job=${JOB_ID}`,
-    );
+    // The tailored document links moved into the stage panel.
+    expect(
+      screen.queryByRole("link", { name: j("generateRirekishoForJob") }),
+    ).not.toBeInTheDocument();
   });
 
   it("confirms a copy", async () => {
@@ -360,52 +347,29 @@ describe("job detail page, the job id card", () => {
   });
 });
 
-describe("job detail page, the tracker", () => {
-  it("offers to add a posting that is not tracked", async () => {
+describe("job detail page, the pipeline", () => {
+  it("shows the stage panel for this job", async () => {
     await renderPage(loadedJob());
 
-    fireEvent.click(screen.getByRole("button", { name: j("addToTracker") }));
-
-    expect(createApplication.calls).toEqual([{ job_posting_id: JOB_ID }]);
+    expect(screen.getByRole("region", { name: "stage panel" })).toHaveAttribute(
+      "data-job-id",
+      JOB_ID,
+    );
+    expect(screen.queryByText(j("addToTracker"))).not.toBeInTheDocument();
   });
 
-  it("reports the status instead once the posting is tracked", async () => {
-    applicationsQuery.current = {
-      data: [{ id: "a1", job_posting_id: JOB_ID, status: "planning" }],
-      isLoading: false,
-    };
-    await renderPage(loadedJob());
+  it("gives the match section the anchor the stage links point at", async () => {
+    const { container } = await renderPage(loadedJob());
 
-    expect(screen.getByText(new RegExp(j("colPlanning")))).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: j("addToTracker") })).not.toBeInTheDocument();
+    expect(container.querySelector("#match")).toHaveTextContent(j("matchScore"));
   });
+});
 
-  it("ignores an application for a different posting", async () => {
-    applicationsQuery.current = {
-      data: [{ id: "a1", job_posting_id: "another-job", status: "applied" }],
-      isLoading: false,
-    };
-    await renderPage(loadedJob());
+describe("job detail page, a missing posting", () => {
+  it("says so in an alert", async () => {
+    await renderPage({ data: undefined, isLoading: false, error: new ApiClientError(404, "x") });
 
-    expect(screen.getByRole("button", { name: j("addToTracker") })).toBeInTheDocument();
-  });
-
-  it("offers nothing until it knows whether the posting is tracked", async () => {
-    // Offering Add while the list is still loading invites a duplicate.
-    applicationsQuery.current = { data: undefined, isLoading: true };
-    await renderPage(loadedJob());
-
-    expect(screen.queryByRole("button", { name: j("addToTracker") })).not.toBeInTheDocument();
-  });
-
-  it("explains a failure to add", async () => {
-    createApplication.current = {
-      ...createApplication.current,
-      error: new ApiClientError(500, "boom"),
-    };
-    await renderPage(loadedJob());
-
-    expect(screen.getByRole("alert")).toHaveTextContent(common("errorServer"));
+    expect(screen.getByRole("alert")).toHaveTextContent(j("jobNotFound"));
   });
 });
 

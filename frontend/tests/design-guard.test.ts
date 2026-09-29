@@ -56,7 +56,6 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 const NOT_YET_MIGRATED: Record<string, string> = {
   // Rebuilt by spec 3 (the job pipeline), not migrated here.
   "app/dashboard/jobs/page.tsx": "Rebuilt in spec 3",
-  "app/dashboard/jobs/[id]/page.tsx": "Rebuilt in spec 3",
   "app/dashboard/jobs/applications/page.tsx": "Rebuilt in spec 3",
 };
 
@@ -202,7 +201,6 @@ describe("the design guard", () => {
     // The end state of the page migration. Spec 3 (the job pipeline) rebuilds
     // these on the design system and removes the last entries.
     expect(Object.keys(NOT_YET_MIGRATED).sort()).toEqual([
-      "app/dashboard/jobs/[id]/page.tsx",
       "app/dashboard/jobs/applications/page.tsx",
       "app/dashboard/jobs/page.tsx",
     ]);

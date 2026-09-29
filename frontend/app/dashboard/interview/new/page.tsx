@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,15 +22,26 @@ import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { InterviewLanguage, InterviewType } from "@/types/api";
 
+// useSearchParams needs a Suspense boundary, as on the new-document pages.
 export default function NewInterviewPage() {
+  return (
+    <Suspense>
+      <NewInterviewForm />
+    </Suspense>
+  );
+}
+
+function NewInterviewForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { sessionId, state, createSession } = useInterview();
   const { lang } = useLang();
 
   const [sessionType, setSessionType] = useState<InterviewType>("general");
   const [language, setLanguage] = useState<InterviewLanguage>("ja");
-  const [targetRole, setTargetRole] = useState("");
-  const [targetCompany, setTargetCompany] = useState("");
+  // A job's stage panel links here with the role and company filled in.
+  const [targetRole, setTargetRole] = useState(() => searchParams.get("role") ?? "");
+  const [targetCompany, setTargetCompany] = useState(() => searchParams.get("company") ?? "");
 
   // Leave only after the stream ends with no error: the backend sends done after
   // saving the question. The session id arrives in the response headers, before

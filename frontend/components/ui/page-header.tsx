@@ -15,6 +15,8 @@ interface PageHeaderProps {
    * then takes script focus (tabIndex -1), without a focus outline.
    */
   titleRef?: React.Ref<HTMLHeadingElement> | undefined;
+  /** The title's language, when it isn't the page's (an untranslated job title). */
+  titleLang?: string | undefined;
 }
 
 /**
@@ -29,6 +31,7 @@ export function PageHeader({
   children,
   className,
   titleRef,
+  titleLang,
 }: PageHeaderProps) {
   return (
     <header
@@ -46,6 +49,7 @@ export function PageHeader({
         <h1
           ref={titleRef}
           tabIndex={titleRef ? -1 : undefined}
+          lang={titleLang}
           className="font-display text-2xl font-bold leading-tight focus:outline-none sm:text-[28px]"
         >
           {title}

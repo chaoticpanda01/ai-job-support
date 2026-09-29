@@ -67,6 +67,16 @@ helps with it.
    callbacks don't fire after the calling component unmounts. The page stays
    mounted, so its awaited promise always reports a refused move.
 
+5. **Job detail on phones (made during Task 5).** The plan's two-column grid
+   overflowed a 375px screen (a grid item's minimum width is its content's),
+   and put the stage panel 1,600px down the page, below the whole posting.
+   The columns got `min-w-0`, the description `break-words`, and below `lg`
+   the right column's cards join the grid (`max-lg:contents`, with
+   `lg:space-y-6`) so the stage panel comes first. From `lg` up nothing
+   changes. The `StagePanel` mock in `jobs-detail.test.tsx` carries the job id
+   as a `data-job-id` attribute rather than text, because the ID card already
+   prints it and `getByText` then found two.
+
 ---
 
 ## File map

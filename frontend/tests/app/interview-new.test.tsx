@@ -6,7 +6,15 @@ import type * as InterviewHooks from "@/hooks/useInterview";
 
 const interview = vi.hoisted(() => ({ created: [] as unknown[] }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
+const search = vi.hoisted(() => ({ current: "" }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => {} }),
+  useSearchParams: () => new URLSearchParams(search.current),
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => {} }),
+  useSearchParams: () => new URLSearchParams(search.current),
+}));
 // Only useInterview is replaced; streamErrorMessage stays the real one.
 vi.mock("@/hooks/useInterview", async (importOriginal) => ({
   ...(await importOriginal<typeof InterviewHooks>()),
@@ -30,6 +38,7 @@ async function renderPage() {
 
 beforeEach(() => {
   interview.created = [];
+  search.current = "";
 });
 
 describe("the new interview session page", () => {
@@ -42,6 +51,18 @@ describe("the new interview session page", () => {
     expect(
       screen.getByRole("textbox", { name: new RegExp(iv("companyLabel")) }),
     ).toBeInTheDocument();
+  });
+
+  it("fills in the role and company a job's stage panel sent", async () => {
+    search.current = "role=Backend+Engineer&company=Test+K.K.";
+    await renderPage();
+
+    expect(screen.getByRole("textbox", { name: new RegExp(iv("roleLabel")) })).toHaveValue(
+      "Backend Engineer",
+    );
+    expect(screen.getByRole("textbox", { name: new RegExp(iv("companyLabel")) })).toHaveValue(
+      "Test K.K.",
+    );
   });
 
   it("picks an interview type from its card", async () => {

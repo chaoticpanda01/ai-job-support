@@ -107,6 +107,11 @@ describe("PageHeader", () => {
     expect(screen.getByText("Generate a rirekisho")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New" })).toBeInTheDocument();
   });
+
+  it("tags the title's language when it isn't the page's", () => {
+    render(<PageHeader title="バックエンドエンジニア" titleLang="ja" />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveAttribute("lang", "ja");
+  });
 });
 
 describe("Progress", () => {
