@@ -61,7 +61,13 @@ const FINISHED: JourneyInput = {
     } as Document,
   ],
   applications: [
-    { id: "app1", job_title: "SRE", created_at: "2026-09-24T00:00:00+00:00" },
+    {
+      id: "app1",
+      job_title: "SRE",
+      status: "applied",
+      applied_at: "2026-09-24T00:00:00+00:00",
+      created_at: "2026-09-24T00:00:00+00:00",
+    },
   ] as never,
   interviewSessions: [
     {
@@ -96,6 +102,36 @@ const j = (key: string, lang: Language = "en") => t("journey", key, lang);
 const h = (key: string, lang: Language = "en") => t("home", key, lang);
 
 describe("Home", () => {
+  it("summarises the pipeline under Apply, linking to it", () => {
+    setJourney({
+      ...MID_JOURNEY,
+      applications: [
+        { id: "a1", status: "planning", applied_at: null },
+        { id: "a2", status: "planning", applied_at: null },
+        { id: "a3", status: "applied", applied_at: "2026-09-24T00:00:00+00:00" },
+        { id: "a4", status: "rejected", applied_at: null },
+      ] as never,
+    });
+    renderIn("en", <HomePage />);
+    expect(screen.getByRole("link", { name: "2 Saved · 1 Applied" })).toHaveAttribute(
+      "href",
+      "/dashboard/jobs/applications",
+    );
+  });
+
+  it("shows no summary when nothing is in the pipeline", () => {
+    setJourney({
+      ...MID_JOURNEY,
+      applications: [{ id: "a4", status: "rejected", applied_at: null }] as never,
+    });
+    const { container } = renderIn("en", <HomePage />);
+    const steps = container.querySelector('ul[aria-labelledby="stage-apply"]');
+    expect(steps).not.toBeNull();
+    // The summary would be the paragraph after the step list. With nothing to
+    // count it must not render at all, not even as an empty line.
+    expect(steps?.nextElementSibling).toBeNull();
+  });
+
   it("greets the user by first name in the page's one h1", () => {
     renderIn("en", <HomePage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(

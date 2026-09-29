@@ -36,7 +36,7 @@ const FINISHED: JourneyInput = {
   resumes: [resume("r1", "2026-09-01T00:00:00+00:00", true)],
   primaryAnalysis: ANALYSIS,
   documents: [doc("rirekisho", "completed"), doc("shokumukeirekisho", "completed")],
-  applications: [{ id: "app1" } as JobApplication],
+  applications: [{ id: "app1", status: "applied", applied_at: null } as JobApplication],
   interviewSessions: [session("completed")],
   visaConsultations: [{ id: "v1" } as VisaConsultationListItem],
 };
@@ -63,12 +63,31 @@ describe("computeJourney: what counts as done", () => {
     ],
     ["rirekisho", { documents: [doc("rirekisho", "completed")] }],
     ["shokumu", { documents: [doc("shokumukeirekisho", "completed")] }],
-    ["application", { applications: [{ id: "app1" } as JobApplication] }],
+    [
+      "application",
+      { applications: [{ id: "app1", status: "applied", applied_at: null } as JobApplication] },
+    ],
     ["interview", { interviewSessions: [session("completed")] }],
     ["visa", { visaConsultations: [{ id: "v1" } as VisaConsultationListItem] }],
   ])("%s is done with its evidence and to do without it", (id, evidence) => {
     expect(stateOf(NEW_USER, id)).toBe("todo");
     expect(stateOf({ ...NEW_USER, ...evidence }, id)).toBe("done");
+  });
+
+  it("doesn't count saving or preparing a job as applying", () => {
+    const saved = [
+      { id: "a1", status: "planning", applied_at: null },
+      { id: "a2", status: "preparing", applied_at: null },
+      { id: "a3", status: "skipped", applied_at: null },
+    ] as JobApplication[];
+    expect(stateOf({ ...NEW_USER, applications: saved }, "application")).toBe("todo");
+  });
+
+  it("counts a job closed after applying", () => {
+    const closed = [
+      { id: "a1", status: "rejected", applied_at: "2026-09-10T00:00:00Z" },
+    ] as JobApplication[];
+    expect(stateOf({ ...NEW_USER, applications: closed }, "application")).toBe("done");
   });
 
   it("does not count a document that is still generating or failed", () => {

@@ -2078,16 +2078,16 @@ export const translations = {
     },
     shokumuCta: { en: "Create", id: "Buat", ja: "作成する" },
 
-    application: { en: "Track an application", id: "Lacak lamaran", ja: "応募を記録する" },
+    application: { en: "Apply for a job", id: "Melamar pekerjaan", ja: "求人に応募する" },
     applicationTitle: {
-      en: "Track your first application",
-      id: "Lacak lamaran pertamamu",
-      ja: "最初の応募を記録しましょう",
+      en: "Apply for your first job",
+      id: "Lamar pekerjaan pertamamu",
+      ja: "最初の求人に応募しましょう",
     },
     applicationWhy: {
-      en: "Save a job you're applying for, so its status and notes stay in one place.",
-      id: "Simpan lowongan yang kamu lamar agar status dan catatannya ada di satu tempat.",
-      ja: "応募する求人を保存すると、状況やメモを一か所で管理できます。",
+      en: "Save a job, then mark it as applied once you've sent your application.",
+      id: "Simpan lowongan, lalu tandai sudah dilamar setelah kamu mengirim lamaran.",
+      ja: "求人を保存し、応募したら「応募済み」にしましょう。",
     },
     applicationCta: { en: "Browse jobs", id: "Lihat lowongan", ja: "求人を見る" },
 
@@ -2177,6 +2177,7 @@ export const translations = {
       ja: "面接練習を完了",
     },
     activityVisa: { en: "Visa options checked", id: "Opsi visa dicek", ja: "ビザを確認" },
+    pipelineCount: { en: "{n} {stage}", id: "{n} {stage}", ja: "{stage} {n}件" },
   },
 
   // ---------------------------------------------------------------------------

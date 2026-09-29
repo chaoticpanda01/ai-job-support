@@ -18,6 +18,8 @@ import {
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import type { Journey, JourneyStep, StageId, StepId } from "@/lib/journey";
+import { forwardCounts, stageName } from "@/lib/pipeline";
+import type { JobApplication } from "@/types/api";
 import { cn } from "@/lib/utils";
 
 const STAGE_LABEL: Record<StageId, string> = {
@@ -57,7 +59,12 @@ export default function HomePage() {
       {journey.next && <NextStepCard step={journey.next} />}
       {journey.allDone && <AllDoneCard />}
 
-      <JourneyBoard journey={journey} onRetry={retry} retrying={retrying} />
+      <JourneyBoard
+        journey={journey}
+        applications={input.applications}
+        onRetry={retry}
+        retrying={retrying}
+      />
 
       {activity.length > 0 && <RecentActivity items={activity} />}
     </>
@@ -106,10 +113,12 @@ function AllDoneCard() {
 
 function JourneyBoard({
   journey,
+  applications,
   onRetry,
   retrying,
 }: {
   journey: Journey;
+  applications: JobApplication[] | undefined;
   onRetry: (step: StepId) => void;
   retrying: (step: StepId) => boolean;
 }) {
@@ -161,11 +170,36 @@ function JourneyBoard({
                   />
                 ))}
               </ul>
+              {stage.id === "apply" && <PipelineSummary applications={applications} />}
             </CardContent>
           </Card>
         );
       })}
     </div>
+  );
+}
+
+/** Under Apply: how many jobs sit at each pipeline stage, linking to the board. */
+function PipelineSummary({ applications }: { applications: JobApplication[] | undefined }) {
+  const { lang } = useLang();
+  const counts = forwardCounts(applications ?? []);
+  if (counts.length === 0) return null;
+  const summary = counts
+    .map(({ status, count }) =>
+      t("home", "pipelineCount", lang)
+        .replace("{n}", String(count))
+        .replace("{stage}", stageName(status, lang)),
+    )
+    .join(" · ");
+  return (
+    <p className="mt-3 border-t pt-3 text-sm">
+      <Link
+        href="/dashboard/jobs/applications"
+        className="rounded font-medium text-indigo underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {summary}
+      </Link>
+    </p>
   );
 }
 

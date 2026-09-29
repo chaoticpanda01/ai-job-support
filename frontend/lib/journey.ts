@@ -9,6 +9,7 @@ import type {
   ResumeAnalysis,
   VisaConsultationListItem,
 } from "@/types/api";
+import { hasApplied } from "@/lib/pipeline";
 
 /**
  * The user's move to Japan as eight steps in three stages. Pure: no React, no
@@ -144,7 +145,9 @@ export function computeJourney(input: JourneyInput): Journey {
       id: "application",
       stage: "apply",
       href: "/dashboard/jobs",
-      state: stateOf(applications !== undefined, (applications?.length ?? 0) > 0),
+      // Saving or preparing a job is not applying; any job applied for counts,
+      // including one closed afterwards.
+      state: stateOf(applications !== undefined, applications?.some(hasApplied) ?? false),
     },
     {
       id: "interview",
