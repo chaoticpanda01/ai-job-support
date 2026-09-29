@@ -23,11 +23,9 @@ vi.mock("@/hooks/useApplications", () => ({
   }),
   useUpdateApplication: () => ({
     error: update.error,
-    mutate: (vars: unknown, opts?: { onSuccess?: () => void; onSettled?: () => void }) => {
+    mutateAsync: (vars: unknown) => {
       update.calls.push(vars);
-      if (update.hold) return;
-      opts?.onSuccess?.();
-      opts?.onSettled?.();
+      return update.hold ? new Promise(() => {}) : Promise.resolve(vars);
     },
   }),
 }));

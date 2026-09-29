@@ -76,6 +76,17 @@ helps with it.
    changes. The `StagePanel` mock in `jobs-detail.test.tsx` carries the job id
    as a `data-job-id` attribute rather than text, because the ID card already
    prints it and `getByText` then found two.
+6. **Optimistic moves and the stage panel (made during Task 7).** Amendment 4
+   applies to `StagePanel` as much as to the board, and Task 4 didn't do it.
+   Once the update is optimistic, a move between the forward and the archived
+   view unmounts the view that clicked, so React Query drops that call's
+   `onSuccess` (focus went to `<body>`) and the rolled-back view mounts fresh
+   and loses the error. `useMove` now lives in `StagePanel`, uses
+   `mutateAsync`, and is passed to the two views. The hook also mirrors the
+   backend's `closed_from` (set on archiving, cleared on reopening), or a
+   closed job read "Reopen at Saved" until the refetch. Both have tests with
+   the real hooks (`stage-panel-moves.test.tsx`, `useApplications.test.tsx`);
+   the first two fail against the Task 4 panel.
 
 ---
 

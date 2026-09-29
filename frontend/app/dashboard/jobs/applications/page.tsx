@@ -1,183 +1,220 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
+import { Briefcase, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { useConfirm } from "@/components/confirm-dialog-provider";
+import { StageBadge } from "@/components/jobs/stage-badge";
+import { RetryButton } from "@/components/retry-button";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useApplications,
-  useUpdateApplication,
   useDeleteApplication,
+  useUpdateApplication,
 } from "@/hooks/useApplications";
-import { useConfirm } from "@/components/confirm-dialog-provider";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
+import {
+  FORWARD_STAGES,
+  isForward,
+  moveLabel,
+  reopenTarget,
+  splitMoves,
+  stageName,
+  type ForwardStatus,
+} from "@/lib/pipeline";
+import { cn } from "@/lib/utils";
 import type { ApplicationStatus, JobApplication } from "@/types/api";
 
-// ---------------------------------------------------------------------------
-// Column definitions
-// ---------------------------------------------------------------------------
+type MoveFn = (app: JobApplication, to: ApplicationStatus) => void;
 
-const COLUMN_KEYS: ApplicationStatus[] = [
-  "planning",
-  "applied",
-  "interviewing",
-  "offered",
-  "rejected",
-  "withdrawn",
-];
+const titleId = (applicationId: string) => `application-${applicationId}`;
 
-const COLUMN_COLORS: Record<ApplicationStatus, string> = {
-  planning: "bg-muted border-border",
-  preparing: "bg-secondary border-border",
-  applied: "bg-indigo-soft border-primary/20",
-  interviewing: "bg-warning/10 border-warning/30",
-  offered: "bg-success/10 border-success/30",
-  rejected: "bg-destructive/10 border-destructive/30",
-  withdrawn: "bg-muted border-border",
-  accepted: "bg-success-soft border-success/30",
-  skipped: "bg-secondary border-border",
-};
-
-const STATUS_NEXT: Partial<Record<ApplicationStatus, ApplicationStatus[]>> = {
-  planning: ["applied", "withdrawn"],
-  applied: ["interviewing", "rejected", "withdrawn"],
-  interviewing: ["offered", "rejected", "withdrawn"],
-  offered: ["withdrawn"],
-};
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
-export default function ApplicationsPage() {
-  const { data: apps, isLoading, error } = useApplications();
+export default function PipelinePage() {
   const { lang } = useLang();
+  const applications = useApplications();
+  // Held here, not in the cards: a moved card unmounts from its old column
+  // straight away, and a mutation's per-call callbacks don't fire after that.
+  const update = useUpdateApplication();
+  const { toast } = useToast();
+  // The card to focus once it shows at the given status.
+  const [focus, setFocus] = useState<{ id: string; status: ApplicationStatus } | null>(null);
 
-  const grouped = groupByStatus(apps ?? []);
+  const all = applications.data;
 
-  const columns = COLUMN_KEYS.map((status) => ({
-    status,
-    label: t("jobs", `col${status.charAt(0).toUpperCase() + status.slice(1)}` as never, lang),
-    color: COLUMN_COLORS[status],
-  }));
+  // A move re-renders the card in another column; focus follows it there, so
+  // keyboard users keep their place.
+  useEffect(() => {
+    if (focus === null) return;
+    const link = document.getElementById(titleId(focus.id));
+    if (link?.dataset["status"] === focus.status) {
+      link.focus();
+      setFocus(null);
+    }
+  }, [focus, all]);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("jobs", "appTitle", lang)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("jobs", "appSub", lang)}</p>
-        </div>
-        <Link
-          href="/dashboard/jobs"
-          className="shrink-0 rounded-md border px-3 py-2 text-sm hover:bg-accent"
-        >
-          {t("jobs", "jobBoard", lang)}
-        </Link>
-      </div>
+  const move: MoveFn = (app, to) => {
+    setFocus({ id: app.id, status: to });
+    update.mutateAsync({ id: app.id, data: { status: to } }).catch(() => {
+      // The hook has put the card back; follow it there and say why.
+      setFocus({ id: app.id, status: app.status });
+      toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+    });
+  };
 
-      {error && <p className="text-sm text-destructive">{t("jobs", "appLoadError", lang)}</p>}
-
-      {isLoading ? (
-        <KanbanSkeleton columns={columns} />
-      ) : (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 xl:grid-cols-6">
-          {columns.map((col) => (
-            <KanbanColumn
-              key={col.status}
-              status={col.status}
-              label={col.label}
-              color={col.color}
-              apps={grouped[col.status] ?? []}
+  let body: React.ReactNode;
+  if (all === undefined && applications.error) {
+    body = (
+      <Alert
+        action={
+          <RetryButton
+            retrying={applications.isFetching}
+            onRetry={() => void applications.refetch()}
+          />
+        }
+      >
+        {t("jobs", "appLoadError", lang)}
+      </Alert>
+    );
+  } else if (all === undefined) {
+    body = <BoardSkeleton />;
+  } else if (all.length === 0) {
+    body = (
+      <EmptyState
+        icon={Briefcase}
+        title={t("jobs", "pipelineEmpty", lang)}
+        description={t("jobs", "pipelineEmptyHint", lang)}
+        action={
+          <Button asChild>
+            <Link href="/dashboard/jobs">{t("jobs", "findJobs", lang)}</Link>
+          </Button>
+        }
+      />
+    );
+  } else {
+    body = (
+      <>
+        {/* Stacked on phones; all six side by side only where each gets ~180px. */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          {FORWARD_STAGES.map((stage) => (
+            <StageColumn
+              key={stage}
+              stage={stage}
+              apps={all.filter((a) => a.status === stage)}
+              onMove={move}
             />
           ))}
         </div>
-      )}
-    </div>
-  );
-}
+        <Archived apps={all.filter((a) => !isForward(a.status))} onMove={move} />
+      </>
+    );
+  }
 
-// ---------------------------------------------------------------------------
-// Column
-// ---------------------------------------------------------------------------
-
-function KanbanColumn({
-  status,
-  label,
-  color,
-  apps,
-}: {
-  status: ApplicationStatus;
-  label: string;
-  color: string;
-  apps: JobApplication[];
-}) {
   return (
-    <div
-      className={`rounded-lg border ${color} flex min-h-[200px] w-64 shrink-0 snap-start flex-col lg:w-auto lg:shrink`}
-    >
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
-        <span className="rounded-full bg-background px-1.5 py-0.5 text-xs font-medium tabular-nums">
-          {apps.length}
-        </span>
-      </div>
-
-      <ul className="flex flex-1 flex-col gap-2 p-2">
-        {apps.map((app) => (
-          <ApplicationCard key={app.id} app={app} nextStatuses={STATUS_NEXT[status] ?? []} />
-        ))}
-        {apps.length === 0 && (
-          <li className="flex flex-1 items-center justify-center">
-            <p className="text-xs text-muted-foreground">—</p>
-          </li>
-        )}
-      </ul>
+    <div className="space-y-6">
+      <PageHeader
+        className="mb-0"
+        title={t("jobs", "pipelineTitle", lang)}
+        description={t("jobs", "pipelineSub", lang)}
+        actions={
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/jobs">{t("jobs", "findJobs", lang)}</Link>
+          </Button>
+        }
+      />
+      {body}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
-function ApplicationCard({
-  app,
-  nextStatuses,
+function StageColumn({
+  stage,
+  apps,
+  onMove,
 }: {
-  app: JobApplication;
-  nextStatuses: ApplicationStatus[];
+  stage: ForwardStatus;
+  apps: JobApplication[];
+  onMove: MoveFn;
 }) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [editingNotes, setEditingNotes] = useState(false);
-  const [notes, setNotes] = useState(app.notes ?? "");
+  const { lang } = useLang();
+  const headingId = `stage-${stage}`;
+  return (
+    <section aria-labelledby={headingId} className="rounded-lg border bg-secondary p-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 id={headingId} className="text-sm font-semibold">
+          {stageName(stage, lang)}
+        </h2>
+        <Badge className="tabular-nums">{apps.length}</Badge>
+      </div>
+      {apps.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t("jobs", "stageEmpty", lang)}</p>
+      ) : (
+        <ul className="space-y-2">
+          {apps.map((app) => (
+            <PipelineCard key={app.id} app={app} onMove={onMove} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function TitleLink({ app }: { app: JobApplication }) {
+  const { lang } = useLang();
+  return (
+    <Link
+      id={titleId(app.id)}
+      data-status={app.status}
+      href={`/dashboard/jobs/${app.job_posting_id}` as Route}
+      className="line-clamp-2 rounded font-medium leading-snug hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {app.job_title ?? t("jobs", "untitled", lang)}
+    </Link>
+  );
+}
+
+function PipelineCard({ app, onMove }: { app: JobApplication; onMove: MoveFn }) {
   const { lang } = useLang();
   const confirmDialog = useConfirm();
   const { toast } = useToast();
-
   const update = useUpdateApplication();
   const remove = useDeleteApplication();
+  const [editing, setEditing] = useState(false);
+  const [notes, setNotes] = useState(app.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const pencilRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  const title = app.job_title ?? t("jobs", "untitled", lang);
+  const next = isForward(app.status) ? splitMoves(app.status).next : null;
 
-  void showMenu; // suppress unused warning
+  // Closing the notes editor puts focus back on the button that opened it.
+  useEffect(() => {
+    if (wasEditing.current && !editing) pencilRef.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
 
-  function moveToStatus(newStatus: ApplicationStatus) {
-    update.mutate(
-      { id: app.id, data: { status: newStatus } },
-      {
-        onError: () => {
-          toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
-        },
-      },
-    );
-    setShowMenu(false);
+  function cancel() {
+    setNotes(app.notes ?? "");
+    setEditing(false);
   }
 
   async function saveNotes() {
+    setSaving(true);
     try {
       await update.mutateAsync({ id: app.id, data: { notes } });
-      setEditingNotes(false);
+      setEditing(false);
     } catch {
       toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -189,30 +226,22 @@ function ApplicationCard({
       cancelLabel: t("common", "cancel", lang),
     });
     if (!ok) return;
-
     remove.mutate(app.id, {
-      onSuccess: () => {
-        toast({ variant: "success", description: t("common", "deleted", lang) });
-      },
-      onError: () => {
-        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) });
-      },
+      onSuccess: () => toast({ variant: "success", description: t("common", "deleted", lang) }),
+      onError: () =>
+        toast({ variant: "destructive", description: t("common", "deleteFailed", lang) }),
     });
   }
 
   const appliedDate = app.applied_at
     ? new Date(app.applied_at).toLocaleDateString(lang, { day: "numeric", month: "short" })
     : null;
+  const notesId = `notes-${app.id}`;
 
   return (
-    <li className="relative space-y-1.5 rounded-md border bg-background p-3 text-sm shadow-sm">
-      <div>
-        <Link
-          href={`/dashboard/jobs/${app.job_posting_id}`}
-          className="line-clamp-2 font-medium leading-snug hover:underline"
-        >
-          {app.job_title ?? t("jobs", "untitled", lang)}
-        </Link>
+    <li className="space-y-2 rounded-md border bg-card p-3 text-sm">
+      <div className="min-w-0">
+        <TitleLink app={app} />
         {app.job_company && <p className="text-xs text-muted-foreground">{app.job_company}</p>}
       </div>
 
@@ -222,108 +251,119 @@ function ApplicationCard({
         </p>
       )}
 
-      {!editingNotes && app.notes && (
-        <p className="line-clamp-2 text-xs italic text-muted-foreground">{app.notes}</p>
-      )}
-
-      {editingNotes && (
-        <div className="space-y-1">
-          <label className="block">
-            <span className="sr-only">{t("jobs", "notesLabel", lang)}</span>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              autoFocus
-              className="w-full resize-none rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+      {editing ? (
+        <div className="space-y-2">
+          <label htmlFor={notesId} className="sr-only">
+            {t("jobs", "notesLabel", lang)}
           </label>
-          <div className="flex gap-1.5">
-            <button
-              onClick={saveNotes}
-              disabled={update.isPending}
-              className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground disabled:opacity-50"
-            >
-              {t("common", "saveChanges", lang).split(" ")[0]}
-            </button>
-            <button
-              onClick={() => {
-                setEditingNotes(false);
-                setNotes(app.notes ?? "");
-              }}
-              className="rounded border px-2 py-0.5 text-xs hover:bg-accent"
-            >
+          <Textarea
+            id={notesId}
+            value={notes}
+            rows={3}
+            autoFocus
+            onChange={(e) => setNotes(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") cancel();
+            }}
+            className="text-xs"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" loading={saving} onClick={() => void saveNotes()}>
+              {t("jobs", "saveNotes", lang)}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={cancel}>
               {t("common", "cancel", lang)}
-            </button>
+            </Button>
           </div>
         </div>
+      ) : (
+        app.notes && <p className="line-clamp-1 text-xs text-muted-foreground">{app.notes}</p>
       )}
 
-      <div className="flex items-center gap-1 pt-0.5">
-        {nextStatuses.map((s) => (
-          <button
-            key={s}
-            onClick={() => moveToStatus(s)}
-            disabled={update.isPending}
-            className="rounded border px-1.5 py-0.5 text-xs capitalize hover:bg-accent disabled:opacity-50"
-          >
-            → {s}
-          </button>
-        ))}
-
+      <div className="flex items-center gap-1">
+        {next && (
+          <Button size="sm" variant="secondary" onClick={() => onMove(app, next)}>
+            {moveLabel(app.status, next, lang)}
+          </Button>
+        )}
         <div className="ml-auto flex gap-1">
-          <button
-            onClick={() => setEditingNotes(true)}
-            className="text-xs text-muted-foreground hover:text-foreground"
-            title="Edit notes"
-            aria-label="Edit notes"
+          <Button
+            ref={pencilRef}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={t("jobs", "editNotesFor", lang).replace("{title}", title)}
+            onClick={() => setEditing(true)}
           >
-            ✎
-          </button>
-          <button
-            onClick={handleRemove}
-            className="text-xs text-muted-foreground hover:text-destructive"
-            title="Remove"
-            aria-label="Remove"
+            <Pencil aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={t("jobs", "removeFor", lang).replace("{title}", title)}
+            loading={remove.isPending}
+            onClick={() => void handleRemove()}
           >
-            ✕
-          </button>
+            <Trash2 aria-hidden="true" />
+          </Button>
         </div>
       </div>
     </li>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+function Archived({ apps, onMove }: { apps: JobApplication[]; onMove: MoveFn }) {
+  const { lang } = useLang();
+  const [open, setOpen] = useState(false);
+  if (apps.length === 0) return null;
 
-function groupByStatus(apps: JobApplication[]): Record<ApplicationStatus, JobApplication[]> {
-  const result = {} as Record<ApplicationStatus, JobApplication[]>;
-  for (const status of COLUMN_KEYS) result[status] = [];
-  for (const app of apps) {
-    if (result[app.status]) result[app.status].push(app);
-  }
-  return result;
+  return (
+    <section className="space-y-3">
+      <Button variant="ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn("transition-transform motion-reduce:transition-none", open && "rotate-180")}
+        />
+        {t("jobs", "archived", lang).replace("{n}", String(apps.length))}
+      </Button>
+      {open && (
+        <ul className="divide-y rounded-lg border bg-card">
+          {apps.map((app) => {
+            const target = reopenTarget(app);
+            const date = new Date(app.updated_at).toLocaleDateString(lang, {
+              day: "numeric",
+              month: "short",
+            });
+            return (
+              <li
+                key={app.id}
+                className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 space-y-1">
+                  <TitleLink app={app} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StageBadge status={app.status} />
+                    <span className="text-xs text-muted-foreground">{date}</span>
+                  </div>
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => onMove(app, target)}>
+                  {moveLabel(app.status, target, lang)}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
 }
 
-function KanbanSkeleton({ columns }: { columns: { status: ApplicationStatus; color: string }[] }) {
+function BoardSkeleton() {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 xl:grid-cols-6">
-      {columns.map((col) => (
-        <div
-          key={col.status}
-          className={`rounded-lg border ${col.color} min-h-[200px] w-64 shrink-0 lg:w-auto lg:shrink`}
-        >
-          <div className="border-b px-3 py-2">
-            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-          </div>
-          <div className="space-y-2 p-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-md bg-muted" />
-            ))}
-          </div>
-        </div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      {FORWARD_STAGES.map((stage) => (
+        <Skeleton key={stage} className="h-40 w-full" />
       ))}
     </div>
   );

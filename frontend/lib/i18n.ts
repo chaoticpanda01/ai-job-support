@@ -1006,7 +1006,6 @@ export const translations = {
     colRejected: { en: "Rejected", id: "Ditolak", ja: "不採用" },
     colWithdrawn: { en: "Withdrawn", id: "Ditarik", ja: "辞退" },
     appliedOn: { en: "Applied", id: "Melamar", ja: "応募" },
-    jobBoard: { en: "← Job board", id: "← Papan lowongan", ja: "← 求人一覧" },
     confirmRemove: {
       en: "Remove this application from the tracker?",
       id: "Hapus lamaran ini dari pelacak?",
@@ -1132,6 +1131,32 @@ export const translations = {
       en: "Try a different search, or clear the filters.",
       id: "Coba pencarian lain, atau hapus filter.",
       ja: "別の検索語を試すか、絞り込みを解除してください。",
+    },
+    pipelineTitle: { en: "Pipeline", id: "Pipeline", ja: "応募パイプライン" },
+    pipelineSub: {
+      en: "Every job you've saved, from first look to offer.",
+      id: "Semua lowongan yang Anda simpan, dari awal hingga tawaran.",
+      ja: "保存した求人を、最初の確認から内定まで管理します。",
+    },
+    findJobs: { en: "Find jobs", id: "Cari lowongan", ja: "求人を探す" },
+    stageEmpty: { en: "Nothing here yet", id: "Belum ada", ja: "まだありません" },
+    archived: { en: "Archived ({n})", id: "Diarsipkan ({n})", ja: "アーカイブ（{n}）" },
+    editNotesFor: {
+      en: "Edit notes for {title}",
+      id: "Ubah catatan untuk {title}",
+      ja: "{title}のメモを編集",
+    },
+    removeFor: { en: "Remove {title}", id: "Hapus {title}", ja: "{title}を削除" },
+    saveNotes: { en: "Save notes", id: "Simpan catatan", ja: "メモを保存" },
+    pipelineEmpty: {
+      en: "No jobs in your pipeline yet",
+      id: "Belum ada lowongan di pipeline Anda",
+      ja: "パイプラインにまだ求人がありません",
+    },
+    pipelineEmptyHint: {
+      en: "Save a job from the job list to start tracking it.",
+      id: "Simpan lowongan dari daftar untuk mulai melacaknya.",
+      ja: "求人リストから保存すると、ここで管理できます。",
     },
   },
 

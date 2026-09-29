@@ -53,19 +53,14 @@ const ALLOWED: Record<string, { rules: Rule[]; reason: string }> = {
 };
 
 /** Files the migration hasn't reached. Each area task deletes its own. */
-const NOT_YET_MIGRATED: Record<string, string> = {
-  // Rebuilt by spec 3 (the job pipeline), not migrated here.
-  "app/dashboard/jobs/applications/page.tsx": "Rebuilt in spec 3",
-};
+const NOT_YET_MIGRATED: Record<string, string> = {};
 
 /**
  * Translated strings that still carry an arrow or emoji. A glyph inside the
  * copy dodges the file scan above, so the strings are checked too: the page
  * draws the arrow as a lucide icon instead. Each area task deletes its own.
  */
-const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {
-  "jobs.jobBoard": "Rebuilt in spec 3",
-};
+const STRINGS_NOT_YET_MIGRATED: Record<string, string> = {};
 
 /** Every "section.key" whose text, in any language, has a glyph. */
 function glyphStrings(): string[] {
@@ -199,10 +194,8 @@ describe("the design guard", () => {
   it("has migrated everything except the pages spec 3 rebuilds", () => {
     // The end state of the page migration. Spec 3 (the job pipeline) rebuilds
     // these on the design system and removes the last entries.
-    expect(Object.keys(NOT_YET_MIGRATED).sort()).toEqual([
-      "app/dashboard/jobs/applications/page.tsx",
-    ]);
-    expect(Object.keys(STRINGS_NOT_YET_MIGRATED)).toEqual(["jobs.jobBoard"]);
+    expect(Object.keys(NOT_YET_MIGRATED)).toEqual([]);
+    expect(Object.keys(STRINGS_NOT_YET_MIGRATED)).toEqual([]);
   });
 
   it.each(Object.entries(ALLOWED))("%s still needs its exception", (file, { rules }) => {
