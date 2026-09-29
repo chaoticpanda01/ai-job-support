@@ -1119,6 +1119,20 @@ export const translations = {
       id: "Tidak dapat memuat lamaran Anda untuk lowongan ini.",
       ja: "この求人の応募状況を読み込めませんでした。",
     },
+    pipelineLink: { en: "Pipeline", id: "Pipeline", ja: "パイプライン" },
+    save: { en: "Save", id: "Simpan", ja: "保存" },
+    saveJobLabel: { en: "Save {title}", id: "Simpan {title}", ja: "{title}を保存" },
+    deleteJobLabel: { en: "Delete {title}", id: "Hapus {title}", ja: "{title}を削除" },
+    noPostingsHint: {
+      en: "Translate a Japanese job posting to start your list.",
+      id: "Terjemahkan lowongan kerja berbahasa Jepang untuk memulai daftar Anda.",
+      ja: "日本語の求人を翻訳して、リストを作りましょう。",
+    },
+    noMatchesHint: {
+      en: "Try a different search, or clear the filters.",
+      id: "Coba pencarian lain, atau hapus filter.",
+      ja: "別の検索語を試すか、絞り込みを解除してください。",
+    },
   },
 
   // ---------------------------------------------------------------------------
