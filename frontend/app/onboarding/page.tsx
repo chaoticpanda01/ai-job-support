@@ -138,7 +138,7 @@ export default function OnboardingPage() {
     <main
       id="main-content"
       tabIndex={-1}
-      className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 focus:outline-none"
+      className="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4 pb-24 pt-4 focus:outline-none"
     >
       <div className="w-full max-w-lg rounded-xl border bg-card p-8 shadow-sm">
         {/* Progress header */}

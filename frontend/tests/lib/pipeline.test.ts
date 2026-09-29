@@ -213,7 +213,7 @@ describe("the stages after applying", () => {
     ["rejected", false],
     ["withdrawn", false],
     ["skipped", false],
-  ] as const)("%s → %s", (status, expected) => {
+  ] as const)("%s is an applied stage: %s", (status, expected) => {
     expect(isAppliedStage(status)).toBe(expected);
   });
 });
@@ -227,7 +227,7 @@ describe("having applied", () => {
     [{ status: "accepted", applied_at: null }, true],
     [{ status: "rejected", applied_at: "2026-09-01T00:00:00Z" }, true],
     [{ status: "withdrawn", applied_at: null }, false],
-  ] as const)("%o → %s", (over, expected) => {
+  ] as const)("%o counts as applied: %s", (over, expected) => {
     expect(hasApplied(app(over))).toBe(expected);
   });
 });

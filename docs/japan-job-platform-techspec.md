@@ -224,11 +224,11 @@ Response:
 | DELETE | `/jobs/{id}` | Soft-delete a posting (submitter only) |
 | POST | `/jobs/{id}/match` | Score a resume against this posting via Gemini. Upserts — calling again refreshes the score. |
 | POST | `/jobs/applications` | Save a job to the pipeline at `planning` status (shown as "Saved"). Idempotent — returns the existing row if one is already tracked for this job. |
-| GET | `/jobs/applications` | List the current user's tracked applications (the Pipeline board), newest change first. Supports a `?status=` filter with any of the nine status values; anything else is a 422. |
+| GET | `/jobs/applications` | List the current user's tracked applications (the Pipeline board), newest change first. Supports a `?status=` filter with any of the nine status values (an unknown value is a 422; an empty one means no filter). |
 | PATCH | `/jobs/applications/{id}` | Move an application along the pipeline and/or update its `notes`. A status change must be one of the allowed moves in [4.4.1](#441-application-pipeline); any other is a 422. |
 | DELETE | `/jobs/applications/{id}` | Remove a job from the pipeline |
 
-There is no separate saved-jobs feature: every posting a user has translated is listed via `GET /jobs`, and "Save" in the UI creates an application at `planning` through `POST /jobs/applications`. (The `saved_jobs` table exists in the schema, but nothing uses it.)
+There is no separate saved-jobs feature: every posting a user has translated is listed via `GET /jobs`, and "Save" in the UI creates an application at `planning` through `POST /jobs/applications`. (The `saved_jobs` table exists in the schema, and there is a model and repository for it, but no route uses it.)
 
 ⚠️ **Route order matters**: `/jobs/applications` and `/jobs/applications/{id}` must be registered *before* `/jobs/{job_id}` in `jobs.py`. FastAPI/Starlette matches routes by registration order, not specificity — `/{job_id}` is a single dynamic path segment that will otherwise swallow literal `/applications` requests first (`job_id="applications"` fails UUID parsing → 422). This was a real, previously-shipped bug; see `HANDOFF.md` Section 0/8.
 
@@ -284,7 +284,7 @@ Response (`MatchScoreResponse`):
   "user_id": "uuid",
   "job_posting_id": "uuid",
   "status": "rejected",
-  "applied_at": "2026-09-10T09:00:00Z",   // null until the job is applied for
+  "applied_at": "2026-09-10T09:00:00Z",   // null until the job is applied for, and again after stepping back to Preparing
   "notes": "Phone screen scheduled for next week",
   "closed_from": "interviewing",          // the stage a closed or skipped job left; null otherwise
   "created_at": "2026-09-01T12:00:00Z",
@@ -312,7 +312,7 @@ Each saved job travels one flow. Nine statuses are stored (`application_status`,
 
 The board has one column per forward stage. Archived jobs are listed under it and can be reopened.
 
-**Allowed moves.** Anything else is a 422 with the detail `Can't move an application from '<from>' to '<to>'.` Every forward stage can also step back one, to undo a mis-click.
+**Allowed moves.** Anything else is a 422 with the detail `Can't move an application from '<from>' to '<to>'.` Every forward stage except Saved can also step back one, to undo a mis-click.
 
 | From | May move to |
 |------|-------------|
@@ -333,7 +333,7 @@ The board has one column per forward stage. Archived jobs are listed under it an
 
 **One table, two copies.** The rules live in `backend/app/models/enums.py` (`APPLICATION_TRANSITIONS`, `allowed_moves`, `reopen_target`). The frontend mirrors them in `frontend/lib/pipeline.ts` to decide which buttons to show. Both are checked against `backend/tests/fixtures/application_transitions.json`, and `frontend/tests/invariants.test.ts` checks the TypeScript status type against the Python enum, so changing one side alone fails a test.
 
-**Stored in** `job_applications`: the three newer values (`preparing`, `accepted`, `skipped`) and the `closed_from` column came from migration `0011`. Postgres cannot drop enum values, so its downgrade moves rows back but leaves the values in the type. A frontend that sends a new status to a backend older than `0011` gets errors, so deploy the backend first.
+**Stored in** `job_applications`: the three newer values (`preparing`, `accepted`, `skipped`) and the `closed_from` column came from migration `0011`. Postgres cannot drop enum values, so its downgrade moves rows back but leaves the values in the type. A backend from before this change answers a new status with a 422. Render and Vercel both deploy from the same push to `main`, so for a few minutes after a push a new frontend can meet the old backend; land a backend change in an earlier push if that window matters.
 
 **What each stage points to (frontend).** Saved links to the match score on the job page. Preparing links to the tailored 履歴書 and 職務経歴書 for this job (marking one already made) and to the match gaps. Interviewing links to a new interview session pre-filled with the job's title and company. Offer and Accepted link to the visa guide, and Accepted also to the culture articles.
 

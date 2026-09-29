@@ -68,7 +68,8 @@ function optimisticFields(app: JobApplication, data: UpdateApplicationRequest) {
 
 /**
  * A move shows at once in every cached list; one the server refuses puts back
- * only that job, so a move made since isn't undone with it. The refetch brings
+ * only that job, and only the fields it changed, so a change made since isn't
+ * undone with it. The refetch brings
  * in what the server set (applied_at, closed_from), and waits for the last of
  * several quick moves, since until then the server's view of the others is old.
  */
@@ -93,11 +94,19 @@ export function useUpdateApplication() {
       );
       return { previous };
     },
-    onError: (_error, { id }, context) => {
+    onError: (_error, { id, data }, context) => {
       const previous = context?.previous;
       if (!previous) return;
+      // Only what this update changed goes back. The same job may have been changed
+      // again since (a note saved, a move made), and that stays.
+      const undo = Object.fromEntries(
+        Object.keys(optimisticFields(previous, data)).map((key) => [
+          key,
+          previous[key as keyof JobApplication],
+        ]),
+      ) as Partial<JobApplication>;
       queryClient.setQueriesData<JobApplication[]>({ queryKey: QK }, (apps) =>
-        apps?.map((app) => (app.id === id ? previous : app)),
+        apps?.map((app) => (app.id === id ? { ...app, ...undo } : app)),
       );
     },
     onSettled: () => {

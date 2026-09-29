@@ -200,6 +200,14 @@ describe("onboarding, where a returning user lands", () => {
   });
 });
 
+describe("onboarding, the page's bottom edge", () => {
+  it("leaves room under the card for the chat button, which is fixed over the corner", async () => {
+    // On a phone the card fills the screen, and its Continue button is at its bottom.
+    await renderPage();
+    expect(screen.getByRole("main")).toHaveClass("pb-24");
+  });
+});
+
 describe("onboarding, step 1 consent", () => {
   it("says where consent is withdrawn in one well-punctuated sentence", async () => {
     // It was built as text + " " + place + ".", which put a space after the

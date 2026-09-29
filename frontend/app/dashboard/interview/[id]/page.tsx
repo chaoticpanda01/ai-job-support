@@ -23,6 +23,7 @@ import { useBottomBarOffset } from "@/hooks/useBottomBarOffset";
 import { ApiClientError } from "@/lib/api-client";
 import { interviewTitle } from "@/lib/interview-labels";
 import { useLang } from "@/lib/language-context";
+import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import {
   INTERVIEW_SCORE_BANDS,
@@ -264,7 +265,9 @@ export default function InterviewSessionPage({ params }: Props) {
       <div
         ref={listRef}
         aria-busy={state.isStreaming}
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-6"
+        // Without the answer box (a finished session) nothing raises the chat button,
+        // so the end of the list, often the summary, needs room to scroll clear of it.
+        className={cn("min-h-0 flex-1 overflow-y-auto px-4 pt-6", isActive ? "pb-6" : "pb-24")}
       >
         <div className="mx-auto max-w-2xl space-y-6">
           {localMessages.map((msg) => (

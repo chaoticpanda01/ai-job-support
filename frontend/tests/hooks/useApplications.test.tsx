@@ -42,9 +42,10 @@ function setupMany(apps: JobApplication[]) {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     ),
   });
-  const statusOf = (id: string) =>
-    client.getQueryData<JobApplication[]>(KEY)?.find((a) => a.id === id)?.status;
-  return { result, settle, invalidate, statusOf };
+  const rowOf = (id: string) =>
+    client.getQueryData<JobApplication[]>(KEY)?.find((a) => a.id === id);
+  const statusOf = (id: string) => rowOf(id)?.status;
+  return { result, settle, invalidate, statusOf, rowOf };
 }
 
 afterEach(() => {
@@ -142,6 +143,38 @@ describe("useUpdateApplication", () => {
 
     expect(statusOf("a")).toBe("planning");
     expect(statusOf("b")).toBe("preparing");
+  });
+
+  it("puts back only what the refused update changed, on a job changed since", async () => {
+    const A = { id: "a", status: "planning", notes: null } as JobApplication;
+    const { result, settle, rowOf } = setupMany([A]);
+
+    // A notes save is in flight when the same job is moved; the save is then refused.
+    act(() => result.current.mutate({ id: "a", data: { notes: "call Friday" } }));
+    await waitFor(() => expect(rowOf("a")?.notes).toBe("call Friday"));
+    act(() => result.current.mutate({ id: "a", data: { status: "preparing" } }));
+    await waitFor(() => expect(rowOf("a")?.status).toBe("preparing"));
+
+    await act(async () => settle[0]?.fail(new ApiClientError(500, "no")));
+
+    expect(rowOf("a")?.notes).toBeNull();
+    expect(rowOf("a")?.status).toBe("preparing");
+  });
+
+  it("does the same the other way round: a refused move leaves notes saved since", async () => {
+    const A = { id: "a", status: "planning", notes: null } as JobApplication;
+    const { result, settle, rowOf } = setupMany([A]);
+
+    act(() => result.current.mutate({ id: "a", data: { status: "preparing" } }));
+    await waitFor(() => expect(rowOf("a")?.status).toBe("preparing"));
+    act(() => result.current.mutate({ id: "a", data: { notes: "call Friday" } }));
+    await waitFor(() => expect(rowOf("a")?.notes).toBe("call Friday"));
+
+    await act(async () => settle[0]?.fail(new ApiClientError(422, "no")));
+
+    expect(rowOf("a")?.status).toBe("planning");
+    expect(rowOf("a")?.closed_from ?? null).toBeNull();
+    expect(rowOf("a")?.notes).toBe("call Friday");
   });
 
   it("refetches once, after the last of several quick moves has settled", async () => {

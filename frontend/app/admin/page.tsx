@@ -160,7 +160,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="container py-8 focus:outline-none">
+      <main id="main-content" tabIndex={-1} className="container pb-24 pt-8 focus:outline-none">
         <PageHeader title="Admin panel" description="Users, culture topics and the glossary." />
         {/* Radix Tabs supplies the tablist/tab/tabpanel roles, aria-selected, and
             arrow-key navigation. Inactive panels render empty, so each tab's

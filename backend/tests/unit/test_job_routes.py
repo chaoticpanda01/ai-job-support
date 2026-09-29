@@ -29,6 +29,7 @@ from app.services.file_storage import StorageError
 from app.services.resume_parser import ParseError
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
+from sqlalchemy.dialects import postgresql
 
 from tests.conftest import make_profile, make_user
 
@@ -955,6 +956,34 @@ async def test_update_application_ignores_fields_it_does_not_own() -> None:
 
     assert resp.status_code == 200
     update.assert_awaited_once_with(application, notes="x")
+
+
+@pytest.mark.asyncio
+async def test_update_application_locks_the_row_it_moves() -> None:
+    # Two moves at once are handled one after the other, so the second reads the first's
+    # result and is checked against it. The mocked session never runs SQL, so this
+    # reads the statement the route built.
+    user = make_user()
+    application = _mock_application(user_id=user.id)
+    with (
+        _bypass_middleware(user),
+        _fake_db_session(scalar_results=[application, application]) as session,
+        patch(
+            "app.repositories.job.JobApplicationRepository.update",
+            new=AsyncMock(return_value=application),
+        ),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/jobs/applications/{application.id}",
+                headers=_auth_headers(),
+                json={"status": "preparing"},
+            )
+
+    assert resp.status_code == 200
+    select_moved = session.scalar.await_args_list[0].args[0]
+    sql = str(select_moved.compile(dialect=postgresql.dialect()))
+    assert "FOR UPDATE OF job_applications" in sql
 
 
 @pytest.mark.asyncio

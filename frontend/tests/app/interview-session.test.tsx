@@ -287,6 +287,15 @@ describe("interview session page, an active session", () => {
     expect(screen.getByText(iv("statusActive"))).toBeInTheDocument();
   });
 
+  it("keeps the list's ordinary padding while the answer box is there", async () => {
+    // The answer box raises the chat button above itself, so the list needs no extra room.
+    await renderPage();
+
+    const list = screen.getByText("I fixed an N+1 query.").closest("[aria-busy]");
+    expect(list).toHaveClass("pb-6");
+    expect(list).not.toHaveClass("pb-24");
+  });
+
   it("cancels the dashboard's padding, top and bottom, so the chat fills the screen", async () => {
     // The layout pads the page 2rem above and 6rem below (room for the chat button).
     // Cancelling less than that makes the page taller than the screen, and the window
@@ -586,6 +595,13 @@ describe("interview session page, the feedback on an answer", () => {
 });
 
 describe("interview session page, the end-of-session summary", () => {
+  it("leaves room under a finished session for the chat button", async () => {
+    await renderPage(query({ data: { ...SESSION, status: "completed" } }));
+
+    const list = screen.getByText("I fixed an N+1 query.").closest("[aria-busy]");
+    expect(list).toHaveClass("pb-24");
+  });
+
   const WITH_SUMMARY = stream({ state: { summary: SUMMARY } });
 
   it("shows the score and the written feedback", async () => {
