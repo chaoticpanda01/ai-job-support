@@ -42,9 +42,9 @@ import type {
 const MAX_ANSWER_LENGTH = 4000;
 
 // The chat fills the screen below the phone top bar (see globals.css), and
-// -my-8 cancels the dashboard main's py-8, so the window never scrolls and the
-// header stays in view.
-const FULL_HEIGHT = "h-below-top-bar -my-8 flex flex-col";
+// -mt-8 -mb-24 cancel the dashboard main's pt-8 and pb-24 (app/dashboard/layout.tsx),
+// so the window never scrolls and the header stays in view.
+const FULL_HEIGHT = "h-below-top-bar -mb-24 -mt-8 flex flex-col";
 
 interface Props {
   params: Promise<{ id: string }>;

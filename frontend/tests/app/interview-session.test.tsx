@@ -287,6 +287,16 @@ describe("interview session page, an active session", () => {
     expect(screen.getByText(iv("statusActive"))).toBeInTheDocument();
   });
 
+  it("cancels the dashboard's padding, top and bottom, so the chat fills the screen", async () => {
+    // The layout pads the page 2rem above and 6rem below (room for the chat button).
+    // Cancelling less than that makes the page taller than the screen, and the window
+    // scrolls again.
+    const { container } = await renderPage();
+
+    const root = container.querySelector(".h-below-top-bar");
+    expect(root).toHaveClass("-mt-8", "-mb-24");
+  });
+
   it("scrolls only the message list to the newest message", async () => {
     await renderPage();
 

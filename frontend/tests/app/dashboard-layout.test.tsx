@@ -107,6 +107,13 @@ describe("dashboard shell", () => {
     expect(screen.getByRole("main")).toHaveTextContent("page body");
   });
 
+  it("leaves room under the page for the chat button, which is fixed over its bottom corner", () => {
+    // The button covers the bottom 5rem of the screen (bottom-6 plus h-14), and the
+    // interview page's -mb-24 cancels this padding, so the two have to agree.
+    renderLayout();
+    expect(screen.getByRole("main")).toHaveClass("pb-24");
+  });
+
   it("labels the main navigation", () => {
     renderLayout();
     expect(screen.getByRole("navigation", { name: n("main") })).toBeInTheDocument();

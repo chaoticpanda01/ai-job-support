@@ -25,10 +25,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar open={menuOpen} onOpenChange={setMenuOpen} />
+        {/* pb-24 leaves room under the page for the chat button, which is fixed over
+            the bottom 5rem of the screen; with less, the last row of a page can't be
+            scrolled clear of it. The interview session cancels this with -mb-24. */}
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10"
+          className="flex-1 px-4 pb-24 pt-8 focus:outline-none sm:px-6 lg:px-10"
         >
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
