@@ -1100,6 +1100,25 @@ export const translations = {
       id: "Tolak tawaran ini?",
       ja: "この内定を辞退しますか？",
     },
+    stagePanelTitle: { en: "Your application", id: "Lamaran Anda", ja: "応募状況" },
+    stageStepsLabel: { en: "Application stages", id: "Tahapan lamaran", ja: "応募の段階" },
+    savePrompt: {
+      en: "Save this job to track it through your applications.",
+      id: "Simpan lowongan ini untuk melacak lamaran Anda.",
+      ja: "この求人を保存して、応募状況を管理しましょう。",
+    },
+    saveToPipeline: { en: "Save to pipeline", id: "Simpan ke pipeline", ja: "パイプラインに保存" },
+    movedOn: {
+      en: "Moved here on {date}.",
+      id: "Dipindahkan ke sini pada {date}.",
+      ja: "{date}にこの段階へ移動しました。",
+    },
+    docMade: { en: "Made", id: "Sudah dibuat", ja: "作成済み" },
+    stageLoadError: {
+      en: "Couldn't load your application for this job.",
+      id: "Tidak dapat memuat lamaran Anda untuk lowongan ini.",
+      ja: "この求人の応募状況を読み込めませんでした。",
+    },
   },
 
   // ---------------------------------------------------------------------------
