@@ -412,7 +412,8 @@ async def update_application(
     (app.models.enums), or a 422 names the refused move. Sending the current
     status again changes nothing, so a repeated click is harmless. Archiving
     records the stage the job left in closed_from; reopening returns it there
-    and clears it.
+    and clears it. applied_at is stamped the first time a job is applied, and
+    cleared if that is undone by stepping back to Preparing.
     """
     from datetime import datetime
 
@@ -429,6 +430,10 @@ async def update_application(
             JobApplication.user_id == current_user.user_id,
         )
         .options(selectinload(JobApplication.job_posting))
+        # Two moves at once are handled one after the other, so the second reads the
+        # first's result and is checked against it, instead of both passing on the
+        # same starting status.
+        .with_for_update(of=JobApplication)
     )
     if app is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
@@ -447,11 +452,14 @@ async def update_application(
                 ),
             )
         kwargs["status"] = new_status
-        if new_status in ARCHIVED_STATUSES:
-            kwargs["closed_from"] = app.status
-        elif app.status in ARCHIVED_STATUSES:
-            kwargs["closed_from"] = None
-        if new_status == ApplicationStatus.applied and app.applied_at is None:
+        # Archiving records the stage the job left. Any other move clears it, so
+        # a value left by a request that raced this one can't outlive the move.
+        kwargs["closed_from"] = app.status if new_status in ARCHIVED_STATUSES else None
+        if app.status == ApplicationStatus.applied and new_status == ApplicationStatus.preparing:
+            # Back is how a mis-clicked "applied" is undone, so it forgets the date
+            # too. Otherwise Home and the board would go on saying the user applied.
+            kwargs["applied_at"] = None
+        elif new_status == ApplicationStatus.applied and app.applied_at is None:
             kwargs["applied_at"] = datetime.now(tz=UTC)
 
     if body.notes is not None:

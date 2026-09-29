@@ -31,7 +31,10 @@ vi.mock("@/hooks/useApplications", () => ({
   useApplications: () => apps.current,
   useCreateApplication: () => ({
     isPending: false,
-    mutate: (vars: unknown) => created.calls.push(vars),
+    mutate: (vars: unknown, opts?: { onSuccess?: () => void }) => {
+      created.calls.push(vars);
+      opts?.onSuccess?.();
+    },
   }),
 }));
 vi.mock("@/components/confirm-dialog-provider", () => ({
@@ -160,6 +163,12 @@ describe("jobs list, a job", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Save Backend Engineer" }));
     expect(created.calls).toEqual([{ job_posting_id: "job-1" }]);
+  });
+
+  it("puts focus on the job once it is saved, as the button goes", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Save Backend Engineer" }));
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Backend Engineer" }));
   });
 
   it("shows a tracked job's stage instead of Save", () => {

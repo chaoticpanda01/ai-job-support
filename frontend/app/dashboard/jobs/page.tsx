@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Briefcase, Trash2 } from "lucide-react";
@@ -171,6 +171,7 @@ function JobRow({
   const { toast } = useToast();
   const remove = useDeleteJob();
   const save = useCreateApplication();
+  const titleRef = useRef<HTMLAnchorElement>(null);
   const sd = job.structured_data;
   const title = jobTitle(job) ?? t("jobs", "untitled", lang);
   const score =
@@ -196,6 +197,7 @@ function JobRow({
       <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <Link
+            ref={titleRef}
             href={`/dashboard/jobs/${job.id}` as Route}
             // Only the untranslated original title is in the job's own language.
             lang={!job.translated_title && job.original_title ? job.original_language : undefined}
@@ -250,6 +252,8 @@ function JobRow({
                     save.mutate(
                       { job_posting_id: job.id },
                       {
+                        // The button is replaced by the stage badge, so focus moves to the job.
+                        onSuccess: () => titleRef.current?.focus(),
                         onError: () =>
                           toast({
                             variant: "destructive",

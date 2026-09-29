@@ -136,7 +136,10 @@ function useMove(onMoved: () => void) {
       await update.mutateAsync({ id: application.id, data: { status: to } });
       onMoved();
     } catch {
-      // Put back by the hook; `update.error` says why.
+      // Put back by the hook, and `error` says why. The button that was clicked
+      // may have been unmounted by the move's swap and its rollback, so focus goes
+      // to the heading, above the message, instead of being left on <body>.
+      onMoved();
     } finally {
       setPending(null);
     }
@@ -204,7 +207,9 @@ function ForwardStage({
         {others.map((to) => moveButton(to, "secondary"))}
         {back && moveButton(back, "ghost")}
       </div>
-      {error && <Alert>{apiErrorMessage(error, lang)}</Alert>}
+      {error && (
+        <Alert>{apiErrorMessage(error, lang, { 422: t("jobs", "moveStale", lang) })}</Alert>
+      )}
     </>
   );
 }
@@ -256,7 +261,9 @@ function ArchivedStage({
       >
         {moveLabel(application.status, target, lang)}
       </Button>
-      {error && <Alert>{apiErrorMessage(error, lang)}</Alert>}
+      {error && (
+        <Alert>{apiErrorMessage(error, lang, { 422: t("jobs", "moveStale", lang) })}</Alert>
+      )}
     </>
   );
 }

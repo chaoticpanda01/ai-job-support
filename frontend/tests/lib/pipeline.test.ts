@@ -12,6 +12,7 @@ import {
   confirmKey,
   forwardCounts,
   hasApplied,
+  isAppliedStage,
   movesFor,
   moveLabel,
   reopenTarget,
@@ -198,6 +199,22 @@ describe("documents made for a job", () => {
       "job-1",
     );
     expect([...made]).toEqual(["rirekisho"]);
+  });
+});
+
+describe("the stages after applying", () => {
+  it.each([
+    ["planning", false],
+    ["preparing", false],
+    ["applied", true],
+    ["interviewing", true],
+    ["offered", true],
+    ["accepted", true],
+    ["rejected", false],
+    ["withdrawn", false],
+    ["skipped", false],
+  ] as const)("%s → %s", (status, expected) => {
+    expect(isAppliedStage(status)).toBe(expected);
   });
 });
 

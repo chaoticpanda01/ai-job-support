@@ -20,10 +20,12 @@ import {
   useUpdateApplication,
 } from "@/hooks/useApplications";
 import { useToast } from "@/hooks/use-toast";
+import { ApiClientError } from "@/lib/api-client";
 import { useLang } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import {
   FORWARD_STAGES,
+  isAppliedStage,
   isForward,
   moveLabel,
   reopenTarget,
@@ -63,10 +65,17 @@ export default function PipelinePage() {
 
   const move: MoveFn = (app, to) => {
     setFocus({ id: app.id, status: to });
-    update.mutateAsync({ id: app.id, data: { status: to } }).catch(() => {
-      // The hook has put the card back; follow it there and say why.
+    update.mutateAsync({ id: app.id, data: { status: to } }).catch((error: unknown) => {
+      // The hook has put the card back; follow it there and say why. A refused
+      // move means the job changed elsewhere, which the refetch then shows.
       setFocus({ id: app.id, status: app.status });
-      toast({ variant: "destructive", description: t("common", "updateFailed", lang) });
+      toast({
+        variant: "destructive",
+        description:
+          error instanceof ApiClientError && error.status === 422
+            ? t("jobs", "moveStale", lang)
+            : t("common", "updateFailed", lang),
+      });
     });
   };
 
@@ -146,10 +155,16 @@ function StageColumn({
 }) {
   const { lang } = useLang();
   const headingId = `stage-${stage}`;
+  const headingRef = useRef<HTMLHeadingElement>(null);
   return (
     <section aria-labelledby={headingId} className="rounded-lg border bg-secondary p-3">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id={headingId} className="text-sm font-semibold">
+        <h2
+          ref={headingRef}
+          id={headingId}
+          tabIndex={-1}
+          className="text-sm font-semibold focus:outline-none"
+        >
           {stageName(stage, lang)}
         </h2>
         <Badge className="tabular-nums">{apps.length}</Badge>
@@ -159,7 +174,12 @@ function StageColumn({
       ) : (
         <ul className="space-y-2">
           {apps.map((app) => (
-            <PipelineCard key={app.id} app={app} onMove={onMove} />
+            <PipelineCard
+              key={app.id}
+              app={app}
+              onMove={onMove}
+              onRemoved={() => headingRef.current?.focus()}
+            />
           ))}
         </ul>
       )}
@@ -181,7 +201,16 @@ function TitleLink({ app }: { app: JobApplication }) {
   );
 }
 
-function PipelineCard({ app, onMove }: { app: JobApplication; onMove: MoveFn }) {
+function PipelineCard({
+  app,
+  onMove,
+  onRemoved,
+}: {
+  app: JobApplication;
+  onMove: MoveFn;
+  /** The card goes with the button that was clicked, so focus has to go somewhere. */
+  onRemoved: () => void;
+}) {
   const { lang } = useLang();
   const confirmDialog = useConfirm();
   const { toast } = useToast();
@@ -227,15 +256,20 @@ function PipelineCard({ app, onMove }: { app: JobApplication; onMove: MoveFn }) 
     });
     if (!ok) return;
     remove.mutate(app.id, {
-      onSuccess: () => toast({ variant: "success", description: t("common", "deleted", lang) }),
+      onSuccess: () => {
+        toast({ variant: "success", description: t("common", "deleted", lang) });
+        onRemoved();
+      },
       onError: () =>
         toast({ variant: "destructive", description: t("common", "deleteFailed", lang) }),
     });
   }
 
-  const appliedDate = app.applied_at
-    ? new Date(app.applied_at).toLocaleDateString(lang, { day: "numeric", month: "short" })
-    : null;
+  // Only from Applied on: an older date left on a job that went back isn't one.
+  const appliedDate =
+    isAppliedStage(app.status) && app.applied_at
+      ? new Date(app.applied_at).toLocaleDateString(lang, { day: "numeric", month: "short" })
+      : null;
   const notesId = `notes-${app.id}`;
 
   return (

@@ -87,6 +87,27 @@ helps with it.
    closed job read "Reopen at Saved" until the refetch. Both have tests with
    the real hooks (`stage-panel-moves.test.tsx`, `useApplications.test.tsx`);
    the first two fail against the Task 4 panel.
+7. **Review fixes (made after the spec 3 review).**
+   - **`applied_at` on Back.** Stepping back from Applied to Preparing now
+     clears `applied_at` (server and optimistic update), and the board dates a
+     card only from Applied on. The spec said the date is set "the first time"
+     and never cleared; but Back is how a mis-clicked "Mark as applied" is
+     undone, and leaving it made Home and the board say the user had applied.
+   - **`closed_from`** is cleared on every move that isn't archiving, and the
+     PATCH route locks the row (`FOR UPDATE`), so two tabs can't leave a stale
+     value or both pass on the same starting status.
+   - **Focus:** a refused move, a saved job, and a removed board card all put
+     focus back somewhere (the panel heading, the job's title, the stage's
+     heading), where before the button that had it was gone.
+   - **Optimistic updates** roll back only the refused job, and refetch once
+     the last of several quick moves has settled. Saving adds the new row to
+     the cache before the refetch.
+   - **Job detail** puts the stage panel first in the document and lets the
+     grid place it, instead of `max-lg:contents` + `order-first`, so tab order
+     matches what is seen.
+   - **A refused move** says the job changed elsewhere (`moveStale`) rather
+     than "invalid input"; the new Indonesian strings use "kamu" like the rest
+     of the app.
 
 ---
 

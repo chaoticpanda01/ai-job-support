@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/lib/language-context";
 import type { JobApplication } from "@/types/api";
 
 const apps = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-const update = vi.hoisted(() => ({ calls: [] as unknown[], fail: false }));
+const update = vi.hoisted(() => ({ calls: [] as unknown[], fail: false, error: null as unknown }));
 const removed = vi.hoisted(() => ({ calls: [] as unknown[] }));
 const toasts = vi.hoisted(() => ({
   calls: [] as Array<{ variant?: string; description?: string }>,
@@ -18,12 +18,17 @@ vi.mock("@/hooks/useApplications", () => ({
   useUpdateApplication: () => ({
     mutateAsync: (vars: unknown) => {
       update.calls.push(vars);
-      return update.fail ? Promise.reject(new Error("refused")) : Promise.resolve(vars);
+      return update.fail
+        ? Promise.reject(update.error ?? new Error("refused"))
+        : Promise.resolve(vars);
     },
   }),
   useDeleteApplication: () => ({
     isPending: false,
-    mutate: (id: string) => removed.calls.push(id),
+    mutate: (id: string, opts?: { onSuccess?: () => void }) => {
+      removed.calls.push(id);
+      opts?.onSuccess?.();
+    },
   }),
 }));
 vi.mock("@/hooks/use-toast", () => ({
@@ -80,6 +85,7 @@ beforeEach(() => {
   setApps([app()]);
   update.calls = [];
   update.fail = false;
+  update.error = null;
   removed.calls = [];
   toasts.calls = [];
 });
@@ -154,6 +160,28 @@ describe("pipeline board, the stages", () => {
     });
   });
 
+  it("explains a refusal as a job that changed elsewhere", async () => {
+    update.fail = true;
+    update.error = new ApiClientError(422, "Can't move");
+    renderPage();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Start preparing" })));
+    expect(toasts.calls).toContainEqual({
+      variant: "destructive",
+      description: j("moveStale"),
+    });
+  });
+
+  it("dates only a job that is at Applied or later", () => {
+    // Left over from before the server started clearing it on Back.
+    setApps([
+      app({ id: "a1", status: "preparing", applied_at: "2026-09-10T00:00:00Z" }),
+      app({ id: "a2", status: "applied", applied_at: "2026-09-11T00:00:00Z", job_title: "SRE" }),
+    ]);
+    renderPage();
+    expect(within(region("stagePreparing")).queryByText(/Sep 10/)).toBeNull();
+    expect(within(region("stageApplied")).getByText(/Sep 11/)).toBeInTheDocument();
+  });
+
   it("has no forward move once an offer is accepted", () => {
     setApps([app({ status: "accepted", applied_at: "2026-09-10T00:00:00Z" })]);
     renderPage();
@@ -194,6 +222,15 @@ describe("pipeline board, a card's notes and removal", () => {
       fireEvent.click(screen.getByRole("button", { name: "Remove Backend Engineer" })),
     );
     expect(removed.calls).toEqual(["a1"]);
+  });
+
+  it("puts focus on the stage's heading when a card is removed", async () => {
+    // The card unmounts with the button that was clicked.
+    renderPage();
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Remove Backend Engineer" })),
+    );
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: j("stagePlanning") }));
   });
 });
 

@@ -183,7 +183,8 @@ describe("stage panel, a job in the pipeline", () => {
   it("explains a refused move", () => {
     update.error = new ApiClientError(422, "Can't move");
     renderPanel([app()]);
-    expect(screen.getByRole("alert")).toHaveTextContent(t("common", "errorInvalidInput", LANG));
+    // A refused move means the job changed elsewhere, not that anything was typed wrong.
+    expect(screen.getByRole("alert")).toHaveTextContent(j("moveStale"));
   });
 });
 

@@ -239,9 +239,14 @@ const APPLIED_OR_LATER: readonly ApplicationStatus[] = [
   "accepted",
 ];
 
+/** A stage the job only reaches by applying. Closed and skipped jobs are not one: they left it. */
+export function isAppliedStage(status: ApplicationStatus): boolean {
+  return APPLIED_OR_LATER.includes(status);
+}
+
 /** Whether the user applied for this job: saving or preparing is not applying. */
 export function hasApplied(app: Pick<JobApplication, "status" | "applied_at">): boolean {
-  return app.applied_at !== null || APPLIED_OR_LATER.includes(app.status);
+  return app.applied_at !== null || isAppliedStage(app.status);
 }
 
 /** How many jobs sit in each forward stage, leaving out empty ones, in stage order. */

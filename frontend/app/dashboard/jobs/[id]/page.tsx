@@ -64,8 +64,17 @@ export default function JobDetailPage({ params }: Props) {
         description={sd ? [sd.company_name, sd.location].filter(Boolean).join(" · ") : undefined}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 space-y-6 lg:col-span-2">
+      {/* The stage panel comes first in the document, so it is first for the
+          keyboard and a screen reader as well as on phones. From lg up the grid
+          puts it and the cards below it in the right column, and the posting
+          spans that column's rows, with the last row taking up any extra height
+          so the cards stay together. */}
+      <div className="grid items-start gap-6 lg:grid-cols-3 lg:grid-rows-[repeat(4,auto)_1fr]">
+        <div className="min-w-0 lg:col-start-3">
+          <StagePanel job={job} />
+        </div>
+
+        <div className="min-w-0 space-y-6 lg:col-span-2 lg:col-start-1 lg:row-span-5 lg:row-start-1">
           {job.source_url && (
             <p className="text-xs text-muted-foreground">
               {t("jobs", "source", lang)}{" "}
@@ -76,16 +85,9 @@ export default function JobDetailPage({ params }: Props) {
           <TranslatedDescription job={job} />
         </div>
 
-        {/* Below lg these cards join the grid, so the stage panel can come first
-            instead of after the whole posting. From lg up this is a column. */}
-        <div className="min-w-0 max-lg:contents lg:space-y-6">
-          <div className="order-first min-w-0 lg:order-none">
-            <StagePanel job={job} />
-          </div>
-          <ScoreCard score={job.foreigner_friendliness_score} />
-          <MatchSection jobId={id} />
-          <JobIdCard jobId={id} />
-        </div>
+        <ScoreCard score={job.foreigner_friendliness_score} />
+        <MatchSection jobId={id} />
+        <JobIdCard jobId={id} />
       </div>
     </div>
   );
@@ -238,7 +240,7 @@ function ScoreCard({ score }: { score: number | null }) {
           : t("jobs", "veryDifficult", lang);
 
   return (
-    <Card className="min-w-0 p-5 text-center">
+    <Card className="min-w-0 p-5 text-center lg:col-start-3">
       <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t("jobs", "foreignerFriendly", lang)}
       </p>
@@ -260,7 +262,7 @@ function MatchSection({ jobId }: { jobId: string }) {
 
   return (
     // The stage panel's "check your match" links land here.
-    <Card id="match" className="min-w-0 scroll-mt-20">
+    <Card id="match" className="min-w-0 scroll-mt-20 lg:col-start-3">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{t("jobs", "matchScore", lang)}</CardTitle>
       </CardHeader>
@@ -389,7 +391,7 @@ function JobIdCard({ jobId }: { jobId: string }) {
   }
 
   return (
-    <Card className="min-w-0 space-y-2 p-5">
+    <Card className="min-w-0 space-y-2 p-5 lg:col-start-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t("jobs", "jobId", lang)}
       </p>

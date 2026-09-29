@@ -105,6 +105,11 @@ describe("stage panel, a move that swaps its view", () => {
 
     // Rolled back to the forward view, which is a fresh component.
     await screen.findByRole("button", { name: "Withdraw" });
-    expect(screen.getByRole("alert")).toHaveTextContent(t("common", "errorInvalidInput", LANG));
+    expect(screen.getByRole("alert")).toHaveTextContent(t("jobs", "moveStale", LANG));
+    // The clicked button was unmounted by the swap, so focus goes to the heading
+    // rather than being left on <body>.
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: t("jobs", "stagePanelTitle", LANG) }),
+    );
   });
 });

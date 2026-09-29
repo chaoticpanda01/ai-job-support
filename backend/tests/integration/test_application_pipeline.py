@@ -14,10 +14,14 @@ from collections.abc import AsyncIterator
 
 import pytest
 from app.database import AsyncSessionFactory
+from app.main import app
 from app.models.enums import ApplicationStatus, JobSourcePlatform, OriginalLanguage
 from app.models.job import JobApplication, JobPosting
 from app.models.user import User
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select, text
+
+from tests.integration._helpers import auth_headers, bypass_middleware
 
 pytestmark = pytest.mark.asyncio
 
@@ -92,3 +96,42 @@ async def test_a_row_holds_the_new_statuses_and_closed_from(
     assert stored is not None
     assert stored.status == status
     assert stored.closed_from == closed_from
+
+
+async def _move(user: User, application_id: uuid.UUID, status: str) -> tuple[int, dict]:
+    with bypass_middleware(user):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/v1/jobs/applications/{application_id}",
+                json={"status": status},
+                headers=auth_headers(),
+            )
+    return resp.status_code, resp.json()
+
+
+async def test_a_job_moves_through_the_real_route(world: _World) -> None:
+    # Runs the route's SELECT ... FOR UPDATE and every write against Postgres,
+    # which the route tests' mocked session never does.
+    async with AsyncSessionFactory() as session:
+        user = await session.get(User, world.user_id)
+        assert user is not None
+        await session.refresh(user)
+
+    status, body = await _move(user, world.application_id, "applied")
+    assert status == 200
+    assert body["applied_at"] is not None
+
+    # Back undoes a mis-clicked "applied": the date goes too.
+    status, body = await _move(user, world.application_id, "preparing")
+    assert (status, body["status"], body["applied_at"]) == (200, "preparing", None)
+
+    status, body = await _move(user, world.application_id, "withdrawn")
+    assert (status, body["closed_from"]) == (200, "preparing")
+
+    # Reopening returns to where it left, and clears closed_from.
+    status, body = await _move(user, world.application_id, "preparing")
+    assert (status, body["status"], body["closed_from"]) == (200, "preparing", None)
+
+    status, body = await _move(user, world.application_id, "offered")
+    assert status == 422
+    assert body["detail"] == "Can't move an application from 'preparing' to 'offered'."

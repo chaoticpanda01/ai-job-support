@@ -997,12 +997,12 @@ export const translations = {
     stageSkipped: { en: "Skipped", id: "Dilewati", ja: "見送り" },
     nextPlanning: {
       en: "Check how well you match, then start preparing.",
-      id: "Periksa kecocokan Anda, lalu mulai persiapan.",
+      id: "Periksa kecocokanmu, lalu mulai persiapan.",
       ja: "マッチ度を確認してから準備を始めましょう。",
     },
     nextPreparing: {
       en: "Tailor your documents to this job.",
-      id: "Sesuaikan dokumen Anda dengan lowongan ini.",
+      id: "Sesuaikan dokumenmu dengan lowongan ini.",
       ja: "この求人に合わせて書類を作成しましょう。",
     },
     nextApplied: {
@@ -1017,7 +1017,7 @@ export const translations = {
     },
     nextOffered: {
       en: "Check your visa options before you accept.",
-      id: "Periksa pilihan visa Anda sebelum menerima.",
+      id: "Periksa pilihan visamu sebelum menerima.",
       ja: "承諾する前にビザの選択肢を確認しましょう。",
     },
     nextAccepted: {
@@ -1064,11 +1064,11 @@ export const translations = {
       id: "Tolak tawaran ini?",
       ja: "この内定を辞退しますか？",
     },
-    stagePanelTitle: { en: "Your application", id: "Lamaran Anda", ja: "応募状況" },
+    stagePanelTitle: { en: "Your application", id: "Lamaranmu", ja: "応募状況" },
     stageStepsLabel: { en: "Application stages", id: "Tahapan lamaran", ja: "応募の段階" },
     savePrompt: {
       en: "Save this job to track it through your applications.",
-      id: "Simpan lowongan ini untuk melacak lamaran Anda.",
+      id: "Simpan lowongan ini untuk melacak lamaranmu.",
       ja: "この求人を保存して、応募状況を管理しましょう。",
     },
     saveToPipeline: { en: "Save to pipeline", id: "Simpan ke pipeline", ja: "パイプラインに保存" },
@@ -1080,7 +1080,7 @@ export const translations = {
     docMade: { en: "Made", id: "Sudah dibuat", ja: "作成済み" },
     stageLoadError: {
       en: "Couldn't load your application for this job.",
-      id: "Tidak dapat memuat lamaran Anda untuk lowongan ini.",
+      id: "Tidak dapat memuat lamaranmu untuk lowongan ini.",
       ja: "この求人の応募状況を読み込めませんでした。",
     },
     pipelineLink: { en: "Pipeline", id: "Pipeline", ja: "パイプライン" },
@@ -1089,7 +1089,7 @@ export const translations = {
     deleteJobLabel: { en: "Delete {title}", id: "Hapus {title}", ja: "{title}を削除" },
     noPostingsHint: {
       en: "Translate a Japanese job posting to start your list.",
-      id: "Terjemahkan lowongan kerja berbahasa Jepang untuk memulai daftar Anda.",
+      id: "Terjemahkan lowongan kerja berbahasa Jepang untuk memulai daftarmu.",
       ja: "日本語の求人を翻訳して、リストを作りましょう。",
     },
     noMatchesHint: {
@@ -1100,7 +1100,7 @@ export const translations = {
     pipelineTitle: { en: "Pipeline", id: "Pipeline", ja: "応募パイプライン" },
     pipelineSub: {
       en: "Every job you've saved, from first look to offer.",
-      id: "Semua lowongan yang Anda simpan, dari awal hingga tawaran.",
+      id: "Semua lowongan yang kamu simpan, dari awal hingga tawaran.",
       ja: "保存した求人を、最初の確認から内定まで管理します。",
     },
     findJobs: { en: "Find jobs", id: "Cari lowongan", ja: "求人を探す" },
@@ -1115,13 +1115,18 @@ export const translations = {
     saveNotes: { en: "Save notes", id: "Simpan catatan", ja: "メモを保存" },
     pipelineEmpty: {
       en: "No jobs in your pipeline yet",
-      id: "Belum ada lowongan di pipeline Anda",
+      id: "Belum ada lowongan di pipeline kamu",
       ja: "パイプラインにまだ求人がありません",
     },
     pipelineEmptyHint: {
       en: "Save a job from the job list to start tracking it.",
       id: "Simpan lowongan dari daftar untuk mulai melacaknya.",
       ja: "求人リストから保存すると、ここで管理できます。",
+    },
+    moveStale: {
+      en: "This job has changed elsewhere, so it is shown where it is now.",
+      id: "Lowongan ini berubah di tempat lain, jadi ditampilkan sesuai posisinya sekarang.",
+      ja: "この求人は別の場所で更新されたため、現在の状態を表示しています。",
     },
   },
 

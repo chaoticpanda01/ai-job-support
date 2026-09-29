@@ -355,7 +355,19 @@ describe("job detail page, the pipeline", () => {
       "data-job-id",
       JOB_ID,
     );
-    expect(screen.queryByText(j("addToTracker"))).not.toBeInTheDocument();
+    // The old "add to tracker" button, by its wording: its string is gone, so
+    // looking it up with t() would only search for the key's own name.
+    expect(screen.queryByRole("button", { name: /トラッカー/ })).not.toBeInTheDocument();
+  });
+
+  it("puts the stage panel ahead of the posting in the page", async () => {
+    // The layout can move it beside the posting, but the keyboard and a screen
+    // reader follow the document, where it should come first.
+    await renderPage(loadedJob());
+
+    const panel = screen.getByRole("region", { name: "stage panel" });
+    const details = screen.getByRole("heading", { name: j("jobDetails") });
+    expect(panel.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("gives the match section the anchor the stage links point at", async () => {
