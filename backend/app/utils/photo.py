@@ -15,9 +15,9 @@ import io
 from PIL import Image, ImageOps
 
 # Refused from the header, before any pixel is decoded. A JPEG is shrunk while
-# it is read (draft below), so phone-sized photos are cheap: ~6 MB extra at
-# 49 MP. A PNG has to be decoded whole, at ~9 MB per megapixel, so it gets a
-# much lower limit.
+# it is read (draft below): ~40 MB extra at 49 MP for a baseline file, ~190 MB
+# for a progressive one, whose coefficients libjpeg buffers whole. A PNG has
+# to be decoded whole, at ~9-12 MB per megapixel, so it gets a much lower limit.
 MAX_PIXELS = {"JPEG": 50_000_000, "PNG": 12_000_000}
 # Plenty for a 30x40 mm print at 600 dpi.
 PHOTO_MAX_SIDE = (1200, 1600)
@@ -39,7 +39,10 @@ def normalise_photo(file_bytes: bytes) -> tuple[bytes, str]:
     """
     try:
         with Image.open(io.BytesIO(file_bytes)) as img:
-            fmt = img.format or ""
+            # Cameras that embed an MPF segment (multi-picture: Samsung, Sony,
+            # portrait and gain-map shots) make Pillow report a JPEG as MPO.
+            # libmagic still calls it image/jpeg, so it passed the route's check.
+            fmt = "JPEG" if img.format == "MPO" else (img.format or "")
             if fmt not in _FORMATS:
                 raise InvalidPhotoError("Only JPEG and PNG images are accepted")
             limit = MAX_PIXELS[fmt]
@@ -60,7 +63,11 @@ def normalise_photo(file_bytes: bytes) -> tuple[bytes, str]:
             out.save(buf, format=fmt)
     except InvalidPhotoError:
         raise
-    except (OSError, ValueError, Image.DecompressionBombError) as exc:
+    except Image.DecompressionBombError as exc:
+        # Raised by Image.open itself for anything far past Pillow's own limit,
+        # before the explicit size check above can run.
+        raise InvalidPhotoError("Image is too large; use a smaller photo") from exc
+    except (OSError, ValueError) as exc:
         # UnidentifiedImageError is an OSError; truncated files are OSError too.
         raise InvalidPhotoError("The file is not a valid image") from exc
     return buf.getvalue(), _FORMATS[fmt]

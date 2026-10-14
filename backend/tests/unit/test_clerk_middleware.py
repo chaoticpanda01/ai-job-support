@@ -267,3 +267,31 @@ async def test_crafted_host_header_cannot_make_a_protected_path_look_public() ->
         )
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Missing or malformed Authorization header"
+
+
+@pytest.mark.asyncio
+async def test_crafted_host_header_cannot_skip_a_per_route_rate_limit() -> None:
+    """
+    RateLimiterMiddleware keys its per-route limits on the path too. With this
+    Host, request.url.path reads as an unlimited culture page, so the
+    translate limit would be skipped for a request that is routed to it.
+    """
+    checked: list[str] = []
+
+    async def fake_check(_redis: Any, key: str, _limit: int, _window: int) -> bool:
+        checked.append(key)
+        return True
+
+    with (
+        patch(
+            "app.middleware.rate_limiter.RateLimiterMiddleware._get_redis",
+            return_value=MagicMock(),
+        ),
+        patch("app.middleware.rate_limiter._check", new=fake_check),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post(
+                "/api/v1/jobs/translate", headers={"host": "test/api/v1/culture/topics?x="}
+            )
+
+    assert any(key.startswith("job_translate:") for key in checked), checked

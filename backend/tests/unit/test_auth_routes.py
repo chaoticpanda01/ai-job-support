@@ -22,6 +22,7 @@ from app.middleware import clerk_auth as clerk_auth_module
 from app.models.enums import UserRole
 from app.services.ai.usage_tracker import QuotaStatus
 from app.services.file_storage import StorageError
+from app.utils.photo import InvalidPhotoError, normalise_photo
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
@@ -394,6 +395,43 @@ async def test_upload_photo_rejects_huge_dimensions() -> None:
 
     assert resp.status_code == 415
     mock_upload.assert_not_called()
+
+
+def test_normalise_photo_accepts_a_multi_picture_jpeg() -> None:
+    """Pillow reports a JPEG carrying an MPF segment as MPO; libmagic says JPEG."""
+    buf = io.BytesIO()
+    first, second = Image.new("RGB", (400, 300), "white"), Image.new("RGB", (400, 300), "black")
+    first.save(buf, format="MPO", save_all=True, append_images=[second])
+
+    data, mime = normalise_photo(buf.getvalue())
+
+    assert mime == "image/jpeg"
+    with Image.open(io.BytesIO(data)) as img:
+        assert img.format == "JPEG"
+        assert getattr(img, "n_frames", 1) == 1
+
+
+def test_normalise_photo_applies_exif_rotation_and_drops_metadata() -> None:
+    src = Image.new("RGB", (400, 200), "white")
+    exif = Image.Exif()
+    exif[0x0112] = 6  # rotate 90 degrees clockwise to display
+    exif[0x010F] = "SomeCameraMaker"
+    buf = io.BytesIO()
+    src.save(buf, format="JPEG", exif=exif)
+
+    data, _ = normalise_photo(buf.getvalue())
+
+    with Image.open(io.BytesIO(data)) as img:
+        assert (img.width, img.height) == (200, 400)
+        assert len(img.getexif()) == 0
+
+
+def test_normalise_photo_rejects_a_truncated_jpeg() -> None:
+    buf = io.BytesIO()
+    Image.new("RGB", (800, 600), "white").save(buf, format="JPEG")
+
+    with pytest.raises(InvalidPhotoError):
+        normalise_photo(buf.getvalue()[:100])
 
 
 @pytest.mark.asyncio
