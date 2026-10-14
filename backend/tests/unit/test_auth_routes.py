@@ -6,8 +6,11 @@ DB calls and middleware are mocked so these run without a live database.
 
 from __future__ import annotations
 
+import io
 import json
+import struct
 import time
+import zlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -20,6 +23,7 @@ from app.models.enums import UserRole
 from app.services.ai.usage_tracker import QuotaStatus
 from app.services.file_storage import StorageError
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 
 from tests.conftest import make_profile, make_user
 
@@ -189,6 +193,13 @@ async def test_update_me_returns_updated_profile() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _tiny_image(fmt: str) -> bytes:
+    """A real 8x8 image: the photo route decodes what it is sent."""
+    buf = io.BytesIO()
+    Image.new("RGB", (8, 8), "white").save(buf, format=fmt)
+    return buf.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_upload_photo_saves_key_and_returns_presigned_url() -> None:
     user = make_user()
@@ -220,7 +231,7 @@ async def test_upload_photo_saves_key_and_returns_presigned_url() -> None:
             resp = await client.post(
                 "/api/v1/auth/me/photo",
                 headers=_auth_headers(),
-                files={"file": ("photo.jpg", b"fake jpeg bytes", "image/jpeg")},
+                files={"file": ("photo.jpg", _tiny_image("JPEG"), "image/jpeg")},
             )
 
     assert resp.status_code == 200
@@ -263,7 +274,7 @@ async def test_upload_photo_deletes_old_photo_on_replace() -> None:
             resp = await client.post(
                 "/api/v1/auth/me/photo",
                 headers=_auth_headers(),
-                files={"file": ("photo.png", b"fake png bytes", "image/png")},
+                files={"file": ("photo.png", _tiny_image("PNG"), "image/png")},
             )
 
     assert resp.status_code == 200
@@ -302,7 +313,7 @@ async def test_upload_photo_succeeds_even_if_old_photo_delete_fails() -> None:
             resp = await client.post(
                 "/api/v1/auth/me/photo",
                 headers=_auth_headers(),
-                files={"file": ("photo.jpg", b"fake jpeg bytes", "image/jpeg")},
+                files={"file": ("photo.jpg", _tiny_image("JPEG"), "image/jpeg")},
             )
 
     assert resp.status_code == 200
@@ -340,6 +351,104 @@ async def test_upload_photo_too_large_returns_413() -> None:
             )
 
     assert resp.status_code == 413
+
+
+def _big_png(side: int) -> bytes:
+    """A solid-colour PNG: tiny on the wire, huge once decoded."""
+    comp = zlib.compressobj(9)
+    row = b"\x00" + b"\x80" * (side * 3)
+    data = b"".join(comp.compress(row) for _ in range(side)) + comp.flush()
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(body))
+            + kind
+            + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", side, side, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", data)
+        + chunk(b"IEND", b"")
+    )
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_rejects_huge_dimensions() -> None:
+    user = make_user()
+    bomb = _big_png(4000)  # 16 MP: over the PNG limit, ~50 KB on the wire
+    assert len(bomb) < 5 * 1024 * 1024
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.file_storage.upload_photo") as mock_upload,
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.png", bomb, "image/png")},
+            )
+
+    assert resp.status_code == 415
+    mock_upload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_rejects_undecodable_image() -> None:
+    user = make_user()
+
+    with (
+        _bypass_middleware(user),
+        patch("app.api.v1.auth.magic.from_buffer", return_value="image/jpeg"),
+        patch("app.api.v1.auth.file_storage.upload_photo") as mock_upload,
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.jpg", b"not really a jpeg", "image/jpeg")},
+            )
+
+    assert resp.status_code == 415
+    mock_upload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_upload_photo_stores_a_downscaled_copy() -> None:
+    user = make_user()
+    profile = make_profile(user_id=user.id)
+    user.profile = profile
+    big = io.BytesIO()
+    Image.new("RGB", (3000, 4000), "white").save(big, format="JPEG")
+
+    with (
+        _bypass_middleware(user),
+        patch(
+            "app.api.v1.auth.ProfileRepository.get_or_create",
+            new=AsyncMock(return_value=(profile, False)),
+        ),
+        patch(
+            "app.api.v1.auth.file_storage.upload_photo", return_value="photos/u/x.jpg"
+        ) as mock_upload,
+        patch("app.api.v1.auth.ProfileRepository.update", new=AsyncMock(return_value=profile)),
+        patch("app.api.v1.auth.file_storage.presigned_url", return_value="https://s3/x"),
+        patch("app.api.v1.auth.UserRepository.get_with_profile", new=AsyncMock(return_value=user)),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/me/photo",
+                headers=_auth_headers(),
+                files={"file": ("photo.jpg", big.getvalue(), "image/jpeg")},
+            )
+
+    assert resp.status_code == 200
+    stored = mock_upload.call_args.kwargs
+    assert stored["mime_type"] == "image/jpeg"
+    with Image.open(io.BytesIO(stored["file_bytes"])) as img:
+        assert img.width <= 1200 and img.height <= 1600
 
 
 # ---------------------------------------------------------------------------

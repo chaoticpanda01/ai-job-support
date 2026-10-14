@@ -103,7 +103,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         method = request.method
-        path = request.url.path
+        # scope["path"] is the path the router matches. request.url is rebuilt
+        # from the Host header, so a crafted Host can make request.url.path read
+        # as a public route while the request is routed to a protected one.
+        path = request.scope["path"]
 
         # --- Bypass ---
         if (method, path) in _BYPASS_PATHS:

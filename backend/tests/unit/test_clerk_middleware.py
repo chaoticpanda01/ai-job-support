@@ -247,3 +247,23 @@ async def test_validate_token_raises_when_kid_not_found() -> None:
         pytest.raises(jwt.InvalidTokenError),
     ):
         await clerk_auth_module._validate_token("whatever")
+
+
+# ---------------------------------------------------------------------------
+# Public-path decisions use the routed path, not the Host-derived URL
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_crafted_host_header_cannot_make_a_protected_path_look_public() -> None:
+    """
+    request.url is rebuilt from the Host header, so this Host makes
+    request.url.path read as a public culture page while the router still
+    dispatches /api/v1/auth/me. The middleware must judge the routed path.
+    """
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get(
+            "/api/v1/auth/me", headers={"host": "test/api/v1/culture/topics?x="}
+        )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Missing or malformed Authorization header"

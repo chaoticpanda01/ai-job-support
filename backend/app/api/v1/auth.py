@@ -10,6 +10,7 @@ GET  /auth/users     — list all users (admin only)
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 from uuid import UUID
@@ -37,6 +38,7 @@ from app.schemas.user import (
 from app.services.ai.usage_tracker import usage_tracker
 from app.services.file_storage import StorageError, file_storage, sanitize_filename
 from app.services.rirekisho_completeness import rirekisho_missing_fields
+from app.utils.photo import InvalidPhotoError, normalise_photo
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +212,15 @@ async def upload_my_photo(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Only JPEG and PNG images are accepted",
         )
+
+    # libmagic only sniffs the type. Bound the pixel size and store a downscaled
+    # re-encode, so PDF generation can't be made to decode a huge bitmap.
+    try:
+        file_bytes, detected_mime = await asyncio.to_thread(normalise_photo, file_bytes)
+    except InvalidPhotoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc)
+        ) from exc
 
     profile_repo = ProfileRepository(db)
     profile, _ = await profile_repo.get_or_create(current_user.user_id)
